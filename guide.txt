@@ -1,0 +1,2 @@
+git lfs install : 대용량 파일 관리 설치
+git lfs track "*.psd" .psd 확장자는 git lfs로 관리하겠다
