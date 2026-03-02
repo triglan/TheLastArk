@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
+  m_Name: Guardian_data
+  m_EditorClassIdentifier: 
+  characterName: 
+  standingSprite: {fileID: 21300000, guid: 49211f06060980d4c935badec953db2e, type: 3}
+  portraitSprite: {fileID: 21300000, guid: 05b8db5d0d0834149ba1faf724ac1d15, type: 3}
+  maxHp: 200
+  maxMental: 200
+  baseAttack: 25
+  skills:
+  - {fileID: 11400000, guid: f56af73d75a2a5347ba6b5f89956a0e2, type: 2}
+  - {fileID: 11400000, guid: a465cf4bdc5b2954aa6556ccf501d493, type: 2}
+  - {fileID: 11400000, guid: d565eb4821b4d7647bd41687be16978c, type: 2}
+  - {fileID: 11400000, guid: ec8b9a816f0425040a694c217d3bce97, type: 2}
