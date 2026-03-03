@@ -4,8 +4,11 @@ using System.Collections.Generic;
 public class BattleSkillManager : MonoBehaviour
 {
     [Header("References")]
-    public List<BattleCharacter> playerParty; // 아군 4명을 드래그해서 넣으세요
-    public List<SkillSlotUI> allSlots;       // 16개 슬롯을 드래그해서 넣으세요
+    public List<BattleCharacter> playerParty;
+
+    // 이제 16개를 하나로 담지 않고, 캐릭터별 '그룹' 단위로 관리합니다.
+    // 각 리스트 안에는 4개의 슬롯이 들어있어야 합니다.
+    public List<SkillGroupUI> skillGroups;
 
     public void LinkSkillsToUI()
     {
@@ -15,29 +18,20 @@ public class BattleSkillManager : MonoBehaviour
 
     public void RefreshSkillGrid()
     {
-        int slotIndex = 0;
-
-        // 1. 모든 아군을 순회 (최대 4명)
-        foreach (var character in playerParty)
+        // 1. 모든 캐릭터 그룹을 순회 (최대 4개 그룹)
+        for (int i = 0; i < skillGroups.Count; i++)
         {
-            if (character == null || character.status.origin == null) continue;
-
-            // 2. 해당 캐릭터의 스킬 리스트 순회 (최대 4개)
-            foreach (var skill in character.status.origin.skills)
+            // 해당 순서에 캐릭터가 있다면 스킬을 채우고, 없으면 그룹 전체를 끕니다.
+            if (i < playerParty.Count && playerParty[i] != null)
             {
-                if (slotIndex < allSlots.Count)
-                {
-                    // 3. 슬롯에 데이터 주입
-                    allSlots[slotIndex].SetSlot(skill, character);
-                    slotIndex++;
-                }
+                skillGroups[i].gameObject.SetActive(true);
+                // 에러 해결: .skills를 .activeSkills로 변경
+                skillGroups[i].SetupGroup(playerParty[i].status.origin.activeSkills, playerParty[i]);
             }
-        }
-
-        // 4. 남은 빈 슬롯들은 비활성화
-        for (int i = slotIndex; i < allSlots.Count; i++)
-        {
-            allSlots[i].SetSlot(null, null);
+            else
+            {
+                skillGroups[i].gameObject.SetActive(false);
+            }
         }
     }
 }

@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c34a41152b645c4429c40e23b35b038b, type: 3}
   m_Name: Warrior_Skill 1
   m_EditorClassIdentifier: 
-  skillName: "\uAC00\uB974\uAE30"
+  skillName: Warrior_Skill 1
   skillIcon: {fileID: 21300000, guid: 2e670b5fbcfe6f14391635f8ae1f3969, type: 3}
-  baseCost: 1
-  isOneTime: 0
+  baseCost: 2
   targetType: 0
   effects: []

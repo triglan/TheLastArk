@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c34a41152b645c4429c40e23b35b038b, type: 3}
   m_Name: Guardian_Skill 0
   m_EditorClassIdentifier: 
-  skillName: "\uAC00\uB974\uAE30"
+  skillName: Guardian_Skill 0
   skillIcon: {fileID: 21300000, guid: 7df6fe787e2d9c54482819a91855c13e, type: 3}
-  baseCost: 0
-  isOneTime: 0
+  baseCost: 2
   targetType: 0
   effects: []
