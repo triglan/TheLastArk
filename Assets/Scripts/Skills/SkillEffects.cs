@@ -1,11 +1,10 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
-// ¸ğµç ½ºÅ³ È¿°úÀÇ ±â¹İÀÌ µÇ´Â Ãß»ó Å¬·¡½ºÀÔ´Ï´Ù.
 public abstract class SkillEffects : ScriptableObject
 {
     [Header("Base Settings")]
     public string effectName;
 
-    // È¿°ú°¡ ½ÇÁ¦·Î ½ÇÇàµÉ ·ÎÁ÷À» Á¤ÀÇÇÕ´Ï´Ù. (2´Ü°è¿¡¼­ ±¸Ã¼È­)
-    public abstract void Execute(CharacterView actor, GameObject target, int skillLevel);
+    // ğŸ”¥ CharacterView ëŒ€ì‹  BattleCharacterë¥¼ ì „ë‹¬ë°›ì•„ ë¡œì§ ì²˜ë¦¬ë¥¼ ìš©ì´í•˜ê²Œ í•©ë‹ˆë‹¤.
+    public abstract void Execute(BattleCharacter actor, BattleCharacter target, int skillLevel);
 }
