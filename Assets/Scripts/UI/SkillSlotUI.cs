@@ -38,7 +38,10 @@ public class SkillSlotUI : MonoBehaviour
     {
         if (assignedSkill == null || skillOwner == null) return;
 
+        // 매니저를 찾아 "이 캐릭터가 이 스킬을 선택했어!"라고 알립니다.
+        BattleManager bm = FindAnyObjectByType<BattleManager>();
+        if (bm != null) bm.SelectSkill(assignedSkill, skillOwner);
+
         Debug.Log($"{skillOwner.status.origin.characterName}의 {assignedSkill.skillName} 선택됨!");
-        // 여기서 나중에 BattleManager에게 "이 스킬 써!"라고 전달할 예정입니다.
     }
 }

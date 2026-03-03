@@ -6,6 +6,9 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     public CharacterStatus status; // 실시간 수치 데이터
     public CharacterView view;     // 연결된 시각적 컴포넌트
 
+    // 캐릭터 이름 쉽게 불러오기
+    public string characterName => (status != null && status.origin != null) ? status.origin.characterName : gameObject.name;
+
     public void Init(CharacterData data)
     {
         status = new CharacterStatus(data);

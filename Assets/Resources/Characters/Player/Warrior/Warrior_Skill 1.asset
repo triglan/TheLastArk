@@ -16,4 +16,5 @@ MonoBehaviour:
   skillIcon: {fileID: 21300000, guid: 2e670b5fbcfe6f14391635f8ae1f3969, type: 3}
   baseCost: 2
   targetType: 0
-  effects: []
+  effects:
+  - {fileID: 11400000, guid: 6ed0d9de09c720f4fbcfe0b9332af8be, type: 2}
