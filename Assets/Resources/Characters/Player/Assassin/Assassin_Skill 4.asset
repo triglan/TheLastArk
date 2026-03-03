@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c34a41152b645c4429c40e23b35b038b, type: 3}
   m_Name: Assassin_Skill 4
   m_EditorClassIdentifier: 
-  skillName: "\uAC00\uB974\uAE30"
+  skillName: Assassin_Skill 4
   skillIcon: {fileID: 21300000, guid: e1953deb9f7194649a76dacaa7b3bf3c, type: 3}
-  baseCost: 4
-  isOneTime: 0
+  baseCost: 2
   targetType: 0
   effects: []
