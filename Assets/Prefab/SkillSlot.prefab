@@ -215,7 +215,23 @@ MonoBehaviour:
   skillIcon: {fileID: 136675613179913797}
   costText: {fileID: 7027978597344500927}
   slotButton: {fileID: 2265777805238932239}
-  assignedSkill: {fileID: 0}
+  assignedSkill:
+    skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      specialAction: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      specialAction: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      specialAction: 0
+      effects: []
   skillOwner: {fileID: 0}
 --- !u!114 &2265777805238932239
 MonoBehaviour:
@@ -260,7 +276,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 0}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 6027617290441162128}
+        m_TargetAssemblyTypeName: SkillSlotUI, Assembly-CSharp
+        m_MethodName: OnClickSlot
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &1191599693849653027
 MonoBehaviour:
   m_ObjectHideFlags: 0

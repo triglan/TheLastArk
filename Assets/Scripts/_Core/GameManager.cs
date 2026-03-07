@@ -4,10 +4,11 @@ using System.Collections.Generic;
 public class GameManager : MonoBehaviour
 {
     [Header("Combatants")]
-    public List<BattleCharacter> allCharacters; // 아군 + 적군 모두 포함
+    public List<BattleCharacter> allCharacters;
 
     [Header("Managers")]
     public BattleSkillManager skillManager;
+    public BattleManager battleManager; // 배틀 매니저 참조 추가
 
     public void BeginBattleSetup()
     {
@@ -17,7 +18,13 @@ public class GameManager : MonoBehaviour
             if (character != null) character.PrepareCharacterData();
         }
 
-        // Step 2: 준비된 데이터를 UI에 출력
+        // Step 2: 공용 행동력 시스템 초기화 (실행 순서 보장)
+        if (battleManager != null)
+        {
+            battleManager.InitializeAP();
+        }
+
+        // Step 3: 준비된 데이터를 UI에 출력
         if (skillManager != null)
         {
             skillManager.LinkSkillsToUI();
@@ -28,6 +35,6 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        BeginBattleSetup(); // 게임 시작 시 감독관이 지휘 시작
+        BeginBattleSetup();
     }
 }
