@@ -18,7 +18,6 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         view.UpdateVisual(status);
     }
 
-    // 🔥 전투의 핵심: 데미지 수신 로직
     public void ReceiveDamage(float amount, BattleCharacter attacker)
     {
         if (status == null) return;
@@ -44,6 +43,5 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         // 2. 시각적 요소 연결 및 초기화
         if (view == null) view = GetComponent<CharacterView>();
         view.UpdateVisual(status);
-        Debug.Log($"{gameObject.name} 초기화 완료");
     }
 }
