@@ -48,5 +48,16 @@ public class TargetArrow : MonoBehaviour
         float newY = Mathf.Sin(Time.time * floatSpeed) * floatAmplitude;
         arrowUI.anchoredPosition += new Vector2(0, newY);
     }
+    public void Deselect()
+    {
+        // 1. 현재 선택된 타겟 정보를 비웁니다.
+        target = null;
+
+        // 2. 화살표 시각적 요소를 숨깁니다. 
+        // (만약 이미지를 끄는 변수명이 다르다면 그에 맞춰 수정하세요)
+        gameObject.SetActive(false);
+
+        Debug.Log("타겟 선택이 해제되었습니다.");
+    }
 }
 

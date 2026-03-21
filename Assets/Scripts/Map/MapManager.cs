@@ -22,9 +22,9 @@ public class MapManager : MonoBehaviour
     [SerializeField] private RectTransform mapContainer;
 
     [Header("UI Settings")]
-    [SerializeField] private float nodeSize = 60f;
-    [SerializeField] private float floorSpacingY = 100f;
-    [SerializeField] private float nodeSpacingX = 120f;
+    [SerializeField] private float nodeSize = 150f;
+    [SerializeField] private float mapSpacingX = 250f;   // 층(Floor) 간 X 간격
+    [SerializeField] private float mapSpacingY = 200f;   // 노드 간 Y 간격
 
     [Header("Info Panel")]
     [SerializeField] private TMPro.TextMeshProUGUI turnInfoText;
@@ -136,7 +136,10 @@ private void InitializeMap()
     /// <summary>
     /// Canvas와 Container가 없을 때 자동 생성합니다.
     /// </summary>
-private void SetupDefaultUI()
+/// <summary>
+    /// Canvas와 Container가 없을 때 자동 생성합니다.
+    /// </summary>
+    private void SetupDefaultUI()
     {
         // Camera
         Camera cam = Camera.main;
@@ -180,7 +183,7 @@ private void SetupDefaultUI()
         scrollObj.transform.SetParent(canvas.transform, false);
         ScrollRect scrollRect = scrollObj.AddComponent<ScrollRect>();
         Image scrollBg = scrollObj.AddComponent<Image>();
-        scrollBg.color = new Color(0.08f, 0.08f, 0.12f, 1f);
+        scrollBg.color = new Color(0, 0, 0, 0); // 배경 완전 투명하게 처리 (뒤에 Canvas 배경 보임)
 
         RectTransform scrollRectTransform = scrollObj.GetComponent<RectTransform>();
         scrollRectTransform.anchorMin = Vector2.zero;
@@ -209,11 +212,38 @@ private void SetupDefaultUI()
         mapContainer.anchorMax = new Vector2(0f, 0.5f);
         mapContainer.pivot = new Vector2(0f, 0.5f);
 
+        // 배경 이미지 (ScrollRect 뒤에 그려지도록 Canvas 정적인 영역에 배치)
+        Sprite bgSprite = Resources.Load<Sprite>("Map/MapBackground");
+        if (bgSprite != null)
+        {
+            GameObject bgObj = new GameObject("StaticBackground");
+            // Canvas 직속 자식으로 넣어서 ScrollRect와 분리하여 스크롤되지 않도록 설정
+            bgObj.transform.SetParent(canvas.transform, false);
+            bgObj.transform.SetAsFirstSibling(); // 모든 UI(스크롤, 패널 등) 뒤에 그려지게
+
+            Image bgImage = bgObj.AddComponent<Image>();
+            bgImage.sprite = bgSprite;
+            bgImage.preserveAspect = false; // 화면 비율에 맞추어 확대(stretch)
+            bgImage.raycastTarget = false;
+
+            RectTransform bgRect = bgObj.GetComponent<RectTransform>();
+            bgRect.anchorMin = Vector2.zero; // 화면 전체 채우기
+            bgRect.anchorMax = Vector2.one;
+            bgRect.offsetMin = Vector2.zero;
+            bgRect.offsetMax = Vector2.zero;
+
+            Debug.Log("[MapManager] 배경 이미지 로드 성공 (고정 배경 처리)!");
+        }
+        else
+        {
+            Debug.LogWarning("[MapManager] 배경 이미지를 찾을 수 없습니다. Resources/Map/MapBackground 경로를 확인하세요.");
+        }
+
         scrollRect.content = mapContainer;
         scrollRect.viewport = viewportRect;
         scrollRect.horizontal = true;
-        scrollRect.vertical = false;
-        scrollRect.movementType = ScrollRect.MovementType.Elastic;
+        scrollRect.vertical = true;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
 
         // Info Panel (하단)
         CreateInfoPanel(canvas.transform);
@@ -274,16 +304,16 @@ tmp.color = Color.white;
     // 노드 배치
     // ─────────────────────────────────────────────
 
-private void LayoutNodes()
+    private void LayoutNodes()
     {
         nodeUIMap.Clear();
         nodePositions.Clear();
 
-        // 가로 레이아웃: X축 = 층(진행방향), Y축 = 노드 분포
-        float totalWidth = (mapData.totalFloors) * floorSpacingY + 200f;
-        float maxHeight = MapGenerator.MAX_NODES_PER_FLOOR * nodeSpacingX + 200f;
+        // 가로 방향 X축 = 층 차이, Y축 = 같은 층의 노드 배치
+        float totalWidth = (mapData.totalFloors) * mapSpacingX + 400f; // 양옆 여백 추가
+        float maxHeight = MapGenerator.MAX_NODES_PER_FLOOR * mapSpacingY + 400f; // 위아래 여백 추가
 
-        // Content 크기 설정 (가로로 넓게)
+        // Content 크기 설정 (화면보다 훨씬 크게)
         mapContainer.sizeDelta = new Vector2(totalWidth, maxHeight);
 
         for (int floor = 1; floor <= mapData.totalFloors; floor++)
@@ -292,22 +322,22 @@ private void LayoutNodes()
             int count = floorNodes.Count;
 
             // X 좌표: 왼쪽(1층)에서 오른쪽(15층)으로
-            float x = (floor - 1) * floorSpacingY + 100f;
+            float x = (floor - 1) * mapSpacingX + 200f;
 
             // Y 좌표: 중앙 정렬
-            float totalHeight = (count - 1) * nodeSpacingX;
+            float totalHeight = (count - 1) * mapSpacingY;
             float startY = -totalHeight / 2f;
 
             for (int i = 0; i < count; i++)
             {
                 MapNode node = floorNodes[i];
-                float y = startY + i * nodeSpacingX;
+                float y = startY + i * mapSpacingY;
 
-                // 랜덤 오프셋 추가 (1층과 15층 제외)
+                // 랜덤 오프셋 크게 추가 (1층과 15층 제외)
                 if (floor > 1 && floor < mapData.totalFloors)
                 {
-                    x += Random.Range(-8f, 8f);
-                    y += Random.Range(-12f, 12f);
+                    x += Random.Range(-30f, 30f);
+                    y += Random.Range(-50f, 50f);
                 }
 
                 Vector2 position = new Vector2(x, y);
@@ -317,7 +347,7 @@ private void LayoutNodes()
                 nodePositions[node.id] = position;
 
                 // X를 원래 값으로 복원 (다음 노드를 위해)
-                x = (floor - 1) * floorSpacingY + 100f;
+                x = (floor - 1) * mapSpacingX + 200f;
             }
         }
     }
@@ -396,10 +426,11 @@ label.color = Color.white;
 
         MapNodeUI nodeUI = nodeObj.AddComponent<MapNodeUI>();
 
-        SetPrivateField(nodeUI, "nodeIcon", iconImage);
-        SetPrivateField(nodeUI, "glowEffect", glowImage);
-        SetPrivateField(nodeUI, "warningEffect", warningImage);
-        SetPrivateField(nodeUI, "floorLabel", label);
+        // MapNodeUI의 필드들이 public이므로 직접 할당
+        nodeUI.nodeIcon = iconImage;
+        nodeUI.glowEffect = glowImage;
+        nodeUI.warningEffect = warningImage;
+        nodeUI.floorLabel = label;
 
         nodeUI.Setup(node, this);
 
@@ -522,12 +553,14 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
                 break;
 
             case CollapseResult.Collapsed:
-                // 붕괴 연출은 OnFloorCollapsed 이벤트에서 처리
+                // 붕괴 연출은 OnFloorCollapsed 이벤트에서 처리된 후,
+                // 도착한 노드의 씬으로 전환
+                Debug.Log($"[MapManager] 붕괴 발생 후 {arrivedNode.nodeType} 노드 도착! 씬 전환 시도.");
+                RunManager.Instance.GoToNodeScene(arrivedNode, collapseManager.turnCount);
                 break;
 
             case CollapseResult.Warning:
             case CollapseResult.Normal:
-                // 경고나 정상 이동인 경우 씬 전환 수행
                 Debug.Log($"[MapManager] {arrivedNode.nodeType} 노드 도착! 씬 전환 시도.");
                 RunManager.Instance.GoToNodeScene(arrivedNode, collapseManager.turnCount);
                 break;

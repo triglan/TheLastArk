@@ -49,9 +49,8 @@ public class BattleManager : MonoBehaviour
         if (primaryTarget == null) return;
 
         // 1. 현재 레벨 데이터 및 코스트 계산 (overrideCost = -1 일 경우, 원래 코스트 유지)
-        int skillIdx = System.Array.IndexOf(selectedActor.status.origin.activeSkills, selectedSkill);
-        int currentLevel = (skillIdx != -1) ? selectedActor.status.skillLevels[skillIdx] : 0;
-        SkillLevelData levelData = selectedSkill.levels[currentLevel];
+        int levelIdx = Mathf.Clamp(selectedActor.status.charLevel - 1, 0, selectedSkill.levels.Length - 1);
+        SkillLevelData levelData = selectedSkill.levels[levelIdx];
 
         // 2. 타겟 유효성 검사 (피아 구분)
         if (!IsTargetValidForSkill(primaryTarget, levelData.targetType))
@@ -80,6 +79,7 @@ public class BattleManager : MonoBehaviour
         EffectEngine.ProcessSkill(selectedActor, finalTargets, levelData);
 
         selectedSkill = null;
+        targetHandler.Deselect();
     }
 
     // 타겟과 스킬 타입이 일치하는지 확인
@@ -145,10 +145,12 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case TargetType.LeftEnemy:
+                targets.Add(mainTarget);
                 if (index > 0) targets.Add(team[index - 1]);
                 break;
 
             case TargetType.RightEnemy:
+                targets.Add(mainTarget);
                 if (index < team.Count - 1) targets.Add(team[index + 1]);
                 break;
         }

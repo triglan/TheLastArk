@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public class BattleSkillManager : MonoBehaviour
 {
     public List<BattleCharacter> playerParty;
-    public List<SkillGroupUI> skillGroups; 
+    public List<SkillGroupUI> skillGroups;
 
     public void LinkSkillsToUI()
     {
@@ -13,13 +13,10 @@ public class BattleSkillManager : MonoBehaviour
             if (i < playerParty.Count && playerParty[i] != null)
             {
                 skillGroups[i].gameObject.SetActive(true);
-                // CharacterData 내의 SkillInfo[] 배열(activeSkills)을 직접 전달
-                skillGroups[i].SetupGroup(playerParty[i].status.origin.activeSkills, playerParty[i]);
+                // 원본(activeSkills)이 아닌 런타임 결정본(dynamicActiveSkill) 전달
+                skillGroups[i].SetupGroup(playerParty[i].status.dynamicActiveSkill, playerParty[i]);
             }
-            else 
-            { 
-                skillGroups[i].gameObject.SetActive(false); 
-            }
+            else { skillGroups[i].gameObject.SetActive(false); }
         }
     }
 }

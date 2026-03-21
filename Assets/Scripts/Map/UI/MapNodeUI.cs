@@ -14,10 +14,10 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     // ─────────────────────────────────────────────
 
     [Header("References")]
-    [SerializeField] private Image nodeIcon;
-    [SerializeField] private Image glowEffect;
-    [SerializeField] private Image warningEffect;
-    [SerializeField] private TMPro.TextMeshProUGUI floorLabel;
+    public Image nodeIcon;
+    public Image glowEffect;
+    public Image warningEffect;
+    public TMPro.TextMeshProUGUI floorLabel;
 
     private Button button;
     private MapNode nodeData;
@@ -55,6 +55,8 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private bool isAccessible;
     private bool isHovered;
 
+    private Sprite originalIconSprite;
+
     // ─────────────────────────────────────────────
     // 초기화
     // ─────────────────────────────────────────────
@@ -67,6 +69,11 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         nodeData = data;
         mapManager = manager;
         button = GetComponent<Button>();
+
+        if (originalIconSprite == null && nodeIcon != null)
+        {
+            originalIconSprite = nodeIcon.sprite;
+        }
 
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(OnNodeClicked);
@@ -126,10 +133,25 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             button.interactable = false;
         }
 
-        // 아이콘 색상 적용
+        // 아이콘 색상 및 스프라이트 적용
         if (nodeIcon != null)
         {
-            nodeIcon.color = targetColor;
+            Sprite customIcon = GetNodeIconSprite(nodeData.nodeType);
+            if (customIcon != null)
+            {
+                nodeIcon.sprite = customIcon;
+                
+                // 커스텀 아이콘이면 형태 유지를 위해 기본 white로 고정 (회색/dim 처리 제거)
+                nodeIcon.color = Color.white;
+                
+                if (floorLabel != null) floorLabel.gameObject.SetActive(false);
+            }
+            else
+            {
+                nodeIcon.sprite = originalIconSprite;
+                nodeIcon.color = targetColor;
+                if (floorLabel != null) floorLabel.gameObject.SetActive(true);
+            }
         }
 
         // 현재 위치 글로우
@@ -206,8 +228,8 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         isHovered = true;
         if (isAccessible && nodeIcon != null)
         {
-            // 호버 시 살짝 밝게
-            Color hoverColor = GetNodeColor(nodeData.nodeType);
+            // 호버 시 색상 강조
+            Color hoverColor = GetNodeIconSprite(nodeData.nodeType) != null ? Color.white : GetNodeColor(nodeData.nodeType);
             hoverColor = Color.Lerp(hoverColor, Color.white, 0.3f);
             nodeIcon.color = hoverColor;
         }
@@ -249,5 +271,22 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             case NodeType.Boss:   return LABEL_BOSS;
             default:              return "?";
         }
+    }
+    private static Sprite GetNodeIconSprite(NodeType type)
+    {
+        Sprite s = null;
+        switch (type)
+        {
+            case NodeType.Combat: s = Resources.Load<Sprite>("UI/Node_Enemy"); break;
+            case NodeType.Event:  s = Resources.Load<Sprite>("UI/Node_Event"); break;
+            case NodeType.Elite:  s = Resources.Load<Sprite>("UI/Node_Elite"); break;
+        }
+        
+        if (s == null && (type == NodeType.Combat || type == NodeType.Event || type == NodeType.Elite))
+        {
+            Debug.LogWarning($"[MapNodeUI] 아이콘 로드 실패: {type} 노드의 이미지를 Resources/UI/ 에서 찾을 수 없습니다.");
+        }
+        
+        return s;
     }
 }
