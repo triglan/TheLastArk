@@ -18,9 +18,70 @@ MonoBehaviour:
   maxHp: 200
   maxMental: 200
   baseAttack: 25
-  passiveSkill: {fileID: 11400000, guid: d7d78b045b9d7ec498467a8386426e8c, type: 2}
+  passiveSkill:
+    skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
   activeSkills:
-  - {fileID: 11400000, guid: 164c8170cb2204b4e9c7675eed85ce31, type: 2}
-  - {fileID: 11400000, guid: 96371bdfa8f60994aa526db3690e9b34, type: 2}
-  - {fileID: 11400000, guid: e2357f1197aace34197903b26a8abfbb, type: 2}
-  - {fileID: 11400000, guid: 24f53ae4699ae1148b64a3f30d5777cb, type: 2}
+  - skillName: 
+    skillIcon: {fileID: 21300000, guid: 736f0c8a089438446b8a895bfa282391, type: 3}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 21300000, guid: 7c8e13c68a1a0da44b1e423119973618, type: 3}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 21300000, guid: 9b45b6b38a008cb46ad2c572efbac889, type: 3}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 21300000, guid: a4297eb53081d104993c1dfb4aa3513c, type: 3}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []

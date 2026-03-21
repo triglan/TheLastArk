@@ -20,7 +20,7 @@ MonoBehaviour:
   baseAttack: 25
   passiveSkill:
     skillName: 
-    skillIcon: {fileID: 0}
+    skillIcon: {fileID: 21300000, guid: 2c26444f78c98eb48bf65301607420e6, type: 3}
     baseCost: 2
     levels:
     - overrideCost: -1
@@ -33,51 +33,34 @@ MonoBehaviour:
       targetType: 0
       effects: []
   activeSkills:
-  - skillName: bash
+  - skillName: 
     skillIcon: {fileID: 21300000, guid: 2e670b5fbcfe6f14391635f8ae1f3969, type: 3}
-    baseCost: 2
+    baseCost: 1
     levels:
     - overrideCost: -1
       targetType: 2
       effects:
       - type: 0
         multiplier: 1
-        fixedValue: 50
+        fixedValue: 0
         baseOnLastEffect: 0
     - overrideCost: -1
-      targetType: 0
+      targetType: 2
       effects:
       - type: 0
-        multiplier: 1
-        fixedValue: 70
-        baseOnLastEffect: 0
-    - overrideCost: -1
-      targetType: 0
-      effects:
-      - type: 0
-        multiplier: 1
-        fixedValue: 100
-        baseOnLastEffect: 0
-  - skillName: heal
-    skillIcon: {fileID: 21300000, guid: 12d6997aac1840f4aa988620e3dd8912, type: 3}
-    baseCost: 2
-    levels:
-    - overrideCost: -1
-      targetType: 5
-      effects:
-      - type: 1
         multiplier: 1
         fixedValue: 0
         baseOnLastEffect: 0
     - overrideCost: -1
-      targetType: 0
-      effects: []
-    - overrideCost: -1
-      targetType: 0
-      effects: []
+      targetType: 2
+      effects:
+      - type: 0
+        multiplier: 1
+        fixedValue: 0
+        baseOnLastEffect: 0
   - skillName: 
-    skillIcon: {fileID: 0}
-    baseCost: 2
+    skillIcon: {fileID: 21300000, guid: 12d6997aac1840f4aa988620e3dd8912, type: 3}
+    baseCost: 3
     levels:
     - overrideCost: -1
       targetType: 0
@@ -89,8 +72,21 @@ MonoBehaviour:
       targetType: 0
       effects: []
   - skillName: 
-    skillIcon: {fileID: 0}
-    baseCost: 2
+    skillIcon: {fileID: 21300000, guid: 53adbe326ba194f48b0ad6ca9df5ac13, type: 3}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 21300000, guid: d0d1e7b36c1d2d94b8113a5e18ca0e3f, type: 3}
+    baseCost: 3
     levels:
     - overrideCost: -1
       targetType: 0

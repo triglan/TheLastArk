@@ -9,7 +9,7 @@ using UnityEngine.UI;
 public class MapLineRenderer : MonoBehaviour
 {
     [Header("Line Settings")]
-    [SerializeField] private float lineWidth = 3f;
+    [SerializeField] private float lineWidth = 40f; // 텍스처를 볼 수 있도록 두께를 키움
     [SerializeField] private Color normalColor = new Color(0.6f, 0.6f, 0.6f, 0.8f);
     [SerializeField] private Color accessibleColor = new Color(1f, 1f, 1f, 1f);
     [SerializeField] private Color collapsedColor = new Color(0.3f, 0.1f, 0.1f, 0.4f);
@@ -17,6 +17,9 @@ public class MapLineRenderer : MonoBehaviour
 
     private List<LineSegment> lines = new List<LineSegment>();
     private RectTransform parentRect;
+    private RectTransform lineContainer;
+    
+    private Sprite lineSprite;
 
     /// <summary>
     /// 한 줄의 선분 데이터
@@ -32,6 +35,29 @@ public class MapLineRenderer : MonoBehaviour
     public void Initialize(RectTransform parent)
     {
         parentRect = parent;
+        
+        // 선을 담을 전용 컨테이너 생성
+        GameObject containerObj = new GameObject("LineContainer");
+        lineContainer = containerObj.AddComponent<RectTransform>();
+        lineContainer.SetParent(parentRect, false);
+        
+        // 앵커와 여백 초기화
+        lineContainer.anchorMin = Vector2.zero;
+        lineContainer.anchorMax = Vector2.one;
+        lineContainer.offsetMin = Vector2.zero;
+        lineContainer.offsetMax = Vector2.zero;
+
+        // 노드가 배치되기 직전에 생성되므로, 마지막 자식으로 두면
+        // 기존에 있는 Background(0) 보다는 위에, 앞으로 들어올 Node 들보다는 아래에 깔립니다.
+        lineContainer.SetAsLastSibling();
+        
+        
+        // 라인 스프라이트 로드
+        lineSprite = Resources.Load<Sprite>("UI/Node_line");
+        if (lineSprite == null)
+        {
+            Debug.LogWarning("[MapLineRenderer] 라인 스프라이트 로드 실패: Resources/UI/Node_line 을 찾을 수 없습니다.");
+        }
     }
 
     /// <summary>
@@ -50,17 +76,20 @@ public class MapLineRenderer : MonoBehaviour
         }
 
         GameObject lineObj = new GameObject($"Line_{from.id}_{to.id}");
-        lineObj.transform.SetParent(parentRect, false);
+        lineObj.transform.SetParent(lineContainer, false);
 
         RectTransform rect = lineObj.AddComponent<RectTransform>();
         Image image = lineObj.AddComponent<Image>();
         image.color = normalColor;
+        
+        if (lineSprite != null)
+        {
+            image.sprite = lineSprite;
+            image.type = Image.Type.Simple;
+        }
 
         // 선 위치 & 회전 계산
         UpdateLineTransform(rect, fromPos, toPos);
-
-        // 선을 노드 뒤에 배치 (sibling index 0)
-        lineObj.transform.SetAsFirstSibling();
 
         LineSegment segment = new LineSegment
         {
