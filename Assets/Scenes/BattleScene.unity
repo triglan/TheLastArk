@@ -758,7 +758,6 @@ MonoBehaviour:
   target: {fileID: 0}
   floatSpeed: 5
   floatAmplitude: 10
-  yOffset: 70
 --- !u!114 &324432409
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -792,15 +791,12 @@ MonoBehaviour:
     levels:
     - overrideCost: -1
       targetType: 0
-      specialAction: 0
       effects: []
     - overrideCost: -1
       targetType: 0
-      specialAction: 0
       effects: []
     - overrideCost: -1
       targetType: 0
-      specialAction: 0
       effects: []
   selectedActor: {fileID: 0}
 --- !u!114 &324432410
@@ -3750,6 +3746,10 @@ PrefabInstance:
     - target: {fileID: 1870759946210311077, guid: 0ca1a724da7ae9947a51c84cacba7f91, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2065526792106160325, guid: 0ca1a724da7ae9947a51c84cacba7f91, type: 3}
+      propertyPath: isLeader
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2065526792106160325, guid: 0ca1a724da7ae9947a51c84cacba7f91, type: 3}
       propertyPath: testData

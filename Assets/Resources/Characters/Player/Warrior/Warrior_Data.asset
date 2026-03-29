@@ -18,6 +18,12 @@ MonoBehaviour:
   maxHp: 200
   maxMental: 200
   baseAttack: 25
+  levelStatMultipliers:
+  - 0
+  - 0.5
+  - 1
+  - 2
+  - 3
   passiveSkill:
     skillName: 
     skillIcon: {fileID: 21300000, guid: 2c26444f78c98eb48bf65301607420e6, type: 3}
@@ -38,24 +44,24 @@ MonoBehaviour:
     baseCost: 1
     levels:
     - overrideCost: -1
-      targetType: 2
+      targetType: 0
       effects:
       - type: 0
         multiplier: 1
         fixedValue: 0
         baseOnLastEffect: 0
     - overrideCost: -1
-      targetType: 2
+      targetType: 0
       effects:
       - type: 0
-        multiplier: 1
+        multiplier: 1.5
         fixedValue: 0
         baseOnLastEffect: 0
     - overrideCost: -1
       targetType: 2
       effects:
       - type: 0
-        multiplier: 1
+        multiplier: 1.5
         fixedValue: 0
         baseOnLastEffect: 0
   - skillName: 
@@ -89,11 +95,23 @@ MonoBehaviour:
     baseCost: 3
     levels:
     - overrideCost: -1
-      targetType: 0
-      effects: []
+      targetType: 5
+      effects:
+      - type: 1
+        multiplier: 1
+        fixedValue: 0
+        baseOnLastEffect: 0
     - overrideCost: -1
-      targetType: 0
-      effects: []
-    - overrideCost: -1
-      targetType: 0
-      effects: []
+      targetType: 5
+      effects:
+      - type: 1
+        multiplier: 1.5
+        fixedValue: 0
+        baseOnLastEffect: 0
+    - overrideCost: 1
+      targetType: 5
+      effects:
+      - type: 1
+        multiplier: 0
+        fixedValue: 0
+        baseOnLastEffect: 0

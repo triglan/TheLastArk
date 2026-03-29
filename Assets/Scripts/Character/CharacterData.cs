@@ -13,6 +13,10 @@ public class CharacterData : ScriptableObject
     public float maxMental = 200f;
     public float baseAttack = 25f;
 
+    [Header("Growth Settings")]
+    // 0강(+0%), 1강(+50%), 2강(+100%), 3강(+200%), 4강(+200%+) 순서
+    public float[] levelStatMultipliers = new float[5] { 0f, 0.5f, 1.0f, 2.0f, 3.0f };
+
     [Header("Skills")]
     public SkillInfo passiveSkill;
     public SkillInfo[] activeSkills = new SkillInfo[4];

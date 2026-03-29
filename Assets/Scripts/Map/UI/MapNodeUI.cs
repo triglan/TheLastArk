@@ -152,18 +152,22 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
                 nodeIcon.color = targetColor;
                 if (floorLabel != null) floorLabel.gameObject.SetActive(true);
             }
+
+            // 시작과 보스 노드일 경우 아이콘 크기를 2배로 키웁니다.
+            if (nodeData.nodeType == NodeType.Start || nodeData.nodeType == NodeType.Boss)
+            {
+                nodeIcon.transform.localScale = Vector3.one * 2f;
+            }
+            else
+            {
+                nodeIcon.transform.localScale = Vector3.one;
+            }
         }
 
-        // 현재 위치 글로우
+        // 현재 위치 글로우 (기차 표시로 대체됨)
         if (glowEffect != null)
         {
-            glowEffect.gameObject.SetActive(isCurrentNode);
-            if (isCurrentNode)
-            {
-                Color glowColor = GetNodeColor(nodeData.nodeType);
-                glowColor.a = 0.4f;
-                glowEffect.color = glowColor;
-            }
+            glowEffect.gameObject.SetActive(false);
         }
 
         // 경고 이펙트
@@ -277,12 +281,15 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         Sprite s = null;
         switch (type)
         {
+            case NodeType.Start:  s = Resources.Load<Sprite>("UI/Node_Start"); break;
             case NodeType.Combat: s = Resources.Load<Sprite>("UI/Node_Enemy"); break;
             case NodeType.Event:  s = Resources.Load<Sprite>("UI/Node_Event"); break;
             case NodeType.Elite:  s = Resources.Load<Sprite>("UI/Node_Elite"); break;
+            case NodeType.Rest:   s = Resources.Load<Sprite>("UI/Node_Rest"); break;
+            case NodeType.Boss:   s = Resources.Load<Sprite>("UI/Node_Boss_1"); break;
         }
         
-        if (s == null && (type == NodeType.Combat || type == NodeType.Event || type == NodeType.Elite))
+        if (s == null)
         {
             Debug.LogWarning($"[MapNodeUI] 아이콘 로드 실패: {type} 노드의 이미지를 Resources/UI/ 에서 찾을 수 없습니다.");
         }
