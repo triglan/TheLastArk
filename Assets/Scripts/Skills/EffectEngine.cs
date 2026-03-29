@@ -31,9 +31,8 @@ public static class EffectEngine
                 break;
 
             case EffectType.Heal:
-                float healVal = (baseValue * effect.multiplier) + effect.fixedValue;
-                // target.ReceiveHeal(healVal, actor); // 구현된 힐 함수가 있다면 호출
-                Debug.Log($"{target.name} {healVal} 회복");
+                _lastCalculatedValue = (baseValue * effect.multiplier) + effect.fixedValue;
+                target.ReceiveHeal(_lastCalculatedValue, actor);
                 break;
         }
     }

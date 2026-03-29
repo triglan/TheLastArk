@@ -44,6 +44,8 @@ public class MapManager : MonoBehaviour
     private Dictionary<int, MapNodeUI> nodeUIMap = new Dictionary<int, MapNodeUI>();
     private Dictionary<int, Vector2> nodePositions = new Dictionary<int, Vector2>();
 
+    private RectTransform trainIndicator;
+
     // ─────────────────────────────────────────────
     // 공개 접근자 (MapNodeUI에서 사용)
     // ─────────────────────────────────────────────
@@ -641,6 +643,53 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
         if (lineRenderer != null)
         {
             lineRenderer.UpdateLineColors(mapData.currentNode, collapseManager);
+        }
+
+        // 기차 위치 갱신
+        UpdateTrainPosition();
+    }
+
+    private void CreateTrainIndicator()
+    {
+        GameObject trainObj = new GameObject("TrainIndicator");
+        trainObj.transform.SetParent(mapContainer, false);
+        trainIndicator = trainObj.AddComponent<RectTransform>();
+        
+        // 노드와 동일한 앵커/피벗 설정 (왼쪽 중앙 기준)
+        trainIndicator.anchorMin = new Vector2(0f, 0.5f);
+        trainIndicator.anchorMax = new Vector2(0f, 0.5f);
+        trainIndicator.pivot = new Vector2(0.5f, 0.5f);
+        
+        trainIndicator.sizeDelta = new Vector2(100f, 100f);
+        Image trainImg = trainObj.AddComponent<Image>();
+        trainImg.sprite = Resources.Load<Sprite>("UI/Train");
+        
+        if (trainImg.sprite == null) 
+        {
+            // 임시로 눈에 띄게 노란색 네모 표시 (Train 이미지가 없을 경우)
+            trainImg.color = Color.yellow;
+            Debug.LogWarning("[MapManager] 기차 이미지(UI/Train)를 찾을 수 없어 노란색 사각형으로 대체합니다.");
+        }
+        else
+        {
+            trainImg.color = Color.white;
+        }
+    }
+
+    private void UpdateTrainPosition()
+    {
+        if (trainIndicator == null) 
+        {
+            CreateTrainIndicator();
+        }
+
+        if (mapData != null && mapData.currentNode != null && nodePositions.ContainsKey(mapData.currentNode.id))
+        {
+            Vector2 targetPos = nodePositions[mapData.currentNode.id];
+            
+            // 위치 업데이트 및 항상 가장 위에 렌더링되게 설정
+            trainIndicator.anchoredPosition = targetPos;
+            trainIndicator.SetAsLastSibling();
         }
     }
 
