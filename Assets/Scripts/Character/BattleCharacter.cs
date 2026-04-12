@@ -21,7 +21,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     }
 
     private void DraftSkills()
-    {
+    { 
         if (status.origin == null || status.origin.activeSkills == null) return;
         List<SkillInfo> pool = new List<SkillInfo>(status.origin.activeSkills);// 원본 4개 스킬을 복사해서 리스트
 

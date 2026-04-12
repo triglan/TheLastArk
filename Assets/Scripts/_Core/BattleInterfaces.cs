@@ -8,4 +8,4 @@ public interface IDamageable
 public interface IHealable
 {
     void ReceiveHeal(float amount, BattleCharacter actor);
-}
+}   

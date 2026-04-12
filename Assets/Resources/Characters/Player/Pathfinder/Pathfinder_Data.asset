@@ -18,6 +18,12 @@ MonoBehaviour:
   maxHp: 200
   maxMental: 200
   baseAttack: 25
+  levelStatMultipliers:
+  - 0
+  - 0.5
+  - 1
+  - 2
+  - 3
   passiveSkill:
     skillName: 
     skillIcon: {fileID: 0}
