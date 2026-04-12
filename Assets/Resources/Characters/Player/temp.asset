@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
-  m_Name: Pathfinder_Data
+  m_Name: temp
   m_EditorClassIdentifier: 
-  characterName: Pathfinder
-  standingSprite: {fileID: 21300000, guid: f1719d0417e5693448ea6c68f19fef49, type: 3}
-  portraitSprite: {fileID: 21300000, guid: c91ae052e3d5bac4dbbe19a2580fcef9, type: 3}
+  characterName: 
+  standingSprite: {fileID: 0}
+  portraitSprite: {fileID: 0}
   maxHp: 200
   maxMental: 200
   baseAttack: 25
@@ -40,7 +40,7 @@ MonoBehaviour:
       effects: []
   activeSkills:
   - skillName: 
-    skillIcon: {fileID: 21300000, guid: 736f0c8a089438446b8a895bfa282391, type: 3}
+    skillIcon: {fileID: 0}
     baseCost: 3
     levels:
     - overrideCost: -1
@@ -53,7 +53,7 @@ MonoBehaviour:
       targetType: 0
       effects: []
   - skillName: 
-    skillIcon: {fileID: 21300000, guid: 7c8e13c68a1a0da44b1e423119973618, type: 3}
+    skillIcon: {fileID: 0}
     baseCost: 3
     levels:
     - overrideCost: -1
@@ -66,7 +66,7 @@ MonoBehaviour:
       targetType: 0
       effects: []
   - skillName: 
-    skillIcon: {fileID: 21300000, guid: 9b45b6b38a008cb46ad2c572efbac889, type: 3}
+    skillIcon: {fileID: 0}
     baseCost: 3
     levels:
     - overrideCost: -1
@@ -79,7 +79,7 @@ MonoBehaviour:
       targetType: 0
       effects: []
   - skillName: 
-    skillIcon: {fileID: 21300000, guid: a4297eb53081d104993c1dfb4aa3513c, type: 3}
+    skillIcon: {fileID: 0}
     baseCost: 3
     levels:
     - overrideCost: -1
