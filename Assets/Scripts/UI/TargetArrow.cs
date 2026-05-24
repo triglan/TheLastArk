@@ -6,10 +6,10 @@ public class TargetArrow : MonoBehaviour
     public GameObject target;
 
     [Header("Animation Settings")]
-    public float floatSpeed = 5f;     // ¿òÁ÷ÀÌ´Â ¼Óµµ
-    public float floatAmplitude = 10f; // ¿òÁ÷ÀÌ´Â ³ôÀÌ Æø
+    public float floatSpeed = 5f;     // ì›€ì§ì´ëŠ” ì†ë„
+    public float floatAmplitude = 10f; // ì›€ì§ì´ëŠ” ë†’ì´ í­
 
-    private Transform _cachedTargetPoint; // ÇöÀç Å¸°ÙÀÇ È­»ìÇ¥ À§Ä¡ ¿ÀºêÁ§Æ®
+    private Transform _cachedTargetPoint; // í˜„ì¬ íƒ€ê²Ÿì˜ í™”ì‚´í‘œ ìœ„ì¹˜ ì˜¤ë¸Œì íŠ¸
 
     void Update()
     {
@@ -17,47 +17,53 @@ public class TargetArrow : MonoBehaviour
         if (target != null && arrowUI != null) AnimateArrow();
     }
 
-    private void HandleMouseClick()// ¸¶¿ì½º Å¬¸¯ ½Ã Å¸°Ù º¯°æ
+    private void HandleMouseClick()// ë§ˆìš°ìŠ¤ í´ë¦­ ì‹œ íƒ€ê²Ÿ ì§€ì •
     {
         if (Input.GetMouseButtonDown(0))
         {
             Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
 
-            if (hit.collider.name.Contains("Player") || hit.collider.name.Contains("Enemy"))
+            if (hit.collider != null)
             {
-                target = hit.collider.gameObject;
-                arrowUI.gameObject.SetActive(true);
+                if (hit.collider.name.Contains("Player") || hit.collider.name.Contains("Enemy"))
+                {
+                    target = hit.collider.gameObject;
+                    if (arrowUI != null)
+                    {
+                        arrowUI.gameObject.SetActive(true);
+                    }
 
-                _cachedTargetPoint = target.transform.Find("TargetPoint");
+                    _cachedTargetPoint = target.transform.Find("TargetPoint");
+                }
             }
         }
     }
     private void AnimateArrow()
     {
-        // ¿ø·¡ ÁÂÇ¥ °è»ê
+        // ì›ë˜ ì¢Œí‘œ ê³„ì‚°
         //arrowUI.position = target.transform.position;
 
-        // TargetPoint°¡ ÀÖÀ¸¸é ±× À§Ä¡¸¦ ¾²°í, ¾øÀ¸¸é Ä³¸¯ÅÍÀÇ transform À§Ä¡¸¦ ¾¹´Ï´Ù.
+        // TargetPointê°€ ìˆìœ¼ë©´ ê·¸ ìœ„ì¹˜ë¥¼ ì“°ê³ , ì—†ìœ¼ë©´ ìºë¦­í„°ì˜ transform ìœ„ì¹˜ë¥¼ ì”ë‹ˆë‹¤.
         Vector3 basePos = (_cachedTargetPoint != null) ? _cachedTargetPoint.position : target.transform.position;
 
-        // UI ÁÂÇ¥ µ¿±âÈ­
+        // UI ì¢Œí‘œ ë™ê¸°í™”
         arrowUI.position = basePos;
 
-        // µÕ½ÇµÕ½Ç ¾Ö´Ï¸ŞÀÌ¼Ç
+        // ë‘¥ì‹¤ë‘¥ì‹¤ ì• ë‹ˆë©”ì´ì…˜
         float newY = Mathf.Sin(Time.time * floatSpeed) * floatAmplitude;
         arrowUI.anchoredPosition += new Vector2(0, newY);
     }
     public void Deselect()
     {
-        // 1. ÇöÀç ¼±ÅÃµÈ Å¸°Ù Á¤º¸¸¦ ºñ¿ó´Ï´Ù.
+        // 1. í˜„ì¬ ì„ íƒëœ íƒ€ê²Ÿ ì •ë³´ë¥¼ ë¹„ì›ë‹ˆë‹¤.
         target = null;
 
-        // 2. È­»ìÇ¥ ½Ã°¢Àû ¿ä¼Ò¸¦ ¼û±é´Ï´Ù. 
-        // (¸¸¾à ÀÌ¹ÌÁö¸¦ ²ô´Â º¯¼ö¸íÀÌ ´Ù¸£´Ù¸é ±×¿¡ ¸ÂÃç ¼öÁ¤ÇÏ¼¼¿ä)
+        // 2. í™”ì‚´í‘œ ì‹œê°ì  ìš”ì†Œë¥¼ ìˆ¨ê¹ë‹ˆë‹¤. 
+        // (ë§Œì•½ ì´ë¯¸ì§€ë¥¼ ë„ëŠ” ë³€ìˆ˜ëª…ì´ ë‹¤ë¥´ë‹¤ë©´ ê·¸ì— ë§ì¶° ìˆ˜ì •í•˜ì„¸ìš”)
         gameObject.SetActive(false);
 
-        Debug.Log("Å¸°Ù ¼±ÅÃÀÌ ÇØÁ¦µÇ¾ú½À´Ï´Ù.");
+        Debug.Log("íƒ€ê²Ÿ ì„ íƒì´ í•´ì œë˜ì—ˆìŠµë‹ˆë‹¤.");
     }
 }
 

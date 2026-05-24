@@ -10,8 +10,12 @@ namespace TheLastArk.Map.Events
         LoseGold,
         HealHP,
         TakeDamage,
+        TakeMentalDamage,       // 정신력 감소
         GainCard,
-        GainRelic
+        GainRelic,
+        GainConsumable,
+        UpgradeTrainCar,
+        UpgradeNextBattles      // 다음 N회 전투를 강적으로 대체
     }
 
     public enum EventRequirementType
@@ -21,23 +25,56 @@ namespace TheLastArk.Map.Events
         RequireHP
     }
 
+    /// <summary>
+    /// 개별 보상/페널티 하나를 나타냅니다.
+    /// EventOutcome 안에 List로 들어가므로 복수 보상이 가능합니다.
+    /// 예: 골드 +30, 유물 1개, 카드 3장을 한번에 지급
+    /// </summary>
+    [System.Serializable]
+    public struct EventReward
+    {
+        public EventRewardType rewardType;
+        public int rewardValue;           // 골드량, HP량, 수량 등
+        public string rewardDataID;       // 유물/카드/소모품 ID (해당 시스템 구현 시 사용)
+    }
+
+    /// <summary>
+    /// 하나의 확률 결과. 선택지 안에 여러 개가 들어감.
+    /// 예: 성공(50%) → 유물 획득 / 실패(50%) → 체력 -5
+    /// 보상이 여러 개일 수 있음: rewards 리스트에 복수 보상 등록.
+    /// </summary>
+    [System.Serializable]
+    public struct EventOutcome
+    {
+        [Header("결과 텍스트")]
+        [TextArea(2, 4)]
+        public string outcomeText;        // "차량에서 자원을 획득했습니다!"
+
+        [Header("확률 (0~100)")]
+        [Range(0, 100)]
+        public int probability;           // 이 결과가 발생할 확률
+
+        [Header("보상/페널티 목록 (복수 가능)")]
+        public List<EventReward> rewards;
+    }
+
+    /// <summary>
+    /// 하나의 선택지. 결과가 여러 개(확률 분기)일 수 있음.
+    /// 예: "조심스럽게 다가간다" → [성공 50%, 실패 50%]
+    /// </summary>
     [System.Serializable]
     public struct EventOption
     {
         [Header("선택지 표시")]
-        public string optionText;       // 유저에게 보여질 선택지 텍스트 (예: "싸운다", "도망친다")
-        
+        public string optionText;       // 유저에게 보여질 선택지 텍스트
+
         [Header("조건 (선택 시 필요/소모값)")]
         public EventRequirementType requirementType;
         public int requirementValue;    // 예: RequireGold 이고 값이 50이면 50골드 필요
 
-        [Header("결과")]
-        [TextArea(2, 4)]
-        public string resultText;       // 선택 후 보여질 결과 텍스트 안내문
-        public EventRewardType rewardType;
-        public int rewardValue;         // 예: GainGold 이고 값이 100이면 100골드 획득
-        // 필요에 따라 Card나 Relic ID 등 추가 데이터를 확장할 수 있습니다.
-        public string rewardDataID;     
+        [Header("확률 결과 목록")]
+        [Tooltip("확률의 합이 100이 되도록 설정하세요")]
+        public List<EventOutcome> outcomes;
     }
 
     /// <summary>
