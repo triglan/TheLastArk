@@ -45,7 +45,7 @@ public class EffectEntry
     public EffectType type;
     public float multiplier = 1.0f;
     public float fixedValue = 0f;
-    public bool baseOnLastEffect = false;
+    public bool useActualResult = false;
 }
 
 // [수정]: 사용자님이 정의한 명칭 그대로 반영 (단수/복수 오타 방지)

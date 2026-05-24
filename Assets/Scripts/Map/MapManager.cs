@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TheLastArk.Map.Events;
 
 /// <summary>
 /// 맵 씬의 메인 매니저.
@@ -555,17 +556,49 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
                 break;
 
             case CollapseResult.Collapsed:
-                // 붕괴 연출은 OnFloorCollapsed 이벤트에서 처리된 후,
-                // 도착한 노드의 씬으로 전환
-                Debug.Log($"[MapManager] 붕괴 발생 후 {arrivedNode.nodeType} 노드 도착! 씬 전환 시도.");
-                RunManager.Instance.GoToNodeScene(arrivedNode, collapseManager.turnCount);
+                Debug.Log($"[MapManager] 붕괴 발생 후 {arrivedNode.nodeType} 노드 도착!");
+                HandleNodeArrival(arrivedNode);
                 break;
 
             case CollapseResult.Warning:
             case CollapseResult.Normal:
-                Debug.Log($"[MapManager] {arrivedNode.nodeType} 노드 도착! 씬 전환 시도.");
-                RunManager.Instance.GoToNodeScene(arrivedNode, collapseManager.turnCount);
+                Debug.Log($"[MapManager] {arrivedNode.nodeType} 노드 도착!");
+                HandleNodeArrival(arrivedNode);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// 노드 도착 시 타입에 따라 처리합니다.
+    /// 이벤트 노드는 팝업으로, 나머지는 씬 전환으로 처리합니다.
+    /// </summary>
+    private void HandleNodeArrival(MapNode node)
+    {
+        if (node.nodeType == NodeType.Event)
+        {
+            // 이벤트: 맵 위에 팝업 표시
+            var eventMgr = EventManager.Instance;
+            var eventData = eventMgr.GetRandomEvent(1); // TODO: 현재 스테이지 연동
+            if (eventData != null)
+            {
+                Debug.Log($"[MapManager] 이벤트 팝업 표시: {eventData.eventTitle}");
+                EventPopupUI.Show(eventData, () =>
+                {
+                    // 팝업 닫힌 후 맵 UI 갱신
+                    Debug.Log("[MapManager] 이벤트 완료, 맵 UI 갱신");
+                    UpdateAllVisuals();
+                    UpdateInfoPanel();
+                });
+            }
+            else
+            {
+                Debug.LogWarning("[MapManager] 발생 가능한 이벤트가 없습니다.");
+            }
+        }
+        else
+        {
+            // 그 외: 씬 전환
+            RunManager.Instance.GoToNodeScene(node, collapseManager.turnCount);
         }
     }
 

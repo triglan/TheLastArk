@@ -19,8 +19,10 @@ public class CharacterView : MonoBehaviour
 
         if (barUI != null && status.origin != null)
         {
-            barUI.UpdateAllBars(status.currentHp, status.origin.maxHp,
-                               status.currentMental, status.origin.maxMental);
+            // [FIX 5] 강화 배율이 적용된 FinalMaxHp / FinalMaxMental을 사용
+            // 이전 코드(status.origin.maxHp)는 강화 단계를 무시하여 바가 잘못 표시됨
+            barUI.UpdateAllBars(status.currentHp, status.FinalMaxHp,
+                               status.currentMental, status.FinalMaxMental);
         }
     }
 }

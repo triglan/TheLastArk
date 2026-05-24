@@ -45,27 +45,36 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         }
     }
 
-    public void ReceiveDamage(float amount, BattleCharacter attacker)
+    public float ReceiveDamage(float amount, BattleCharacter attacker)
     {
-        if (status == null) return;
-        status.currentHp -= amount;
+        if (status == null) return 0;
+
+        // TODO: 여기에 방어력(Defense)이나 저항력 계산 로직이 들어감
+        float actualDamage = amount;
+
+        status.currentHp -= actualDamage;
         if (status.currentHp < 0) status.currentHp = 0;
-        view.UpdateVisual(status);// 피격 후 화면 갱신을 View에게 요청
 
         Debug.Log($"{gameObject.name} 피격! 남은 체력: {status.currentHp}");
+
+        view.UpdateVisual(status);// 피격 후 화면 갱신을 View에게 요청
+        return actualDamage;
     }
 
-    public void ReceiveHeal(float amount, BattleCharacter healer)
+    public float ReceiveHeal(float amount, BattleCharacter healer)
     {
-        if (status == null) return;
+        if (status == null) return 0f;
+
+        float beforeHp = status.currentHp;
         status.currentHp += amount;
         if (status.currentHp > status.FinalMaxHp)
-        {
             status.currentHp = status.FinalMaxHp;
-        }
 
+        float actualHeal = status.currentHp - beforeHp; // 오버힐 제외 실제 회복량
         view.UpdateVisual(status);
+
         Debug.Log($"{characterName}이(가) {healer.characterName}에게 {amount}만큼 회복받음! (현재 HP: {status.currentHp})");
+        return actualHeal;
     }
 
     [Header("Testing")]
