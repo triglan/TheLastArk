@@ -45,7 +45,11 @@ MonoBehaviour:
     levels:
     - overrideCost: -1
       targetType: 0
-      effects: []
+      effects:
+      - type: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
     - overrideCost: -1
       targetType: 0
       effects:

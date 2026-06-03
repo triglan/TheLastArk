@@ -4,76 +4,94 @@ using TMPro;
 using UI;
 using UnityEngine;
 
-/// <summary>
-/// 턴제 전투의 상태 머신을 관리합니다.
-///
-/// 페이즈 흐름:
-///   PlayerTurn → (턴 종료 버튼) → EnemyTurn → StatusEffect → TurnEnd → PlayerTurn ...
-///
-/// 외부 진입점:
-///   - GameManager.BeginBattleSetup() → InitializeAP() 호출
-///   - SkillSlotUI.OnClickSlot()      → SelectSkill() 호출
-///   - 턴 종료 버튼                   → EndPlayerTurn() 호출
-/// </summary>
 public class BattleManager : MonoBehaviour
 {
-    // ── Inspector ─────────────────────────────────────────────────
-    [Header("Parties")]
+    [Header("파티")]
     public List<BattleCharacter> playerParty;
     public List<BattleCharacter> enemyParty;
 
-    [Header("References")]
+    [Header("참조")]
     public TargetArrow targetHandler;
 
-    [Header("AP")]
+    [Header("행동력")]
     public int maxAP = 10;
     public int currentAP;
     public TextMeshProUGUI apText;
 
-    [Header("Turn UI")]
-    [Tooltip("현재 턴 수를 표시하는 텍스트")]
+    [Header("턴 UI")]
+    [Tooltip("현재 턴 수를 표시합니다.")]
     public TextMeshProUGUI turnCountText;
-    [Tooltip("현재 페이즈(아군/적군)를 표시하는 텍스트")]
+    [Tooltip("현재 전투 페이즈를 표시합니다.")]
     public TextMeshProUGUI phaseText;
-    [Tooltip("적 턴·상태이상 처리 사이의 대기 시간(초)")]
+    [Tooltip("적 행동과 상태이상 처리 사이의 대기 시간입니다.")]
     public float enemyActionDelay = 0.8f;
 
-    // ── 내부 상태 ─────────────────────────────────────────────────
     private BattlePhase _currentPhase = BattlePhase.None;
     private int _turnCount = 1;
     private readonly BattleSelectionState _selection = new BattleSelectionState();
 
-    // ── 프로퍼티 ──────────────────────────────────────────────────
-    /// <summary>현재 플레이어 입력을 받을 수 있는 상태인지</summary>
     public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerTurn;
 
-    // ══════════════════════════════════════════════════════════════
-    // 초기화
-    // ══════════════════════════════════════════════════════════════
+    private void Awake()
+    {
+        // 전투 결과 화면이 없으면 자동으로 붙입니다.
+        if (FindObjectOfType<BattleResultUIManager>() == null)
+            gameObject.AddComponent<BattleResultUIManager>();
+    }
 
-    /// <summary>GameManager.BeginBattleSetup()에서 호출합니다.</summary>
     public void InitializeAP()
     {
+        // 전투 시작 시 행동력, 화면 표시, 적 행동 대상을 준비합니다.
         currentAP = maxAP;
         UpdateAPUI();
         UpdateTurnUI();
 
-        // EnemyAI에 아군 파티 주입
         foreach (var enemy in enemyParty)
         {
+            if (enemy == null) continue;
             var ai = enemy.GetComponent<EnemyAI>();
-            if (ai != null) ai.targetParty = playerParty;
+            if (ai == null) continue;
+
+            ai.targetParty = playerParty;
+            ai.allyParty = enemyParty;
         }
 
+        EnsureTopResourceUI();
         EnterPhase(BattlePhase.PlayerTurn);
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // 상태 머신 — 페이즈 전환
-    // ══════════════════════════════════════════════════════════════
+    private void EnsureTopResourceUI()
+    {
+        // 전투 장면에서도 상단 자원 화면을 볼 수 있게 캔버스를 보장합니다.
+        GameObject topBarCanvasObj = GameObject.Find("TopBarCanvas");
+        if (topBarCanvasObj == null)
+        {
+            topBarCanvasObj = new GameObject("TopBarCanvas");
+
+            Canvas canvas = topBarCanvasObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100;
+
+            var scaler = topBarCanvasObj.AddComponent<UnityEngine.UI.CanvasScaler>();
+            scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+
+            topBarCanvasObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+        }
+
+        Transform existingResourcePanel = topBarCanvasObj.transform.Find("ResourcePanel");
+        if (existingResourcePanel != null) return;
+
+        var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
+        if (resourceUI == null)
+            resourceUI = gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();
+
+        resourceUI.Initialize(topBarCanvasObj.transform);
+    }
 
     private void EnterPhase(BattlePhase next)
     {
+        // 전투 페이즈를 바꾸고 해당 페이즈의 진입 처리를 실행합니다.
         _currentPhase = next;
         UpdatePhaseUI();
 
@@ -97,39 +115,179 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    // ── PlayerTurn ────────────────────────────────────────────────
-
-    private void OnEnterPlayerTurn()
+    public void SelectSkill(SkillInfo skill, BattleCharacter actor)
     {
-        currentAP = maxAP;
-        UpdateAPUI();
+        // 플레이어가 스킬을 고르면 대상 선택 상태로 저장합니다.
+        if (!IsPlayerTurn) return;
+
         _selection.Clear();
-        Debug.Log($"[Battle] === Turn {_turnCount} — 아군 턴 ===");
+        _selection.Set(skill, actor);
+
+        if (targetHandler.target != null)
+            PerformSkill();
+        else
+            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
     }
 
-    /// <summary>턴 종료 버튼 UI에서 호출합니다.</summary>
+    public void SelectConsumable(int consumableIndex)
+    {
+        // 플레이어가 소모품을 고르면 대상 선택 또는 즉시 사용을 처리합니다.
+        if (!IsPlayerTurn) return;
+
+        var resMgr = TheLastArk.Managers.ResourceManager.Instance;
+        if (resMgr == null || consumableIndex < 0 || consumableIndex >= resMgr.Consumables.Count) return;
+
+        var consumable = resMgr.Consumables[consumableIndex];
+        _selection.Clear();
+        _selection.SetConsumable(consumable, consumableIndex);
+
+        if (consumable.effectType == TheLastArk.Data.ConsumableEffectType.DamageAll)
+        {
+            PerformConsumable();
+            return;
+        }
+
+        if (targetHandler.target != null)
+            PerformConsumable();
+        else
+            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
+    }
+
+    public void PerformSkill()
+    {
+        // 선택된 스킬을 행동력과 대상 조건을 확인한 뒤 실행합니다.
+        if (!IsPlayerTurn) return;
+        if (!_selection.IsReady || targetHandler.target == null) return;
+
+        BattleCharacter primaryTarget = targetHandler.target.GetComponent<BattleCharacter>();
+        if (primaryTarget == null) return;
+
+        SkillInfo skill = _selection.Skill;
+        BattleCharacter actor = _selection.Actor;
+        int skillIdx = actor.status.SkillLevelIndex;
+        SkillLevelData levelData = skill.levels[Mathf.Clamp(skillIdx, 0, skill.levels.Length - 1)];
+
+        if (!TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty))
+        {
+            NotificationManager.Instance.ShowMessage($"{skill.skillName}에 맞는 대상이 아닙니다.", Color.red);
+            _selection.Clear();
+            return;
+        }
+
+        int cost = levelData.overrideCost != -1 ? levelData.overrideCost : skill.baseCost;
+        if (currentAP < cost)
+        {
+            NotificationManager.Instance.ShowMessage("행동력이 부족합니다.", Color.red);
+            return;
+        }
+
+        currentAP -= cost;
+        UpdateAPUI();
+
+        List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty);
+        EffectEngine.ProcessSkill(actor, targets, levelData);
+
+        _selection.Clear();
+        if (currentAP <= 0) EndPlayerTurn();
+    }
+
+    public void PerformConsumable()
+    {
+        // 선택된 소모품을 대상 조건에 맞게 적용합니다.
+        if (!IsPlayerTurn) return;
+        if (!_selection.IsReady || _selection.Consumable == null) return;
+
+        var consumable = _selection.Consumable;
+        var targets = new List<BattleCharacter>();
+
+        BattleCharacter primaryTarget = null;
+        if (targetHandler.target != null)
+            primaryTarget = targetHandler.target.GetComponent<BattleCharacter>();
+
+        switch (consumable.effectType)
+        {
+            case TheLastArk.Data.ConsumableEffectType.DamageSingle:
+                if (primaryTarget == null || playerParty.Contains(primaryTarget))
+                {
+                    NotificationManager.Instance.ShowMessage("적을 선택하세요.", Color.red);
+                    _selection.Clear();
+                    return;
+                }
+                targets.Add(primaryTarget);
+                break;
+
+            case TheLastArk.Data.ConsumableEffectType.HealHP:
+            case TheLastArk.Data.ConsumableEffectType.HealMental:
+                if (primaryTarget == null || enemyParty.Contains(primaryTarget))
+                {
+                    NotificationManager.Instance.ShowMessage("아군을 선택하세요.", Color.red);
+                    _selection.Clear();
+                    return;
+                }
+                targets.Add(primaryTarget);
+                break;
+
+            case TheLastArk.Data.ConsumableEffectType.DamageAll:
+                targets.AddRange(enemyParty);
+                break;
+        }
+
+        foreach (BattleCharacter target in targets)
+        {
+            if (target == null || target.status.currentHp <= 0) continue;
+
+            if (consumable.effectType == TheLastArk.Data.ConsumableEffectType.DamageSingle ||
+                consumable.effectType == TheLastArk.Data.ConsumableEffectType.DamageAll)
+            {
+                target.ReceiveDamage(consumable.effectValue, null);
+            }
+            else if (consumable.effectType == TheLastArk.Data.ConsumableEffectType.HealHP)
+            {
+                target.ReceiveHeal(consumable.effectValue, null);
+            }
+            else if (consumable.effectType == TheLastArk.Data.ConsumableEffectType.HealMental)
+            {
+                Debug.Log($"[BattleManager] 정신력 회복: {consumable.effectValue}");
+            }
+        }
+
+        NotificationManager.Instance.ShowMessage($"{consumable.consumableName} 사용.", Color.cyan);
+
+        var resMgr = TheLastArk.Managers.ResourceManager.Instance;
+        if (resMgr != null) resMgr.RemoveConsumable(_selection.ConsumableIndex);
+
+        _selection.Clear();
+    }
+
     public void EndPlayerTurn()
     {
+        // 플레이어 턴을 끝내고 적 턴으로 넘깁니다.
         if (!IsPlayerTurn) return;
         EnterPhase(BattlePhase.EnemyTurn);
     }
 
-    // ── EnemyTurn ─────────────────────────────────────────────────
+    private void OnEnterPlayerTurn()
+    {
+        // 플레이어 턴이 시작되면 행동력과 선택 상태를 초기화합니다.
+        currentAP = maxAP;
+        UpdateAPUI();
+        _selection.Clear();
+        Debug.Log($"[Battle] {_turnCount}턴: 아군 턴");
+    }
 
     private IEnumerator RunEnemyTurn()
     {
-        Debug.Log($"[Battle] === Turn {_turnCount} — 적군 턴 ===");
+        Debug.Log($"[Battle] {_turnCount}턴: 적 턴");
 
-        foreach (var enemy in enemyParty)
+        foreach (BattleCharacter enemy in enemyParty)
         {
             if (enemy == null || enemy.status.currentHp <= 0) continue;
 
-            var ai = enemy.GetComponent<EnemyAI>();
+            EnemyAI ai = enemy.GetComponent<EnemyAI>();
             if (ai != null) ai.ExecuteTurn();
 
             yield return new WaitForSeconds(enemyActionDelay);
 
-            // 적 행동 후 즉시 아군 전멸 체크
             if (IsPartyWiped(playerParty))
             {
                 EnterPhase(BattlePhase.BattleEnd);
@@ -140,165 +298,59 @@ public class BattleManager : MonoBehaviour
         EnterPhase(BattlePhase.StatusEffect);
     }
 
-    // ── StatusEffect ──────────────────────────────────────────────
-
     private IEnumerator RunStatusEffectPhase()
     {
-        Debug.Log($"[Battle] === Turn {_turnCount} — 상태이상 페이즈 ===");
+        Debug.Log($"[Battle] {_turnCount}턴: 상태이상 처리");
 
-        var all = new List<BattleCharacter>(playerParty);
-        all.AddRange(enemyParty);
-        StatusEffectPhaseHandler.ProcessAll(all);
+        var allCombatants = new List<BattleCharacter>(playerParty);
+        allCombatants.AddRange(enemyParty);
+        StatusEffectPhaseHandler.ProcessAll(allCombatants);
 
         yield return new WaitForSeconds(0.3f);
-
         EnterPhase(BattlePhase.TurnEnd);
     }
 
-    // ── TurnEnd ───────────────────────────────────────────────────
-
     private void OnEnterTurnEnd()
     {
-        // 사망한 캐릭터 처리 (뷰 갱신 등은 BattleCharacter 쪽에서 담당 예정)
+        // 사망 여부를 정리하고 다음 턴으로 넘어갑니다.
         RemoveDeadCharacters();
 
-        // 승패 판정
-        if (IsPartyWiped(playerParty))  { EnterPhase(BattlePhase.BattleEnd); return; }
-        if (IsPartyWiped(enemyParty))   { EnterPhase(BattlePhase.BattleEnd); return; }
+        if (IsPartyWiped(playerParty)) { EnterPhase(BattlePhase.BattleEnd); return; }
+        if (IsPartyWiped(enemyParty)) { EnterPhase(BattlePhase.BattleEnd); return; }
 
         _turnCount++;
         UpdateTurnUI();
-        Debug.Log($"[Battle] 턴 종료 → {_turnCount}턴으로");
-
         EnterPhase(BattlePhase.PlayerTurn);
-    }
-
-    // ── BattleEnd ─────────────────────────────────────────────────
-
-    private void Awake()
-    {
-        // 씬 내에 BattleResultUIManager가 없다면 안전하게 자동 추가하여 에러 방지
-        if (FindObjectOfType<BattleResultUIManager>() == null)
-        {
-            gameObject.AddComponent<BattleResultUIManager>();
-        }
     }
 
     private void OnEnterBattleEnd()
     {
+        // 전투 결과 화면을 표시하고 이후 맵 장면으로 돌아갑니다.
         bool playerWin = IsPartyWiped(enemyParty);
-        Debug.Log($"[Battle] 전투 종료 — {(playerWin ? "승리" : "패배")}");
+        Debug.Log($"[Battle] 전투 종료: {(playerWin ? "승리" : "패배")}");
 
         if (BattleResultUIManager.Instance != null)
         {
             if (playerWin)
-            {
-                // 승리 시: 기획 수치에 따른 골드 100, 경험치 50 연출 보상과 함께 맵 씬 로드 콜백 전달
                 BattleResultUIManager.Instance.ShowVictoryScreen(100, 50, LoadMapScene);
-            }
             else
-            {
-                // 패배 시: 게임 오버 팝업 및 퇴각 로드 콜백 전달
                 BattleResultUIManager.Instance.ShowDefeatScreen(LoadMapScene);
-            }
+            return;
         }
-        else
-        {
-            // 혹시라도 매니저가 유실되었을 경우의 예외 복구(Fallback) 처리
-            NotificationManager.Instance.ShowMessage(
-                playerWin ? "승리!" : "패배...",
-                playerWin ? UnityEngine.Color.cyan : UnityEngine.Color.red);
-            Invoke(nameof(LoadMapScene), 2f);
-        }
+
+        NotificationManager.Instance.ShowMessage(playerWin ? "승리!" : "패배...", playerWin ? Color.cyan : Color.red);
+        Invoke(nameof(LoadMapScene), 2f);
     }
 
     private void LoadMapScene()
     {
-        Debug.Log("[Battle] 맵 씬(MapScene)으로 이동합니다.");
+        Debug.Log("[Battle] MapScene으로 이동합니다.");
         UnityEngine.SceneManagement.SceneManager.LoadScene("MapScene");
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // 스킬 선택 & 실행 (PlayerTurn에서만 동작)
-    // ══════════════════════════════════════════════════════════════
-
-    /// <summary>SkillSlotUI.OnClickSlot()에서 호출합니다.</summary>
-    public void SelectSkill(SkillInfo skill, BattleCharacter actor)
-    {
-        if (!IsPlayerTurn) return;
-
-        _selection.Set(skill, actor);
-
-        if (targetHandler.target != null)
-            PerformSkill();
-        else
-            NotificationManager.Instance.ShowMessage("타겟을 선택하세요!", UnityEngine.Color.yellow);
-    }
-
-    /// <summary>타겟 선택 완료 후 실행됩니다.</summary>
-    public void PerformSkill()
-    {
-        if (!IsPlayerTurn) return;
-        if (!_selection.IsReady || targetHandler.target == null) return;
-
-        var primaryTarget = targetHandler.target.GetComponent<BattleCharacter>();
-        if (primaryTarget == null) return;
-
-        var skill    = _selection.Skill;
-        var actor    = _selection.Actor;
-        int skillIdx = actor.status.SkillLevelIndex;
-        var levelData = skill.levels[Mathf.Clamp(skillIdx, 0, skill.levels.Length - 1)];
-
-        if (!TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty))
-        {
-            NotificationManager.Instance.ShowMessage(
-                $"[타겟 오류] {skill.skillName}은(는) 해당 대상에 사용 불가.", UnityEngine.Color.red);
-            _selection.Clear();
-            return;
-        }
-
-        int cost = (levelData.overrideCost != -1) ? levelData.overrideCost : skill.baseCost;
-        if (currentAP < cost)
-        {
-            NotificationManager.Instance.ShowMessage("AP가 부족합니다.", UnityEngine.Color.red);
-            return;
-        }
-
-        currentAP -= cost;
-        UpdateAPUI();
-
-        var targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty);
-        EffectEngine.ProcessSkill(actor, targets, levelData);
-
-        _selection.Clear();
-
-        // AP 소진 시 자동으로 턴 종료
-        if (currentAP <= 0) EndPlayerTurn();
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    // 헬퍼
-    // ══════════════════════════════════════════════════════════════
-
-    private bool IsPartyWiped(List<BattleCharacter> party)
-        => party.TrueForAll(c => c == null || c.status.currentHp <= 0);
-
-    private void RemoveDeadCharacters()
-    {
-        // 현재는 로그만 출력. 향후 사망 애니메이션·오브젝트 비활성화 연결 가능.
-        foreach (var c in playerParty)
-            if (c != null && c.status.currentHp <= 0)
-                Debug.Log($"[Battle] {c.characterName} 사망");
-        foreach (var c in enemyParty)
-            if (c != null && c.status.currentHp <= 0)   
-                Debug.Log($"[Battle] {c.characterName} 사망");
-    }
-
-    // ── UI 갱신 ──────────────────────────────────────────────────
-
     public void UpdateAPUI()
     {
-        if (apText != null) apText.text = $"AP: {currentAP} / {maxAP}";
+        if (apText != null) apText.text = $"행동력: {currentAP} / {maxAP}";
     }
 
     private void UpdatePhaseUI()
@@ -306,17 +358,37 @@ public class BattleManager : MonoBehaviour
         if (phaseText == null) return;
         phaseText.text = _currentPhase switch
         {
-            BattlePhase.PlayerTurn   => "아군 턴",
-            BattlePhase.EnemyTurn    => "적군 턴",
+            BattlePhase.PlayerTurn => "아군 턴",
+            BattlePhase.EnemyTurn => "적 턴",
             BattlePhase.StatusEffect => "상태이상",
-            BattlePhase.TurnEnd      => "턴 종료",
-            BattlePhase.BattleEnd    => "전투 종료",
-            _                        => "-------"
+            BattlePhase.TurnEnd => "턴 종료",
+            BattlePhase.BattleEnd => "전투 종료",
+            _ => "-------"
         };
     }
 
     private void UpdateTurnUI()
     {
-        if (turnCountText != null) turnCountText.text = $"Turn {_turnCount}";
+        if (turnCountText != null) turnCountText.text = $"{_turnCount}턴";
+    }
+
+    private bool IsPartyWiped(List<BattleCharacter> party)
+    {
+        return party.TrueForAll(c => c == null || c.status.currentHp <= 0);
+    }
+
+    private void RemoveDeadCharacters()
+    {
+        foreach (BattleCharacter character in playerParty)
+        {
+            if (character != null && character.status.currentHp <= 0)
+                Debug.Log($"[Battle] {character.characterName} is down.");
+        }
+
+        foreach (BattleCharacter character in enemyParty)
+        {
+            if (character != null && character.status.currentHp <= 0)
+                Debug.Log($"[Battle] {character.characterName} is down.");
+        }
     }
 }

@@ -9,9 +9,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1870759946210311077}
+  - component: {fileID: 2065526792106160325}
   - component: {fileID: 3494535205231770376}
   - component: {fileID: 3692054347950391527}
-  - component: {fileID: 2065526792106160325}
   - component: {fileID: 4393754690181096154}
   m_Layer: 5
   m_Name: Main Character
@@ -42,6 +42,29 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 400, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &2065526792106160325
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6632497693537910942}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c17e463e001ab9e43a77209d3d0e1b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  status:
+    origin: {fileID: 0}
+    currentHp: 0
+    currentMental: 0
+    bonusAttack: 0
+    charLevel: 0
+    dynamicActiveSkill: []
+    activeStatusEffects: []
+  view: {fileID: 3494535205231770376}
+  isLeader: 0
+  testData: {fileID: 11400000, guid: d71aec29ca3defb479e2a9589b5a4f24, type: 2}
 --- !u!114 &3494535205231770376
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -73,26 +96,6 @@ MonoBehaviour:
   hpText: {fileID: 8678518101458800692}
   mentalSlider: {fileID: 4112423651443350142}
   mentalText: {fileID: 1165191570993622569}
---- !u!114 &2065526792106160325
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6632497693537910942}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c17e463e001ab9e43a77209d3d0e1b99, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  status:
-    origin: {fileID: 0}
-    currentHp: 0
-    currentMental: 0
-    bonusAttack: 0
-    skillLevels: 
-  view: {fileID: 3494535205231770376}
-  testData: {fileID: 11400000, guid: d71aec29ca3defb479e2a9589b5a4f24, type: 2}
 --- !u!61 &4393754690181096154
 BoxCollider2D:
   m_ObjectHideFlags: 0

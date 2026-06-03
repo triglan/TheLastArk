@@ -87,12 +87,9 @@ public class EventPopupUI : MonoBehaviour
 
     private void BuildUI()
     {
-        // ═══════════════════════════════════════════
-        // 최상위 Canvas (기존 UI 위에 렌더링)
-        // ═══════════════════════════════════════════
         popupCanvas = gameObject.AddComponent<Canvas>();
         popupCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        popupCanvas.sortingOrder = 100;  // 맵 UI보다 위에 표시
+        popupCanvas.sortingOrder = 100;
 
         CanvasScaler scaler = gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -101,47 +98,39 @@ public class EventPopupUI : MonoBehaviour
 
         gameObject.AddComponent<GraphicRaycaster>();
 
-        // ═══════════════════════════════════════════
-        // 레이어 1: 반투명 어두운 오버레이 (맵이 비침)
-        // ═══════════════════════════════════════════
+        // 레이어 1: 반투명 어두운 오버레이
         GameObject overlayObj = new GameObject("DarkOverlay");
         overlayObj.transform.SetParent(transform, false);
         Image overlayImg = overlayObj.AddComponent<Image>();
         overlayImg.color = OVERLAY_COLOR;
-        overlayImg.raycastTarget = true;  // 뒤쪽 클릭 차단
+        overlayImg.raycastTarget = true;
         SetFullScreen(overlayObj.GetComponent<RectTransform>());
 
-        // ═══════════════════════════════════════════
-        // 레이어 2: 이벤트 창 패널 (중앙)
-        // ═══════════════════════════════════════════
+        // 레이어 2: 메인 패널 (화면 중앙 90%)
         GameObject panelObj = new GameObject("EventPanel");
         panelObj.transform.SetParent(transform, false);
         Image panelBg = panelObj.AddComponent<Image>();
-        panelBg.color = new Color(0, 0, 0, 0); // 투명 (이미지가 전체를 덮으므로)
-
+        panelBg.color = PANEL_BG; // 배경색 설정
         RectTransform panelRect = panelObj.GetComponent<RectTransform>();
-        // 앵커 기반 크기 (화면의 약 90%)
-        panelRect.anchorMin = new Vector2(0.05f, 0.06f);
-        panelRect.anchorMax = new Vector2(0.95f, 0.94f);
+        panelRect.anchorMin = new Vector2(0.05f, 0.05f);
+        panelRect.anchorMax = new Vector2(0.95f, 0.95f);
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
 
-        // ─── 이미지 영역 (패널 전체) ───
+        // ─── 좌측 50%: 이미지 영역 ───
         GameObject imageArea = new GameObject("ImageArea");
         imageArea.transform.SetParent(panelObj.transform, false);
         RectTransform imgAreaRect = imageArea.AddComponent<RectTransform>();
-        imgAreaRect.anchorMin = Vector2.zero;
-        imgAreaRect.anchorMax = Vector2.one;
+        imgAreaRect.anchorMin = new Vector2(0, 0);
+        imgAreaRect.anchorMax = new Vector2(0.5f, 1);
         imgAreaRect.offsetMin = Vector2.zero;
         imgAreaRect.offsetMax = Vector2.zero;
 
-        // 마스크 (이미지가 영역을 넘어가면 잘라냄)
         Image areaBg = imageArea.AddComponent<Image>();
         areaBg.color = IMAGE_PLACEHOLDER;
         areaBg.raycastTarget = false;
-        RectMask2D mask = imageArea.AddComponent<RectMask2D>();
+        imageArea.AddComponent<RectMask2D>();
 
-        // 이벤트 이미지 (자식으로 배치, 비율 유지하면서 영역 꽉 채움)
         GameObject imgObj = new GameObject("EventImage");
         imgObj.transform.SetParent(imageArea.transform, false);
         backgroundImage = imgObj.AddComponent<Image>();
@@ -153,20 +142,14 @@ public class EventPopupUI : MonoBehaviour
         imgRect.anchorMax = new Vector2(0.5f, 0.5f);
         imgRect.pivot = new Vector2(0.5f, 0.5f);
 
-        // ─── 하단 검은 그라데이션 (패널 위에 직접 배치) ───
+        // ─── 이미지 우측 경계 그라데이션 (자연스러운 블렌딩) ───
         CreateGradientOverlay(panelObj.transform);
 
-        // ─── 텍스트+선택지 영역 (패널 하단) ───
+        // ─── 우측 50%: 텍스트 및 선택지 영역 ───
         BuildContentArea(panelObj.transform);
-
-        // ─── 결과 영역 (초기 숨김) ───
         BuildResultArea(panelObj.transform);
     }
 
-    /// <summary>
-    /// 패널 하단에 검은 그라데이션 오버레이.
-    /// 아래쪽은 진한 검정, 위로 갈수록 투명하게 사라집니다.
-    /// </summary>
     private void CreateGradientOverlay(Transform parent)
     {
         GameObject gradObj = new GameObject("GradientOverlay");
@@ -174,25 +157,24 @@ public class EventPopupUI : MonoBehaviour
         Image gradImg = gradObj.AddComponent<Image>();
         gradImg.raycastTarget = false;
 
-        // 그라데이션 텍스처 (하단 불투명 검정 → 상단 완전 투명)
-        int h = 256;
-        Texture2D tex = new Texture2D(1, h, TextureFormat.RGBA32, false);
+        // 가로 그라데이션 (왼쪽 투명 -> 오른쪽 불투명 PANEL_BG)
+        int w = 256;
+        Texture2D tex = new Texture2D(w, 1, TextureFormat.RGBA32, false);
         tex.wrapMode = TextureWrapMode.Clamp;
-        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
         {
-            float t = (float)y / (h - 1);
-            // 비선형 커브: 아래쪽이 더 진하게 유지되다가 위로 갈수록 빠르게 사라짐
-            float alpha = 1f - Mathf.Pow(t, 0.55f);
-            tex.SetPixel(0, y, new Color(0, 0, 0, alpha * 0.93f));
+            float t = (float)x / (w - 1);
+            float alpha = Mathf.Pow(t, 2f);
+            tex.SetPixel(x, 0, new Color(PANEL_BG.r, PANEL_BG.g, PANEL_BG.b, alpha));
         }
         tex.Apply();
-        gradImg.sprite = Sprite.Create(tex, new Rect(0, 0, 1, h), new Vector2(0.5f, 0.5f));
+        gradImg.sprite = Sprite.Create(tex, new Rect(0, 0, w, 1), new Vector2(0.5f, 0.5f));
         gradImg.type = Image.Type.Sliced;
 
-        // 패널 하단 65% 차지
+        // 좌측 50% 영역의 오른쪽에 배치
         RectTransform gRect = gradObj.GetComponent<RectTransform>();
-        gRect.anchorMin = new Vector2(0, 0);
-        gRect.anchorMax = new Vector2(1, 0.65f);
+        gRect.anchorMin = new Vector2(0.3f, 0);
+        gRect.anchorMax = new Vector2(0.5f, 1);
         gRect.offsetMin = Vector2.zero;
         gRect.offsetMax = Vector2.zero;
     }
@@ -202,44 +184,48 @@ public class EventPopupUI : MonoBehaviour
         eventContentArea = new GameObject("EventContent");
         eventContentArea.transform.SetParent(panelParent, false);
         RectTransform cRect = eventContentArea.AddComponent<RectTransform>();
-        cRect.anchorMin = new Vector2(0, 0);
-        cRect.anchorMax = new Vector2(1, 0.45f);
-        cRect.offsetMin = new Vector2(35, 20);
-        cRect.offsetMax = new Vector2(-35, 0);
+        cRect.anchorMin = new Vector2(0.5f, 0);
+        cRect.anchorMax = new Vector2(1, 1);
+        cRect.offsetMin = new Vector2(40, 40);
+        cRect.offsetMax = new Vector2(-40, -40);
 
         VerticalLayoutGroup vlg = eventContentArea.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 15;
-        vlg.childAlignment = TextAnchor.LowerCenter;
+        vlg.spacing = 20;
+        vlg.childAlignment = TextAnchor.UpperLeft;
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
         vlg.childControlWidth = true;
-        vlg.childControlHeight = false;
+        vlg.childControlHeight = true;
 
-        // 제목
-        titleText = CreateText(eventContentArea.transform, "Title", "", 32, TITLE_COLOR);
+        // 1. 타이틀은 상단에
+        titleText = CreateText(eventContentArea.transform, "Title", "", 36, TITLE_COLOR);
         titleText.fontStyle = TMPro.FontStyles.Bold;
-        titleText.alignment = TMPro.TextAlignmentOptions.Bottom;
-        SetPreferredHeight(titleText.gameObject, 45);
+        titleText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+        SetPreferredHeight(titleText.gameObject, 50);
 
-        // 설명
-        descriptionText = CreateText(eventContentArea.transform, "Desc", "", 20, DESC_COLOR);
-        descriptionText.alignment = TMPro.TextAlignmentOptions.Top;
-        SetPreferredHeight(descriptionText.gameObject, 65);
+        CreateDivider(eventContentArea.transform);
 
-        // 선택지 컨테이너 (2x2 그리드 배열)
+        // 2. 이벤트 텍스트는 타이틀과 버튼 사이 (유연하게 공간 차지)
+        descriptionText = CreateText(eventContentArea.transform, "Desc", "", 26, DESC_COLOR);
+        descriptionText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+        descriptionText.lineSpacing = 60; // 결과창처럼 간격 늘리기
+        LayoutElement descLE = descriptionText.gameObject.AddComponent<LayoutElement>();
+        descLE.flexibleHeight = 1; // 남는 공간 채움
+
+        // 3. 버튼은 하단에
         optionsContainer = new GameObject("Options");
         optionsContainer.transform.SetParent(eventContentArea.transform, false);
         optionsContainer.AddComponent<RectTransform>();
-        GridLayoutGroup oGrid = optionsContainer.AddComponent<GridLayoutGroup>();
-        oGrid.cellSize = new Vector2(810, 48);   // 반반 차지하도록 폭 넓게 설정
-        oGrid.spacing = new Vector2(15, 10);
-        oGrid.childAlignment = TextAnchor.UpperCenter;
-        oGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        oGrid.constraintCount = 2; // 최대 열 2개
-
+        VerticalLayoutGroup oVlg = optionsContainer.AddComponent<VerticalLayoutGroup>();
+        oVlg.spacing = 10;
+        oVlg.childAlignment = TextAnchor.LowerCenter;
+        oVlg.childForceExpandWidth = true;
+        oVlg.childForceExpandHeight = false;
+        oVlg.childControlWidth = true;
+        oVlg.childControlHeight = true;
         LayoutElement oLE = optionsContainer.AddComponent<LayoutElement>();
-        oLE.preferredHeight = 110;
-        oLE.flexibleWidth = 1;
+        // oLE.preferredHeight = 250; // 제거: 자식 크기에 맞춰 자동 계산
+        oLE.flexibleHeight = 0;
     }
 
     private void BuildResultArea(Transform panelParent)
@@ -247,44 +233,42 @@ public class EventPopupUI : MonoBehaviour
         resultContentArea = new GameObject("ResultContent");
         resultContentArea.transform.SetParent(panelParent, false);
         RectTransform rRect = resultContentArea.AddComponent<RectTransform>();
-        rRect.anchorMin = new Vector2(0, 0);
-        rRect.anchorMax = new Vector2(1, 0.45f);
-        rRect.offsetMin = new Vector2(35, 20);
-        rRect.offsetMax = new Vector2(-35, 0);
+        rRect.anchorMin = new Vector2(0.5f, 0);
+        rRect.anchorMax = new Vector2(1, 1);
+        rRect.offsetMin = new Vector2(40, 40);
+        rRect.offsetMax = new Vector2(-40, -40);
 
         VerticalLayoutGroup vlg = resultContentArea.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 15;
-        vlg.childAlignment = TextAnchor.LowerCenter;
+        vlg.spacing = 20;
+        vlg.childAlignment = TextAnchor.UpperLeft;
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
         vlg.childControlWidth = true;
-        vlg.childControlHeight = false;
+        vlg.childControlHeight = true;
 
-        // 결과 제목
-        TMPro.TextMeshProUGUI rTitle = CreateText(resultContentArea.transform, "RTitle", "결과", 30, TITLE_COLOR);
+        TMPro.TextMeshProUGUI rTitle = CreateText(resultContentArea.transform, "RTitle", "결과", 36, TITLE_COLOR);
         rTitle.fontStyle = TMPro.FontStyles.Bold;
-        rTitle.alignment = TMPro.TextAlignmentOptions.Bottom;
-        SetPreferredHeight(rTitle.gameObject, 45);
+        rTitle.alignment = TMPro.TextAlignmentOptions.TopLeft;
+        SetPreferredHeight(rTitle.gameObject, 50);
 
         CreateDivider(resultContentArea.transform);
 
-        // 결과 텍스트
-        resultText = CreateText(resultContentArea.transform, "RText", "", 21, RESULT_NEUTRAL);
-        resultText.alignment = TMPro.TextAlignmentOptions.Top;
-        SetPreferredHeight(resultText.gameObject, 110);
+        resultText = CreateText(resultContentArea.transform, "RText", "", 24, RESULT_NEUTRAL);
+        resultText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+        resultText.lineSpacing = 60;
+        LayoutElement resLE = resultText.gameObject.AddComponent<LayoutElement>();
+        resLE.flexibleHeight = 1;
 
-        // 돌아가기 버튼 (하단 고정)
-        GameObject returnBtnObj = new GameObject("ReturnBtnContainer");
-        returnBtnObj.transform.SetParent(resultContentArea.transform, false);
-        returnBtnObj.AddComponent<RectTransform>();
-        HorizontalLayoutGroup hlg = returnBtnObj.AddComponent<HorizontalLayoutGroup>();
-        hlg.childAlignment = TextAnchor.MiddleCenter;
-        LayoutElement rLE = returnBtnObj.AddComponent<LayoutElement>();
-        rLE.preferredHeight = 50;
-
-        Button returnBtn = CreateOptionButton(returnBtnObj.transform, "계속하기", OnClosePopup, 48);
-        LayoutElement btnLE = returnBtn.gameObject.AddComponent<LayoutElement>();
-        btnLE.preferredWidth = 400; // 버튼 가로 크기 제한
+        GameObject btnContainer = new GameObject("BtnContainer");
+        btnContainer.transform.SetParent(resultContentArea.transform, false);
+        VerticalLayoutGroup bVlg = btnContainer.AddComponent<VerticalLayoutGroup>();
+        bVlg.childAlignment = TextAnchor.LowerCenter;
+        bVlg.childControlHeight = true;
+        bVlg.childControlWidth = true;
+        bVlg.childForceExpandWidth = true;
+        bVlg.childForceExpandHeight = false;
+        
+        CreateOptionButton(btnContainer.transform, "계속하기", OnClosePopup, 110);
 
         resultContentArea.SetActive(false);
     }
@@ -323,9 +307,65 @@ public class EventPopupUI : MonoBehaviour
                 text += $"  <size=15><color=#888>{req}</color></size>";
             }
 
-            Button btn = CreateOptionButton(optionsContainer.transform, text, () => OnOptionSelected(idx), 38);
+            string rewardPreview = GetOptionRewardPreviewText(option);
+            if (!string.IsNullOrEmpty(rewardPreview))
+            {
+                text += $"\n<size=18>{rewardPreview}</size>";
+            }
+
+            Button btn = CreateOptionButton(optionsContainer.transform, text, () => OnOptionSelected(idx), 110);
             optionButtons.Add(btn);
         }
+    }
+
+    private string GetOptionRewardPreviewText(EventOption option)
+    {
+        if (option.outcomes == null || option.outcomes.Count == 0) return "";
+        
+        List<string> goodRewards = new List<string>();
+        List<string> badRewards = new List<string>();
+
+        foreach (var outcome in option.outcomes)
+        {
+            if (outcome.rewards == null) continue;
+            foreach (var r in outcome.rewards)
+            {
+                string text = "";
+                bool isGood = true;
+                switch (r.rewardType)
+                {
+                    case EventRewardType.GainGold: text = $"골드 +{r.rewardValue}"; isGood = true; break;
+                    case EventRewardType.LoseGold: text = $"골드 -{r.rewardValue}"; isGood = false; break;
+                    case EventRewardType.HealHP: text = $"HP 회복"; isGood = true; break;
+                    case EventRewardType.TakeDamage: text = $"HP 감소"; isGood = false; break;
+                    case EventRewardType.TakeMentalDamage: text = $"정신력 감소"; isGood = false; break;
+                    case EventRewardType.GainCard: text = $"카드 획득"; isGood = true; break;
+                    case EventRewardType.GainRelic: text = $"유물 획득"; isGood = true; break;
+                    case EventRewardType.LoseRelic: text = $"유물 소실"; isGood = false; break;
+                    case EventRewardType.GainConsumable: text = $"소모품 획득"; isGood = true; break;
+                    case EventRewardType.UpgradeTrainCar: text = $"기차 강화"; isGood = true; break;
+                    case EventRewardType.DamageTrainCar: text = $"기차 파손"; isGood = false; break;
+                    case EventRewardType.UpgradeNextBattles: text = $"강적 조우"; isGood = false; break;
+                    case EventRewardType.GainActionPoints: text = $"행동력 증가"; isGood = true; break;
+                }
+                
+                if (!string.IsNullOrEmpty(text))
+                {
+                    if (isGood) { if (!goodRewards.Contains(text)) goodRewards.Add(text); }
+                    else { if (!badRewards.Contains(text)) badRewards.Add(text); }
+                }
+            }
+        }
+
+        List<string> allRewards = new List<string>();
+        foreach (var b in badRewards) allRewards.Add($"<color=#FF5555>{b}</color>");
+        foreach (var g in goodRewards) allRewards.Add($"<color=#55CCFF>{g}</color>");
+
+        if (allRewards.Count > 0)
+        {
+            return string.Join(", ", allRewards);
+        }
+        return "";
     }
 
     // ─────────────────────────────────────────────
@@ -337,6 +377,18 @@ public class EventPopupUI : MonoBehaviour
         if (index < 0 || index >= currentEvent.options.Count) return;
 
         EventOption option = currentEvent.options[index];
+
+        // 선택 비용 지불
+        if (option.requirementType == EventRequirementType.RequireGold)
+        {
+            TheLastArk.Managers.ResourceManager.Instance.SpendGold(option.requirementValue);
+        }
+        else if (option.requirementType == EventRequirementType.RequireHP)
+        {
+            // TODO: HP 차감 로직 연동 (현재 ResourceManager엔 HP 관리가 없으므로, BattleCharacter 또는 TrainManager 등을 연동)
+            // 우선 주석 처리하거나, 필요 시 나중에 구현합니다.
+        }
+
         EventOutcome outcome = EventManager.Instance.ResolveOutcome(option);
         EventManager.Instance.ApplyRewards(outcome);
 
@@ -430,16 +482,19 @@ public class EventPopupUI : MonoBehaviour
         {
             switch (r.rewardType)
             {
-                case EventRewardType.HealHP:           sb.AppendLine($"<color=#66EE77>♥ 모든 아군 HP +{r.rewardValue}</color>"); break;
-                case EventRewardType.TakeDamage:       sb.AppendLine($"<color=#EE6666>♥ 모든 아군 HP -{r.rewardValue}</color>"); break;
-                case EventRewardType.GainGold:         sb.AppendLine($"<color=#FFD700>● 골드 +{r.rewardValue}</color>"); break;
-                case EventRewardType.LoseGold:         sb.AppendLine($"<color=#EE6666>● 골드 -{r.rewardValue}</color>"); break;
-                case EventRewardType.GainRelic:        sb.AppendLine($"<color=#BB77FF>★ 유물 획득: {r.rewardDataID}</color>"); break;
-                case EventRewardType.GainCard:         sb.AppendLine($"<color=#77BBFF>◆ 카드 획득: {r.rewardDataID}</color>"); break;
-                case EventRewardType.GainConsumable:   sb.AppendLine($"<color=#77EEFF>■ 소모품 획득: {r.rewardDataID}</color>"); break;
-                case EventRewardType.UpgradeTrainCar:  sb.AppendLine($"<color=#FFAA33>▲ 기차 칸 강화!</color>"); break;
-                case EventRewardType.TakeMentalDamage: sb.AppendLine($"<color=#CC66EE>♦ 모든 아군 정신력 -{r.rewardValue}</color>"); break;
-                case EventRewardType.UpgradeNextBattles:sb.AppendLine($"<color=#EE6666>⚔ 다음 {r.rewardValue}회 전투가 강적 전투로 대체!</color>"); break;
+                case EventRewardType.HealHP:           sb.Append($"<color=#66EE77>모든 아군 HP +{r.rewardValue}</color>\n"); break;
+                case EventRewardType.TakeDamage:       sb.Append($"<color=#EE6666>모든 아군 HP -{r.rewardValue}</color>\n"); break;
+                case EventRewardType.GainGold:         sb.Append($"<color=#FFD700>골드 +{r.rewardValue}</color>\n"); break;
+                case EventRewardType.LoseGold:         sb.Append($"<color=#EE6666>골드 -{r.rewardValue}</color>\n"); break;
+                case EventRewardType.GainRelic:        sb.Append($"<color=#BB77FF>유물 획득: {r.rewardDataID}</color>\n"); break;
+                case EventRewardType.GainCard:         sb.Append($"<color=#77BBFF>카드 획득: {r.rewardDataID}</color>\n"); break;
+                case EventRewardType.GainConsumable:   sb.Append($"<color=#77EEFF>소모품 획득: {r.rewardDataID}</color>\n"); break;
+                case EventRewardType.UpgradeTrainCar:  sb.Append($"<color=#FFAA33>기차 칸 강화!</color>\n"); break;
+                case EventRewardType.TakeMentalDamage: sb.Append($"<color=#CC66EE>모든 아군 정신력 -{r.rewardValue}</color>\n"); break;
+                case EventRewardType.UpgradeNextBattles:sb.Append($"<color=#EE6666>다음 {r.rewardValue}회 전투가 강적 전투로 대체!</color>\n"); break;
+                case EventRewardType.LoseRelic:        sb.Append($"<color=#EE6666>유물 소실: {r.rewardDataID}</color>\n"); break;
+                case EventRewardType.DamageTrainCar:   sb.Append($"<color=#EE6666>기차 칸 파손!</color>\n"); break;
+                case EventRewardType.GainActionPoints: sb.Append($"<color=#44DDFF>다음 {r.rewardValue}회 전투 행동력 +2</color>\n"); break;
             }
         }
         return sb.ToString().TrimEnd();
@@ -485,14 +540,30 @@ public class EventPopupUI : MonoBehaviour
         btnObj.AddComponent<RectTransform>();
 
         Image bg = btnObj.AddComponent<Image>();
-        bg.color = BTN_NORMAL;
+        Sprite bgSprite = Resources.Load<Sprite>("Events/Eventbutton");
+        if (bgSprite != null)
+        {
+            bg.sprite = bgSprite;
+            bg.type = Image.Type.Sliced;
+        }
+        else
+        {
+            bg.color = BTN_NORMAL;
+        }
 
         Button btn = btnObj.AddComponent<Button>();
         ColorBlock cb = btn.colors;
-        cb.normalColor = BTN_NORMAL;
-        cb.highlightedColor = BTN_HOVER;
-        cb.pressedColor = new Color(0.10f, 0.12f, 0.18f, 0.9f);
-        cb.selectedColor = BTN_HOVER;
+        cb.normalColor = Color.white;
+        cb.highlightedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+        cb.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+        cb.selectedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+        if (bgSprite == null)
+        {
+            cb.normalColor = BTN_NORMAL;
+            cb.highlightedColor = BTN_HOVER;
+            cb.pressedColor = new Color(0.10f, 0.12f, 0.18f, 0.9f);
+            cb.selectedColor = BTN_HOVER;
+        }
         btn.colors = cb;
         btn.targetGraphic = bg;
 
@@ -501,14 +572,17 @@ public class EventPopupUI : MonoBehaviour
         RectTransform tRect = txtObj.AddComponent<RectTransform>();
         tRect.anchorMin = Vector2.zero;
         tRect.anchorMax = Vector2.one;
-        tRect.offsetMin = new Vector2(18, 4);
-        tRect.offsetMax = new Vector2(-18, -4);
+        tRect.offsetMin = new Vector2(80, 20);
+        tRect.offsetMax = new Vector2(-40, -20);
 
         TMPro.TextMeshProUGUI tmp = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
         tmp.text = text;
         tmp.fontSize = 19;
+        tmp.enableAutoSizing = true;
+        tmp.fontSizeMin = 14;
+        tmp.fontSizeMax = 19;
         tmp.color = BTN_TEXT;
-        tmp.alignment = TMPro.TextAlignmentOptions.Midline; // 버튼 텍스트 중앙 정렬
+        tmp.alignment = TMPro.TextAlignmentOptions.MidlineLeft;
         tmp.enableWordWrapping = true;
         tmp.richText = true;
         if (mainFont != null) tmp.font = mainFont;
@@ -541,4 +615,17 @@ public class EventPopupUI : MonoBehaviour
             if (b != null) Destroy(b.gameObject);
         optionButtons.Clear();
     }
+
+#if UNITY_EDITOR
+    public static void PreviewInEditor(GameEventData eventData)
+    {
+        var existing = GameObject.Find("EventPopup_Preview");
+        if (existing != null) DestroyImmediate(existing);
+
+        GameObject popupObj = new GameObject("EventPopup_Preview");
+        EventPopupUI popup = popupObj.AddComponent<EventPopupUI>();
+        popup.currentEvent = eventData;
+        popup.Initialize();
+    }
+#endif
 }

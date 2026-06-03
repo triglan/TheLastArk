@@ -63,6 +63,29 @@ public class MapManager : MonoBehaviour
         InitializeMap();
     }
 
+    void OnGUI()
+    {
+        // 디버깅용 이벤트 강제 트리거 버튼 (화면 우측 상단, 작게)
+        if (GUI.Button(new Rect(Screen.width - 120, 10, 110, 30), "Debug: Event"))
+        {
+            var eventMgr = EventManager.Instance;
+            var eventData = eventMgr?.GetRandomEvent(1);
+            if (eventData != null)
+            {
+                Debug.Log($"[MapManager Debug] 이벤트 강제 실행: {eventData.eventTitle}");
+                EventPopupUI.Show(eventData, () =>
+                {
+                    UpdateAllVisuals();
+                    UpdateInfoPanel();
+                });
+            }
+            else
+            {
+                Debug.LogWarning("[MapManager] 발생 가능한 이벤트가 없습니다.");
+            }
+        }
+    }
+
     // ─────────────────────────────────────────────
     // 초기화
     // ─────────────────────────────────────────────
@@ -134,6 +157,163 @@ private void InitializeMap()
         DrawConnections();
         UpdateAllVisuals();
         UpdateInfoPanel();
+
+        // 자원 UI 생성
+        Canvas canvas = FindObjectOfType<Canvas>();
+        if (canvas != null)
+        {
+            Transform existingRes = canvas.transform.Find("ResourcePanel");
+            if (existingRes == null)
+            {
+                var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
+                if (resourceUI == null) resourceUI = gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();
+                resourceUI.Initialize(canvas.transform);
+            }
+            
+            // 기차 관리 버튼 생성
+            Transform existingTrainBtn = canvas.transform.Find("TrainManageButton");
+            if (existingTrainBtn == null)
+            {
+                CreateTrainManagementButton(canvas.transform);
+                CreateDebugConsumableButton(canvas.transform);
+                CreateDebugRelicButton(canvas.transform);
+            }
+        }
+    }
+
+    private void CreateDebugConsumableButton(Transform canvasTransform)
+    {
+        GameObject btnObj = new GameObject("DebugConsumableButton");
+        btnObj.transform.SetParent(canvasTransform, false);
+        btnObj.transform.SetAsLastSibling();
+
+        RectTransform rect = btnObj.AddComponent<RectTransform>();
+        rect.anchorMin = new Vector2(1, 0);
+        rect.anchorMax = new Vector2(1, 0);
+        rect.pivot = new Vector2(1, 0);
+        rect.anchoredPosition = new Vector2(-180, 80); // 기차 관리 버튼 왼쪽 옆
+        rect.sizeDelta = new Vector2(150, 50);
+
+        UnityEngine.UI.Image img = btnObj.AddComponent<UnityEngine.UI.Image>();
+        img.color = new Color(0.8f, 0.4f, 0.2f, 1f);
+
+        UnityEngine.UI.Button btn = btnObj.AddComponent<UnityEngine.UI.Button>();
+        btn.onClick.AddListener(() => {
+            Debug.Log("[MapManager] 디버그 소모품 획득 버튼 클릭");
+            var consumables = Resources.LoadAll<TheLastArk.Data.ConsumableData>("Consumables");
+            var resManager = TheLastArk.Managers.ResourceManager.Instance;
+            if (resManager != null && consumables != null && consumables.Length > 0)
+            {
+                var c = consumables[UnityEngine.Random.Range(0, consumables.Length)];
+                resManager.AddConsumable(c);
+                Debug.Log($"[Debug] 무작위 소모품 획득: {c.consumableName}");
+            }
+        });
+
+        CreateButtonText(btnObj.transform, "디버그: 소모품");
+    }
+
+    private void CreateDebugRelicButton(Transform canvasTransform)
+    {
+        GameObject btnObj = new GameObject("DebugRelicButton");
+        btnObj.transform.SetParent(canvasTransform, false);
+        btnObj.transform.SetAsLastSibling();
+
+        RectTransform rect = btnObj.AddComponent<RectTransform>();
+        rect.anchorMin = new Vector2(1, 0);
+        rect.anchorMax = new Vector2(1, 0);
+        rect.pivot = new Vector2(1, 0);
+        rect.anchoredPosition = new Vector2(-340, 80); // 소모품 버튼 왼쪽 옆
+        rect.sizeDelta = new Vector2(150, 50);
+
+        UnityEngine.UI.Image img = btnObj.AddComponent<UnityEngine.UI.Image>();
+        img.color = new Color(0.8f, 0.2f, 0.8f, 1f);
+
+        UnityEngine.UI.Button btn = btnObj.AddComponent<UnityEngine.UI.Button>();
+        btn.onClick.AddListener(() => {
+            Debug.Log("[MapManager] 디버그 유물 획득 버튼 클릭");
+            var relics = Resources.LoadAll<TheLastArk.Data.RelicData>("Relics");
+            var resManager = TheLastArk.Managers.ResourceManager.Instance;
+            if (resManager != null && relics != null && relics.Length > 0)
+            {
+                var available = new System.Collections.Generic.List<TheLastArk.Data.RelicData>();
+                foreach (var r in relics) {
+                    if (!resManager.HasRelic(r.relicID)) available.Add(r);
+                }
+                if (available.Count > 0)
+                {
+                    var r = available[UnityEngine.Random.Range(0, available.Count)];
+                    resManager.AddRelic(r);
+                    Debug.Log($"[Debug] 무작위 유물 획득: {r.relicName}");
+                }
+                else
+                {
+                    Debug.Log($"[Debug] 모든 유물을 이미 보유 중입니다!");
+                }
+            }
+        });
+
+        CreateButtonText(btnObj.transform, "디버그: 유물");
+    }
+
+    private void CreateButtonText(Transform parent, string text)
+    {
+        GameObject txtObj = new GameObject("Text");
+        txtObj.transform.SetParent(parent, false);
+        RectTransform txtRect = txtObj.AddComponent<RectTransform>();
+        txtRect.anchorMin = Vector2.zero;
+        txtRect.anchorMax = Vector2.one;
+        txtRect.sizeDelta = Vector2.zero;
+
+        TMPro.TextMeshProUGUI tmp = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = 20;
+        tmp.alignment = TMPro.TextAlignmentOptions.Center;
+        tmp.color = Color.white;
+        if (mainFont != null) tmp.font = mainFont;
+    }
+
+    private void CreateTrainManagementButton(Transform canvasTransform)
+    {
+        GameObject btnObj = new GameObject("TrainManageButton");
+        btnObj.transform.SetParent(canvasTransform, false);
+        btnObj.transform.SetAsLastSibling();
+
+        RectTransform rect = btnObj.AddComponent<RectTransform>();
+        rect.anchorMin = new Vector2(1, 0);
+        rect.anchorMax = new Vector2(1, 0);
+        rect.pivot = new Vector2(1, 0);
+        rect.anchoredPosition = new Vector2(-20, 80); // InfoPanel 위에 배치
+        rect.sizeDelta = new Vector2(150, 50);
+
+        Image img = btnObj.AddComponent<Image>();
+        img.color = new Color(0.2f, 0.4f, 0.6f, 1f);
+
+        Button btn = btnObj.AddComponent<Button>();
+        btn.onClick.AddListener(() => {
+            Debug.Log("[MapManager] 기차 관리 버튼 클릭");
+            var trainUI = FindObjectOfType<TheLastArk.UI.TrainManagementUI>();
+            if (trainUI == null) 
+            {
+                GameObject uiObj = new GameObject("TrainManagementUI");
+                trainUI = uiObj.AddComponent<TheLastArk.UI.TrainManagementUI>();
+            }
+            trainUI.Show();
+        });
+
+        GameObject txtObj = new GameObject("Text");
+        txtObj.transform.SetParent(btnObj.transform, false);
+        RectTransform txtRect = txtObj.AddComponent<RectTransform>();
+        txtRect.anchorMin = Vector2.zero;
+        txtRect.anchorMax = Vector2.one;
+        txtRect.sizeDelta = Vector2.zero;
+
+        TMPro.TextMeshProUGUI tmp = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
+        tmp.text = "기차 관리";
+        tmp.fontSize = 20;
+        tmp.alignment = TMPro.TextAlignmentOptions.Center;
+        tmp.color = Color.white;
+        if (mainFont != null) tmp.font = mainFont;
     }
 
     /// <summary>
@@ -537,6 +717,12 @@ label.color = Color.white;
 
         // 턴 처리
         CollapseResult result = collapseManager.ProcessTurn(mapData);
+
+        // 기차 내구도 감소
+        if (TheLastArk.Managers.TrainManager.Instance != null)
+        {
+            TheLastArk.Managers.TrainManager.Instance.DecreaseDurability(1);
+        }
 
         // UI 갱신
         UpdateAllVisuals();

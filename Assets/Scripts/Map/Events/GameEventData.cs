@@ -15,14 +15,19 @@ namespace TheLastArk.Map.Events
         GainRelic,
         GainConsumable,
         UpgradeTrainCar,
-        UpgradeNextBattles      // 다음 N회 전투를 강적으로 대체
+        UpgradeNextBattles,     // 다음 N회 전투를 강적으로 대체
+        LoseRelic,              // 유물 소실 (교환/소모)
+        DamageTrainCar,         // 기차 칸 파손
+        GainActionPoints        // 다음 N회 전투 행동력 보너스
     }
 
     public enum EventRequirementType
     {
         None,
         RequireGold,
-        RequireHP
+        RequireHP,
+        RequireSense,
+        RequireRelic           // 특정 유물 보유 시 선택 가능
     }
 
     /// <summary>
@@ -71,6 +76,7 @@ namespace TheLastArk.Map.Events
         [Header("조건 (선택 시 필요/소모값)")]
         public EventRequirementType requirementType;
         public int requirementValue;    // 예: RequireGold 이고 값이 50이면 50골드 필요
+        public string requirementDataID;  // RequireRelic일 때 유물 ID
 
         [Header("확률 결과 목록")]
         [Tooltip("확률의 합이 100이 되도록 설정하세요")]
@@ -97,6 +103,12 @@ namespace TheLastArk.Map.Events
 
         [Tooltip("이벤트 상황 묘사용 이미지 (아이콘 등)")]
         public Sprite eventImage;
+
+        [Tooltip("이미지 표시 위치 오프셋 (기본 0,0 - 원하는 위치로 조정 시 사용)")]
+        public Vector2 imageOffset = Vector2.zero;
+
+        [Tooltip("이미지 표시 배율 (기본 1.0 - 확대/축소 시 사용)")]
+        public float imageScale = 1.0f;
 
         [Header("선택지 목록 (2~3개 권장)")]
         public List<EventOption> options = new List<EventOption>();

@@ -42,7 +42,12 @@ public class RunManager : MonoBehaviour
     // ── 맵 / 진행 상태 ────────────────────────────────────────────
     public MapData CurrentMap  { get; set; }
     public MapNode CurrentNode { get; set; }
-    public int     CurrentTurn { get; set; }
+    public int CurrentTurn { get; set; }
+
+    public int GetPartyTotalSense()
+    {
+        return 10;
+    }
 
     // ── 런 상태 (개선 #4) ─────────────────────────────────────────
     /// <summary>
@@ -73,6 +78,25 @@ public class RunManager : MonoBehaviour
             case NodeType.Rest:
                 Debug.Log($"[RunManager] 휴식 노드 — RestScene 미구현");
                 break;
+        }
+    }
+
+    // ── 파티 관리 ─────────────────────────────────────────────────
+    public void AddPartyMember(CharacterData characterData)
+    {
+        if (characterData == null) return;
+        
+        string id = characterData.characterName;
+        if (!State.partyDataIDs.Contains(id))
+        {
+            State.partyDataIDs.Add(id);
+            State.partyStatuses.Add(new CharacterStatus(characterData));
+            
+            // 첫 멤버면 리더로 자동 지정
+            if (string.IsNullOrEmpty(State.leaderCharacterID))
+            {
+                State.leaderCharacterID = id;
+            }
         }
     }
 
