@@ -5,7 +5,7 @@ public class CharacterView : MonoBehaviour
 {
     public bool isStandingIllust = false;
 
-    [Header("Manual Setup")]
+    [Header("수동 연결")]
     public Image displayImage;
     public BarUI barUI;
 
@@ -14,13 +14,14 @@ public class CharacterView : MonoBehaviour
     {
         if (displayImage != null && status.origin != null)
         {
-            displayImage.sprite = isStandingIllust ? status.origin.standingSprite : status.origin.portraitSprite;
+            displayImage.sprite = (status.origin.isEnemy || isStandingIllust)
+                ? status.origin.standingSprite
+                : status.origin.portraitSprite;
         }
 
         if (barUI != null && status.origin != null)
         {
-            // [FIX 5] 강화 배율이 적용된 FinalMaxHp / FinalMaxMental을 사용
-            // 이전 코드(status.origin.maxHp)는 강화 단계를 무시하여 바가 잘못 표시됨
+            // 강화 배율이 적용된 최종 체력과 정신력을 바에 표시합니다.
             barUI.UpdateAllBars(status.currentHp, status.FinalMaxHp,
                                status.currentMental, status.FinalMaxMental);
         }

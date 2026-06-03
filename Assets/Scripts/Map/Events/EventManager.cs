@@ -259,22 +259,57 @@ namespace TheLastArk.Map.Events
 
                 case EventRewardType.GainGold:
                     Debug.Log($"[EventManager] 골드 +{reward.rewardValue} 획득!");
+                    TheLastArk.Managers.ResourceManager.Instance.AddGold(reward.rewardValue);
                     break;
 
                 case EventRewardType.LoseGold:
                     Debug.Log($"[EventManager] 골드 -{reward.rewardValue} 소실!");
+                    TheLastArk.Managers.ResourceManager.Instance.SpendGold(reward.rewardValue);
                     break;
 
                 case EventRewardType.GainCard:
                     Debug.Log($"[EventManager] 카드 '{reward.rewardDataID}' x{reward.rewardValue} 획득!");
+                    TheLastArk.Managers.ResourceManager.Instance.AddCharacterCard(reward.rewardDataID, reward.rewardValue);
                     break;
 
                 case EventRewardType.GainRelic:
-                    Debug.Log($"[EventManager] 유물 '{reward.rewardDataID}' 획득!");
+                    if (string.IsNullOrEmpty(reward.rewardDataID) || reward.rewardDataID == "Random" || reward.rewardDataID.Contains("무작위"))
+                    {
+                        var allRelics = Resources.LoadAll<TheLastArk.Data.RelicData>("Relics");
+                        if (allRelics.Length > 0)
+                        {
+                            var randomRelic = allRelics[Random.Range(0, allRelics.Length)];
+                            Debug.Log($"[EventManager] 무작위 유물 '{randomRelic.relicName}' 획득!");
+                            TheLastArk.Managers.ResourceManager.Instance.AddRelic(randomRelic);
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log($"[EventManager] 유물 '{reward.rewardDataID}' 획득!");
+                        var relic = Resources.Load<TheLastArk.Data.RelicData>($"Relics/{reward.rewardDataID}");
+                        if (relic != null) TheLastArk.Managers.ResourceManager.Instance.AddRelic(relic);
+                        else Debug.LogWarning($"[EventManager] 유물을 찾을 수 없습니다: Relics/{reward.rewardDataID}");
+                    }
                     break;
 
                 case EventRewardType.GainConsumable:
-                    Debug.Log($"[EventManager] 소모품 '{reward.rewardDataID}' 획득!");
+                    if (string.IsNullOrEmpty(reward.rewardDataID) || reward.rewardDataID == "Random" || reward.rewardDataID.Contains("무작위"))
+                    {
+                        var allConsumables = Resources.LoadAll<TheLastArk.Data.ConsumableData>("Consumables");
+                        if (allConsumables.Length > 0)
+                        {
+                            var randomConsumable = allConsumables[Random.Range(0, allConsumables.Length)];
+                            Debug.Log($"[EventManager] 무작위 소모품 '{randomConsumable.consumableName}' 획득!");
+                            TheLastArk.Managers.ResourceManager.Instance.AddConsumable(randomConsumable);
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log($"[EventManager] 소모품 '{reward.rewardDataID}' 획득!");
+                        var consumable = Resources.Load<TheLastArk.Data.ConsumableData>($"Consumables/{reward.rewardDataID}");
+                        if (consumable != null) TheLastArk.Managers.ResourceManager.Instance.AddConsumable(consumable);
+                        else Debug.LogWarning($"[EventManager] 소모품을 찾을 수 없습니다: Consumables/{reward.rewardDataID}");
+                    }
                     break;
 
                 case EventRewardType.UpgradeTrainCar:
@@ -287,6 +322,18 @@ namespace TheLastArk.Map.Events
 
                 case EventRewardType.UpgradeNextBattles:
                     Debug.Log($"[EventManager] 다음 {reward.rewardValue}회 전투가 강적 전투로 대체!");
+                    break;
+
+                case EventRewardType.LoseRelic:
+                    Debug.Log($"[EventManager] 유물 '{reward.rewardDataID}' 소실!");
+                    break;
+
+                case EventRewardType.DamageTrainCar:
+                    Debug.Log($"[EventManager] 기차 칸 파손!");
+                    break;
+
+                case EventRewardType.GainActionPoints:
+                    Debug.Log($"[EventManager] 다음 {reward.rewardValue}회 전투 행동력 +{reward.rewardValue} 보너스!");
                     break;
 
                 default:

@@ -1,19 +1,22 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using System.Collections.Generic;
 
 public static class EffectEngine
 {
+    // ì§ì „ íš¨ê³¼ê°€ ì‹¤ì œë¡œ ì²˜ë¦¬í•œ ê°’ì„ ì €ì¥í•©ë‹ˆë‹¤.
     private static float _lastCalculatedValue = 0f;
 
     public static void ProcessSkill(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data)
     {
-        _lastCalculatedValue = 0f;
+        // ìŠ¤í‚¬ ë˜ëŠ” íŒ¨í„´ì˜ íš¨ê³¼ë¥¼ ëŒ€ìƒë“¤ì—ê²Œ ìˆœì„œëŒ€ë¡œ ì ìš©í•©ë‹ˆë‹¤.
+        if (actor == null || actor.status == null || targets == null || data?.effects == null) return;
 
-        // 1. È¿°ú ¼øÂ÷ ½ÇÇà
-        foreach (var effect in data.effects)
+        _lastCalculatedValue = 0f;
+        foreach (EffectEntry effect in data.effects)
         {
-            foreach (var target in targets)
+            foreach (BattleCharacter target in targets)
             {
+                if (target == null || target.status == null) continue;
                 ExecuteEffect(effect, actor, target);
             }
         }
@@ -21,10 +24,8 @@ public static class EffectEngine
 
     private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target)
     {
-        // useActualResult°¡ ÄÑÁ® ÀÖÀ¸¸é Á÷Àü ½ÇÁ¦ °á°ú°ª »ç¿ë, ²¨Á® ÀÖÀ¸¸é Ä³¸¯ÅÍÀÇ ÇöÀç ÃÖÁ¾ °ø°İ·Â »ç¿ë
+        // ê¸°ë³¸ê°’ì€ ì‹œì „ìì˜ ìµœì¢… ê³µê²©ë ¥ì´ê³ , ì˜µì…˜ì— ë”°ë¼ ì§ì „ ê²°ê³¼ë¥¼ ë‹¤ì‹œ ì”ë‹ˆë‹¤.
         float baseValue = effect.useActualResult ? _lastCalculatedValue : actor.status.FinalAttack;
-
-        // º¸Á¤Ä¡ °è»ê
         float calculatedValue = (baseValue * effect.multiplier) + effect.fixedValue;
 
         switch (effect.type)
@@ -35,6 +36,28 @@ public static class EffectEngine
 
             case EffectType.Heal:
                 _lastCalculatedValue = target.ReceiveHeal(calculatedValue, actor);
+                break;
+
+            case EffectType.Bleed:
+                // ì¶œí˜ˆì€ ê³ ì •ê°’ì„ ì§€ì† í„´ ìˆ˜ë¡œ ì“°ê³ , ë°°ìœ¨ ê³„ì‚°ê°’ì„ í„´ë‹¹ í”¼í•´ë¡œ ì”ë‹ˆë‹¤.
+                int turns = Mathf.Max(1, Mathf.RoundToInt(effect.fixedValue));
+                float damagePerTurn = baseValue * effect.multiplier;
+                target.status.ApplyStatusEffect(effect.type, damagePerTurn, turns);
+                _lastCalculatedValue = damagePerTurn;
+                break;
+
+            case EffectType.Stun:
+                // ê¸°ì ˆì€ ê³ ì •ê°’ì„ ì§€ì† í„´ ìˆ˜ë¡œ ì“°ê³  í”¼í•´ëŠ” ì£¼ì§€ ì•ŠìŠµë‹ˆë‹¤.
+                int stunTurns = Mathf.Max(1, Mathf.RoundToInt(effect.fixedValue));
+                target.status.ApplyStatusEffect(effect.type, 0f, stunTurns);
+                _lastCalculatedValue = 0f;
+                break;
+
+            case EffectType.Buff:
+                // ë²„í”„ëŠ” í˜„ì¬ êµ¬ì¡°ì—ì„œ ì„ì‹œ ê³µê²©ë ¥ ë³´ë„ˆìŠ¤ë¡œ ì²˜ë¦¬í•©ë‹ˆë‹¤.
+                target.status.bonusAttack += calculatedValue;
+                _lastCalculatedValue = calculatedValue;
+                if (target.view != null) target.view.UpdateVisual(target.status);
                 break;
         }
     }

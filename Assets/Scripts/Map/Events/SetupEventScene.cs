@@ -106,160 +106,176 @@ public class SetupEventScene : MonoBehaviour
         canvasObj.AddComponent<GraphicRaycaster>();
 
         // ═══════════════════════════════════════════
-        // 레이어 1: 전체 화면 이벤트 이미지
+        // 레이어 1: 좌측 50% 배경 이미지 영역
         // ═══════════════════════════════════════════
+        GameObject imageArea = new GameObject("ImageArea");
+        imageArea.transform.SetParent(canvasObj.transform, false);
+        RectTransform imgAreaRect = imageArea.AddComponent<RectTransform>();
+        imgAreaRect.anchorMin = new Vector2(0, 0);
+        imgAreaRect.anchorMax = new Vector2(0.5f, 1);
+        imgAreaRect.offsetMin = Vector2.zero;
+        imgAreaRect.offsetMax = Vector2.zero;
+
+        Image areaBg = imageArea.AddComponent<Image>();
+        areaBg.color = BG_COLOR;
+        areaBg.raycastTarget = false;
+        imageArea.AddComponent<RectMask2D>();
+
         GameObject bgObj = new GameObject("BackgroundImage");
-        bgObj.transform.SetParent(canvasObj.transform, false);
+        bgObj.transform.SetParent(imageArea.transform, false);
         backgroundImage = bgObj.AddComponent<Image>();
-        backgroundImage.color = new Color(0.15f, 0.15f, 0.2f); // 이미지 없을 때 기본색
+        backgroundImage.color = new Color(0.15f, 0.15f, 0.2f);
         backgroundImage.preserveAspect = false;
         backgroundImage.raycastTarget = false;
         RectTransform bgRect = bgObj.GetComponent<RectTransform>();
-        SetFullScreen(bgRect);
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.offsetMin = Vector2.zero;
+        bgRect.offsetMax = Vector2.zero;
 
         // ═══════════════════════════════════════════
-        // 레이어 2: 하단 검은 그라데이션 오버레이
+        // 레이어 2: 우측 콘텐츠 (텍스트/버튼) 영역용 패널 및 그라데이션
         // ═══════════════════════════════════════════
         CreateGradientOverlay(canvasObj.transform);
 
         // ═══════════════════════════════════════════
-        // 레이어 3: 하단 텍스트 + 선택지 영역
+        // 레이어 3: 우측 콘텐츠 
         // ═══════════════════════════════════════════
         BuildEventBottomPanel(canvasObj.transform);
-
-        // ═══════════════════════════════════════════
-        // 결과 패널 (초기에 숨김)
-        // ═══════════════════════════════════════════
         BuildResultPanel(canvasObj.transform);
     }
 
-    /// <summary>
-    /// 하단에서 상단으로 올라가는 검은색 그라데이션 오버레이.
-    /// 코드로 Texture2D를 생성하여 Sprite로 변환합니다.
-    /// </summary>
     private void CreateGradientOverlay(Transform parent)
     {
+        // 텍스트 영역용 우측 50% 반투명 배경
+        GameObject rightBgObj = new GameObject("RightBackground");
+        rightBgObj.transform.SetParent(parent, false);
+        RectTransform rbRect = rightBgObj.AddComponent<RectTransform>();
+        rbRect.anchorMin = new Vector2(0.5f, 0);
+        rbRect.anchorMax = new Vector2(1, 1);
+        rbRect.offsetMin = Vector2.zero;
+        rbRect.offsetMax = Vector2.zero;
+        Image rbImg = rightBgObj.AddComponent<Image>();
+        rbImg.color = BG_COLOR;
+
+        // 경계선 그라데이션 (좌측 이미지와 우측 텍스트 사이 자연스러운 전환)
         GameObject overlayObj = new GameObject("GradientOverlay");
         overlayObj.transform.SetParent(parent, false);
         gradientOverlay = overlayObj.AddComponent<Image>();
         gradientOverlay.raycastTarget = false;
 
-        // 그라데이션 텍스처 생성 (1px 너비, 256px 높이)
-        int height = 256;
-        Texture2D gradTex = new Texture2D(1, height, TextureFormat.RGBA32, false);
+        int w = 256;
+        Texture2D gradTex = new Texture2D(w, 1, TextureFormat.RGBA32, false);
         gradTex.wrapMode = TextureWrapMode.Clamp;
 
-        for (int y = 0; y < height; y++)
+        for (int x = 0; x < w; x++)
         {
-            float t = (float)y / (height - 1);
-            // 하단(y=0) = 불투명 검정, 상단(y=255) = 완전 투명
-            // 비선형 커브로 자연스러운 페이드
-            float alpha = 1f - Mathf.Pow(t, 0.6f);
-            gradTex.SetPixel(0, y, new Color(0, 0, 0, alpha * 0.92f));
+            float t = (float)x / (w - 1);
+            float alpha = Mathf.Pow(t, 2f);
+            gradTex.SetPixel(x, 0, new Color(BG_COLOR.r, BG_COLOR.g, BG_COLOR.b, alpha));
         }
         gradTex.Apply();
 
-        Sprite gradSprite = Sprite.Create(gradTex,
-            new Rect(0, 0, 1, height),
-            new Vector2(0.5f, 0.5f));
+        Sprite gradSprite = Sprite.Create(gradTex, new Rect(0, 0, w, 1), new Vector2(0.5f, 0.5f));
         gradientOverlay.sprite = gradSprite;
         gradientOverlay.type = Image.Type.Sliced;
 
-        // 화면 하단 65% 정도를 차지하도록 배치
         RectTransform oRect = overlayObj.GetComponent<RectTransform>();
-        oRect.anchorMin = new Vector2(0, 0);
-        oRect.anchorMax = new Vector2(1, 0.65f);
+        oRect.anchorMin = new Vector2(0.3f, 0);
+        oRect.anchorMax = new Vector2(0.5f, 1);
         oRect.offsetMin = Vector2.zero;
         oRect.offsetMax = Vector2.zero;
     }
 
-    /// <summary>
-    /// 하단에 배치되는 이벤트 텍스트 + 선택지 영역
-    /// </summary>
     private void BuildEventBottomPanel(Transform parent)
     {
         eventBottomPanel = new GameObject("EventBottomPanel");
         eventBottomPanel.transform.SetParent(parent, false);
         RectTransform bpRect = eventBottomPanel.AddComponent<RectTransform>();
 
-        // 화면 하단 50% 영역, 좌우 패딩
-        bpRect.anchorMin = new Vector2(0, 0);
-        bpRect.anchorMax = new Vector2(1, 0.48f);
-        bpRect.offsetMin = new Vector2(80, 30);   // 좌/하 패딩
-        bpRect.offsetMax = new Vector2(-80, 0);    // 우 패딩
+        // 화면 우측 50% 영역
+        bpRect.anchorMin = new Vector2(0.5f, 0);
+        bpRect.anchorMax = new Vector2(1, 1);
+        bpRect.offsetMin = new Vector2(60, 60);
+        bpRect.offsetMax = new Vector2(-60, -60);
 
         VerticalLayoutGroup vlg = eventBottomPanel.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 12;
-        vlg.childAlignment = TextAnchor.LowerLeft;
+        vlg.spacing = 20;
+        vlg.childAlignment = TextAnchor.UpperLeft;
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
         vlg.childControlWidth = true;
-        vlg.childControlHeight = false;
+        vlg.childControlHeight = true;
 
         // ─── 제목 ───
-        titleText = CreateText(eventBottomPanel.transform, "Title", "", 36, TITLE_COLOR);
+        titleText = CreateText(eventBottomPanel.transform, "Title", "", 40, TITLE_COLOR);
         titleText.fontStyle = TMPro.FontStyles.Bold;
-        titleText.alignment = TMPro.TextAlignmentOptions.BottomLeft;
-        SetPreferredHeight(titleText.gameObject, 50);
+        titleText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+        SetPreferredHeight(titleText.gameObject, 60);
 
         // ─── 구분선 ───
         CreateDivider(eventBottomPanel.transform, new Color(1f, 0.85f, 0.2f, 0.4f));
 
         // ─── 설명 텍스트 ───
-        descriptionText = CreateText(eventBottomPanel.transform, "Description", "", 21, DESC_COLOR);
+        descriptionText = CreateText(eventBottomPanel.transform, "Description", "", 26, DESC_COLOR);
         descriptionText.alignment = TMPro.TextAlignmentOptions.TopLeft;
-        SetPreferredHeight(descriptionText.gameObject, 80);
+        descriptionText.lineSpacing = 40; // 간격 증가
+        LayoutElement descLE = descriptionText.gameObject.AddComponent<LayoutElement>();
+        descLE.flexibleHeight = 1;
 
         // ─── 선택지 컨테이너 ───
         optionsContainer = new GameObject("OptionsContainer");
         optionsContainer.transform.SetParent(eventBottomPanel.transform, false);
         optionsContainer.AddComponent<RectTransform>();
         VerticalLayoutGroup optVlg = optionsContainer.AddComponent<VerticalLayoutGroup>();
-        optVlg.spacing = 8;
-        optVlg.childAlignment = TextAnchor.LowerLeft;
+        optVlg.spacing = 15;
+        optVlg.childAlignment = TextAnchor.LowerCenter;
         optVlg.childForceExpandWidth = true;
         optVlg.childForceExpandHeight = false;
         optVlg.childControlWidth = true;
         optVlg.childControlHeight = false;
         LayoutElement optLE = optionsContainer.AddComponent<LayoutElement>();
-        optLE.preferredHeight = 200;
-        optLE.flexibleWidth = 1;
+        optLE.preferredHeight = 300;
+        optLE.flexibleHeight = 0;
     }
 
     private void BuildResultPanel(Transform parent)
     {
-        // 결과 패널도 하단 영역에 배치 (그라데이션 위) - 더 넓은 영역 확보
         resultPanel = new GameObject("ResultPanel");
         resultPanel.transform.SetParent(parent, false);
         RectTransform rRect = resultPanel.AddComponent<RectTransform>();
-        rRect.anchorMin = new Vector2(0, 0);
-        rRect.anchorMax = new Vector2(1, 0.55f);
-        rRect.offsetMin = new Vector2(80, 60);
-        rRect.offsetMax = new Vector2(-80, 0);
+        rRect.anchorMin = new Vector2(0.5f, 0);
+        rRect.anchorMax = new Vector2(1, 1);
+        rRect.offsetMin = new Vector2(60, 60);
+        rRect.offsetMax = new Vector2(-60, -60);
 
         VerticalLayoutGroup vlg = resultPanel.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 12;
-        vlg.childAlignment = TextAnchor.LowerLeft;
+        vlg.spacing = 20;
+        vlg.childAlignment = TextAnchor.UpperLeft;
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
         vlg.childControlWidth = true;
-        vlg.childControlHeight = false;
+        vlg.childControlHeight = true;
 
         // 결과 제목
-        TMPro.TextMeshProUGUI resultTitle = CreateText(resultPanel.transform, "ResultTitle", "결과", 30, TITLE_COLOR);
+        TMPro.TextMeshProUGUI resultTitle = CreateText(resultPanel.transform, "ResultTitle", "결과", 40, TITLE_COLOR);
         resultTitle.fontStyle = TMPro.FontStyles.Bold;
-        resultTitle.alignment = TMPro.TextAlignmentOptions.BottomLeft;
-        SetPreferredHeight(resultTitle.gameObject, 45);
+        resultTitle.alignment = TMPro.TextAlignmentOptions.TopLeft;
+        SetPreferredHeight(resultTitle.gameObject, 60);
 
-        // 결과 텍스트 (구분선 제거, overflow 대응)
-        resultText = CreateText(resultPanel.transform, "ResultText", "", 22, RESULT_NEUTRAL);
+        CreateDivider(resultPanel.transform, new Color(1f, 0.85f, 0.2f, 0.4f));
+
+        // 결과 텍스트
+        resultText = CreateText(resultPanel.transform, "ResultText", "", 24, RESULT_NEUTRAL);
         resultText.alignment = TMPro.TextAlignmentOptions.TopLeft;
         resultText.overflowMode = TMPro.TextOverflowModes.Overflow;
-        SetPreferredHeight(resultText.gameObject, 200);
+        resultText.lineSpacing = 40;
+        LayoutElement resLE = resultText.gameObject.AddComponent<LayoutElement>();
+        resLE.flexibleHeight = 1;
 
         resultPanel.SetActive(false);
 
-        // ─── 계속하기 버튼: 우측 하단에 독립 배치 ───
+        // ─── 계속하기 버튼 ───
         BuildReturnButton(parent);
     }
 
@@ -301,7 +317,7 @@ public class SetupEventScene : MonoBehaviour
         textRect.offsetMax = new Vector2(-8, -2);
 
         TMPro.TextMeshProUGUI tmp = textObj.AddComponent<TMPro.TextMeshProUGUI>();
-        tmp.text = "계속하기 ▶";
+        tmp.text = "계속하기";
         tmp.fontSize = 16;
         tmp.color = new Color(0.85f, 0.85f, 0.88f);
         tmp.alignment = TMPro.TextAlignmentOptions.Center;
@@ -348,10 +364,66 @@ public class SetupEventScene : MonoBehaviour
                 btnText += $"  <size=16><color=#999>{reqLabel}</color></size>";
             }
 
+            string rewardPreview = GetOptionRewardPreviewText(option);
+            if (!string.IsNullOrEmpty(rewardPreview))
+            {
+                btnText += $"\n<size=18>{rewardPreview}</size>";
+            }
+
             Button btn = CreateOptionButton(optionsContainer.transform, btnText, () => OnOptionSelected(capturedIndex));
-            SetPreferredHeight(btn.gameObject, 50);
+            SetPreferredHeight(btn.gameObject, 110);
             optionButtons.Add(btn);
         }
+    }
+
+    private string GetOptionRewardPreviewText(EventOption option)
+    {
+        if (option.outcomes == null || option.outcomes.Count == 0) return "";
+        
+        List<string> goodRewards = new List<string>();
+        List<string> badRewards = new List<string>();
+
+        foreach (var outcome in option.outcomes)
+        {
+            if (outcome.rewards == null) continue;
+            foreach (var r in outcome.rewards)
+            {
+                string text = "";
+                bool isGood = true;
+                switch (r.rewardType)
+                {
+                    case EventRewardType.GainGold: text = $"골드 +{r.rewardValue}"; isGood = true; break;
+                    case EventRewardType.LoseGold: text = $"골드 -{r.rewardValue}"; isGood = false; break;
+                    case EventRewardType.HealHP: text = $"HP 회복"; isGood = true; break;
+                    case EventRewardType.TakeDamage: text = $"HP 감소"; isGood = false; break;
+                    case EventRewardType.TakeMentalDamage: text = $"정신력 감소"; isGood = false; break;
+                    case EventRewardType.GainCard: text = $"카드 획득"; isGood = true; break;
+                    case EventRewardType.GainRelic: text = $"유물 획득"; isGood = true; break;
+                    case EventRewardType.LoseRelic: text = $"유물 소실"; isGood = false; break;
+                    case EventRewardType.GainConsumable: text = $"소모품 획득"; isGood = true; break;
+                    case EventRewardType.UpgradeTrainCar: text = $"기차 강화"; isGood = true; break;
+                    case EventRewardType.DamageTrainCar: text = $"기차 파손"; isGood = false; break;
+                    case EventRewardType.UpgradeNextBattles: text = $"강적 조우"; isGood = false; break;
+                    case EventRewardType.GainActionPoints: text = $"행동력 증가"; isGood = true; break;
+                }
+                
+                if (!string.IsNullOrEmpty(text))
+                {
+                    if (isGood) { if (!goodRewards.Contains(text)) goodRewards.Add(text); }
+                    else { if (!badRewards.Contains(text)) badRewards.Add(text); }
+                }
+            }
+        }
+
+        List<string> allRewards = new List<string>();
+        foreach (var b in badRewards) allRewards.Add($"<color=#FF5555>{b}</color>");
+        foreach (var g in goodRewards) allRewards.Add($"<color=#55CCFF>{g}</color>");
+
+        if (allRewards.Count > 0)
+        {
+            return string.Join(", ", allRewards);
+        }
+        return "";
     }
 
     // ─────────────────────────────────────────────
@@ -376,20 +448,11 @@ public class SetupEventScene : MonoBehaviour
 
     private void ShowResult(EventOption selectedOption, EventOutcome outcome)
     {
-        // 이벤트 하단 패널 숨기고 결과 패널 표시
         eventBottomPanel.SetActive(false);
         resultPanel.SetActive(true);
 
-        // 계속하기 버튼 표시
         if (returnButton != null)
             returnButton.gameObject.SetActive(true);
-
-        // 그라데이션 오버레이를 결과 영역에 맞게 확대 (가독성 향상)
-        if (gradientOverlay != null)
-        {
-            RectTransform gRect = gradientOverlay.GetComponent<RectTransform>();
-            gRect.anchorMax = new Vector2(1, 0.75f);
-        }
 
         Color textColor = RESULT_NEUTRAL;
         if (outcome.rewards != null && outcome.rewards.Count > 0)
@@ -428,16 +491,19 @@ public class SetupEventScene : MonoBehaviour
         {
             switch (r.rewardType)
             {
-                case EventRewardType.HealHP:           sb.AppendLine($"<color=#66EE77>♥ 모든 아군 HP +{r.rewardValue}</color>"); break;
-                case EventRewardType.TakeDamage:       sb.AppendLine($"<color=#EE6666>♥ 모든 아군 HP -{r.rewardValue}</color>"); break;
-                case EventRewardType.GainGold:         sb.AppendLine($"<color=#FFD700>● 골드 +{r.rewardValue}</color>"); break;
-                case EventRewardType.LoseGold:         sb.AppendLine($"<color=#EE6666>● 골드 -{r.rewardValue}</color>"); break;
-                case EventRewardType.GainRelic:        sb.AppendLine($"<color=#BB77FF>★ 유물 획득: {r.rewardDataID}</color>"); break;
-                case EventRewardType.GainCard:         sb.AppendLine($"<color=#77BBFF>◆ 카드 획득: {r.rewardDataID}</color>"); break;
-                case EventRewardType.GainConsumable:   sb.AppendLine($"<color=#77EEFF>■ 소모품 획득: {r.rewardDataID}</color>"); break;
-                case EventRewardType.UpgradeTrainCar:  sb.AppendLine($"<color=#FFAA33>▲ 기차 칸 강화!</color>"); break;
-                case EventRewardType.TakeMentalDamage: sb.AppendLine($"<color=#CC66EE>♦ 모든 아군 정신력 -{r.rewardValue}</color>"); break;
-                case EventRewardType.UpgradeNextBattles:sb.AppendLine($"<color=#EE6666>⚔ 다음 {r.rewardValue}회 전투가 강적 전투로 대체!</color>"); break;
+                case EventRewardType.HealHP:           sb.AppendLine($"<color=#66EE77>모든 아군 HP +{r.rewardValue}</color>"); break;
+                case EventRewardType.TakeDamage:       sb.AppendLine($"<color=#EE6666>모든 아군 HP -{r.rewardValue}</color>"); break;
+                case EventRewardType.GainGold:         sb.AppendLine($"<color=#FFD700>골드 +{r.rewardValue}</color>"); break;
+                case EventRewardType.LoseGold:         sb.AppendLine($"<color=#EE6666>골드 -{r.rewardValue}</color>"); break;
+                case EventRewardType.GainRelic:        sb.AppendLine($"<color=#BB77FF>유물 획득: {r.rewardDataID}</color>"); break;
+                case EventRewardType.GainCard:         sb.AppendLine($"<color=#77BBFF>카드 획득: {r.rewardDataID}</color>"); break;
+                case EventRewardType.GainConsumable:   sb.AppendLine($"<color=#77EEFF>소모품 획득: {r.rewardDataID}</color>"); break;
+                case EventRewardType.UpgradeTrainCar:  sb.AppendLine($"<color=#FFAA33>기차 칸 강화!</color>"); break;
+                case EventRewardType.TakeMentalDamage: sb.AppendLine($"<color=#CC66EE>모든 아군 정신력 -{r.rewardValue}</color>"); break;
+                case EventRewardType.UpgradeNextBattles:sb.AppendLine($"<color=#EE6666>다음 {r.rewardValue}회 전투가 강적 전투로 대체!</color>"); break;
+                case EventRewardType.LoseRelic:        sb.AppendLine($"<color=#EE6666>유물 소실: {r.rewardDataID}</color>"); break;
+                case EventRewardType.DamageTrainCar:   sb.AppendLine($"<color=#EE6666>기차 칸 파손!</color>"); break;
+                case EventRewardType.GainActionPoints: sb.AppendLine($"<color=#44DDFF>다음 {r.rewardValue}회 전투 행동력 +2</color>"); break;
             }
         }
         return sb.ToString().TrimEnd();
@@ -495,14 +561,30 @@ public class SetupEventScene : MonoBehaviour
         btnObj.AddComponent<RectTransform>();
 
         Image btnBg = btnObj.AddComponent<Image>();
-        btnBg.color = BTN_NORMAL;
+        Sprite bgSprite = Resources.Load<Sprite>("Events/Eventbutton");
+        if (bgSprite != null)
+        {
+            btnBg.sprite = bgSprite;
+            btnBg.type = Image.Type.Sliced;
+        }
+        else
+        {
+            btnBg.color = BTN_NORMAL;
+        }
 
         Button btn = btnObj.AddComponent<Button>();
         ColorBlock cb = btn.colors;
-        cb.normalColor = BTN_NORMAL;
-        cb.highlightedColor = BTN_HOVER;
-        cb.pressedColor = new Color(0.10f, 0.12f, 0.20f, 0.9f);
-        cb.selectedColor = BTN_HOVER;
+        cb.normalColor = Color.white;
+        cb.highlightedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+        cb.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+        cb.selectedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+        if (bgSprite == null)
+        {
+            cb.normalColor = BTN_NORMAL;
+            cb.highlightedColor = BTN_HOVER;
+            cb.pressedColor = new Color(0.10f, 0.12f, 0.20f, 0.9f);
+            cb.selectedColor = BTN_HOVER;
+        }
         btn.colors = cb;
         btn.targetGraphic = btnBg;
 

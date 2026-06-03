@@ -15,6 +15,12 @@ public class RunState
     /// <summary>현재 파티 캐릭터 원본 데이터 ID 목록 (ScriptableObject 이름 등)</summary>
     public List<string> partyDataIDs = new List<string>();
 
+    /// <summary>현재 파티의 런 타임 상태 (HP, 정신력 등)</summary>
+    public List<CharacterStatus> partyStatuses = new List<CharacterStatus>();
+
+    /// <summary>파티 리더의 캐릭터 ID</summary>
+    public string leaderCharacterID = "";
+
     // ── 유물·소모품 ───────────────────────────────────────────────
     public List<string> relicIDs      = new List<string>();
     public List<string> consumableIDs = new List<string>();
@@ -28,6 +34,8 @@ public class RunState
     {
         gold                    = 0;
         partyDataIDs            = new List<string>();
+        partyStatuses           = new List<CharacterStatus>();
+        leaderCharacterID       = "";
         relicIDs                = new List<string>();
         consumableIDs           = new List<string>();
         upgradeNextBattlesCount = 0;

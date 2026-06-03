@@ -17,28 +17,26 @@ public class TargetArrow : MonoBehaviour
         if (target != null && arrowUI != null) AnimateArrow();
     }
 
-    private void HandleMouseClick()// 마우스 클릭 시 타겟 지정
+    private void HandleMouseClick()// 마우스 클릭 시 타겟 변경
     {
         if (Input.GetMouseButtonDown(0))
         {
             Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
 
-            if (hit.collider != null)
+            if (hit.collider != null && (hit.collider.name.Contains("Player") || hit.collider.name.Contains("Enemy")))
             {
-                if (hit.collider.name.Contains("Player") || hit.collider.name.Contains("Enemy"))
-                {
-                    target = hit.collider.gameObject;
+                target = hit.collider.gameObject;
                     if (arrowUI != null)
                     {
-                        arrowUI.gameObject.SetActive(true);
+                arrowUI.gameObject.SetActive(true);
                     }
 
-                    _cachedTargetPoint = target.transform.Find("TargetPoint");
-                }
+                _cachedTargetPoint = target.transform.Find("TargetPoint");
             }
         }
     }
+    
     private void AnimateArrow()
     {
         // 원래 좌표 계산

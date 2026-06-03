@@ -8,29 +8,38 @@ public class GameManager : MonoBehaviour
 
     [Header("Managers")]
     public BattleSkillManager skillManager;
-    public BattleManager battleManager; // ¹èÆ² ¸Å´ÏÀú ÂüÁ¶ Ãß°¡
+    public BattleManager battleManager; // ë°°í‹€ ë§¤ë‹ˆì € ì°¸ì¡°
 
     public void BeginBattleSetup()
     {
-        // Step 1: ¼±¼ö ÀÔÀå ¹× µ¥ÀÌÅÍ ÁØºñ
+        // Step 1: ì „íˆ¬ ìºë¦­í„° ë°ì´í„°ë¥¼ ì¤€ë¹„í•©ë‹ˆë‹¤.
         foreach (var character in allCharacters)
         {
-            if (character != null) character.PrepareCharacterData();
+            if (character == null) continue;
+
+            EnemyBattleCharacter enemyBC = character.GetComponent<EnemyBattleCharacter>();
+            if (enemyBC != null)
+            {
+                enemyBC.InitializeForBattle();
+                continue;
+            }
+
+            character.PrepareCharacterData();
         }
 
-        // Step 2: °ø¿ë Çàµ¿·Â ½Ã½ºÅÛ ÃÊ±âÈ­ (½ÇÇà ¼ø¼­ º¸Àå)
+        // Step 2: ê³µìš© í–‰ë™ë ¥ ì‹œìŠ¤í…œ ì´ˆê¸°í™”
         if (battleManager != null)
         {
             battleManager.InitializeAP();
         }
 
-        // Step 3: ÁØºñµÈ µ¥ÀÌÅÍ¸¦ UI¿¡ Ãâ·Â
+        // Step 3: ì¤€ë¹„ëœ ë°ì´í„°ë¥¼ UIì— ì¶œë ¥í•©ë‹ˆë‹¤.
         if (skillManager != null)
         {
             skillManager.LinkSkillsToUI();
         }
 
-        Debug.Log("=== ¹èÆ² ¼Â¾÷ ÇÁ·Î¼¼½º Á¾·á ===");
+        Debug.Log("=== ë°°í‹€ ì…‹ì—… í”„ë¡œì„¸ìŠ¤ ì¢…ë£Œ ===");
     }
 
     private void Start()

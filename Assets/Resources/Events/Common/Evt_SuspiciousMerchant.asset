@@ -1,0 +1,115 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 60773063327c2eb4fbd38c2745ec336b, type: 3}
+  m_Name: Evt_SuspiciousMerchant
+  m_EditorClassIdentifier: 
+  eventID: evt_suspicious_merchant
+  eventTitle: "\uC218\uC0C1\uD55C \uC0C1\uC778?"
+  eventDescription: "\uC0AD\uB9C9\uD55C \uBA3C\uC9C0 \uBC14\uB78C\uC774 \uC7A6\uC544\uB4E0
+    \uACE0\uC694\uD55C \uC120\uB85C \uC606, \n\uC791\uC740 \uCCB4\uAD6C\uC758 \uC5EC\uD589\uC790\uAC00
+    \uC5F4\uCC28\uB97C \uD5A5\uD574 \uACA9\uB82C\uD558\uAC8C \uC190\uC744 \uD754\uB4ED\uB2C8\uB2E4.
+    \n\uB2F9\uC2E0\uC774 \uB2E4\uAC00\uAC00\uC790, \uC815\uC911\uD558\uAC8C \uBAA8\uC790\uB97C
+    \uBC97\uC73C\uBA70 \uC778\uC0AC\uB97C \uAC74\uB135\uB2C8\uB2E4. \n\uADF8\uB7EC\uC790
+    \uBAA8\uC790 \uC18D\uC5D0 \uC228\uACA8\uC838 \uC788\uB358 \uAE38\uCB49\uD55C
+    \uADC0 \uB450 \uAC1C\uAC00 \uBFC5 \uD558\uACE0 \uD280\uC5B4\uB098\uC635\uB2C8\uB2E4.
+    \n\"\uC548\uB0E5!! \uC88B\uC740 \uBB3C\uAC74 \uB9CE\uC740\uB370 \uC880 \uBCF4\uACE0
+    \uAC00\uB791!\" \n\uC0C1\uC778\uC740 \uBC18\uC9DD\uC774\uB294 \uB208\uC73C\uB85C
+    \uBB3C\uAC74\uB4E4\uC744 \uD558\uB098\uB458 \uAEBC\uB0B4\uAE30 \uC2DC\uC791\uD569\uB2C8\uB2E4."
+  eventImage: {fileID: 21300000, guid: 62f316db442199741bb7e0ce40340281, type: 3}
+  imageOffset: {x: 0, y: 0}
+  imageScale: 1
+  options:
+  - optionText: "\uC2E0\uBE44\uD55C \uAD50\uD658?"
+    requirementType: 0
+    requirementValue: 0
+    requirementDataID: 
+    outcomes:
+    - outcomeText: "\uB2F9\uC2E0\uC740 \uAC00\uBC29 \uAE4A\uC219\uC774 \uC7A0\uB4E4\uC5B4
+        \uC788\uB358 \uB0A1\uC740 \uC720\uBB3C\uC744 \uD558\uB098 \uAEBC\uB0B4 \uC0C1\uC778\uC5D0\uAC8C
+        \uAC74\uB135\uB2C8\uB2E4. \uC0C1\uC778\uC740 \uC9E7\uC740 \uC55E\uBC1C\uB85C
+        \uC720\uBB3C\uC744 \uB365\uC11D \uBC1B\uB354\uB2C8, \uC785\uC73C\uB85C '\uD6C4-'
+        \uD558\uACE0 \uBA3C\uC9C0\uB97C \uBD88\uC5B4 \uBAA8\uC790 \uC18D\uC73C\uB85C
+        \uD6C5 \uB358\uC838 \uB123\uC2B5\uB2C8\uB2E4. \uC7A0\uC2DC \uD6C4, \uBAA8\uC790\uAC00
+        \uC694\uB3D9\uCE58\uBA70 \uBCF4\uB78F\uBE5B \uC5F0\uAE30\uB97C \uB0B4\uBFDC\uB354\uB2C8...
+        \uC0C1\uC778\uC774 \uC9DC\uC794 \uC18C\uB9AC\uC640 \uD568\uAED8 \uC644\uC804\uD788
+        \uC0C8\uB85C\uC6B4 \uC720\uBB3C\uC744 \uAEBC\uB0B4 \uB2F9\uC2E0\uC5D0\uAC8C
+        \uAC74\uB135\uB2C8\uB2E4."
+      probability: 100
+      rewards:
+      - rewardType: 7
+        rewardValue: 1
+        rewardDataID: "\uBB34\uC791\uC704 \uC720\uBB3C"
+      - rewardType: 11
+        rewardValue: 1
+        rewardDataID: "\uBB34\uC791\uC704 \uC720\uBB3C"
+  - optionText: "\uC601\uD63C \uAC70\uB798?"
+    requirementType: 0
+    requirementValue: 0
+    requirementDataID: 
+    outcomes:
+    - outcomeText: "\uC0C1\uC778\uC774 \uB0A1\uC740 \uAC00\uC8FD \uAC00\uBC29\uC744
+        \uC5F4\uC790, \uADF8 \uC548\uC5D0\uC11C \uD76C\uBBF8\uD558\uAC8C \uBE5B\uB098\uB294
+        \uC601\uD63C\uC758 \uD30C\uD3B8\uB4E4\uC774 \uB5A0\uC624\uB985\uB2C8\uB2E4.
+        \uB2F9\uC2E0\uC774 \uAE08\uD654\uB97C \uAC74\uB124\uC790, \uC0C1\uC778\uC740
+        \uADF8\uAC83\uC744 \uC18C\uC911\uD558\uAC8C \uCC59\uAE30\uBA70 \uB9C8\uB825\uC774
+        \uAE43\uB4E0 \uACC4\uC57D\uC11C \uD55C \uC7A5\uC744 \uB0B4\uBC09\uB2C8\uB2E4."
+      probability: 100
+      rewards:
+      - rewardType: 2
+        rewardValue: 30
+        rewardDataID: 
+      - rewardType: 6
+        rewardValue: 1
+        rewardDataID: "\uBB34\uC791\uC704 \uCE90\uB9AD\uD130 \uCE74\uB4DC"
+  - optionText: "\uAC70\uB798 \uAC70\uBD80"
+    requirementType: 0
+    requirementValue: 0
+    requirementDataID: 
+    outcomes:
+    - outcomeText: "\uB2F9\uC2E0\uC774 \uACE0\uAC1C\uB97C \uC813\uC790, \uC0C1\uC778\uC740
+        \uAE34 \uADC0\uB97C \uCD95 \uB298\uC5B4\uB728\uB9AC\uBA70 \uC544\uC27D\uB2E4\uB294
+        \uB4EF \uBAA8\uC790\uB97C \uB2E4\uC2DC \uAE4A\uAC8C \uB20C\uB7EC\uC501\uB2C8\uB2E4.
+        \"\uC544\uC27D\uB2F9... \uB2E4\uC74C\uC5D0\uB294 \uAF2D \uB354 \uC88B\uC740
+        \uBB3C\uAC74\uC744 \uAC00\uC838\uC624\uACA0\uB2F9\" \uC0C1\uC778\uC740 \uAE61\uCDA9\uAE61\uCDA9
+        \uB6F0\uC5B4\uC624\uB974\uBA70 \uC548\uAC1C \uB080 \uC120\uB85C \uBC16\uC73C\uB85C
+        \uC0AC\uB77C\uC9D1\uB2C8\uB2E4. \uC9E7\uC740 \uB9CC\uB0A8\uC774\uC5C8\uC9C0\uB9CC,
+        \uCC28\uAC00\uC6B4 \uCCA0\uAE38 \uC704\uC5D0 \uC7A0\uC2DC \uC628\uAE30\uAC00
+        \uBA38\uBB3C\uB2E4 \uAC04 \uAE30\uBD84\uC785\uB2C8\uB2E4."
+      probability: 100
+      rewards: []
+  - optionText: "\uB2F9\uADFC?"
+    requirementType: 4
+    requirementValue: 0
+    requirementDataID: "\uBE5B\uB098\uB294 \uB2F9\uADFC"
+    outcomes:
+    - outcomeText: "\uB2F9\uC2E0\uC774 \uBC30\uB0AD \uC18D\uC5D0\uC11C \uC740\uC740\uD55C
+        \uAD11\uCC44\uB97C \uB0B4\uBFDC\uB294 \uBE5B\uB098\uB294 \uB2F9\uADFC\uC744
+        \uAEBC\uB0B4\uC790, \uC0C1\uC778\uC758 \uB208\uC774 \uD3C9\uC18C\uC758 \uC138
+        \uBC30\uB85C \uCEE4\uC9D1\uB2C8\uB2E4. \uC0C1\uC778\uC740 \uAC10\uACA9\uC5D0
+        \uACA8\uC6CC \uAF2C\uB9AC\uB97C \uC0B4\uB791\uAC70\uB9BD\uB2C8\uB2E4. \"\uC774\uB7F0
+        \uADC0\uD55C \uAC83\uC744 \uC81C\uAC8C \uC8FC\uC2DC\uB2E4\uB2DD... \uC81C\uAC00
+        \uC544\uB07C\uB358 \uAC83\uB4E4\uC744 \uC804\uBD80 \uB4DC\uB9AC\uACA0\uC2B5\uB2C8\uB2F9
+        \uC81C\uBC1C \uBC1B\uC544\uAC00\uC8FC\uC138\uC6A9\" \uC0C1\uC778\uC740 \uC790\uC2E0\uC758
+        \uBE44\uC0C1\uAE08\uACFC \uC544\uAEF4\uB454 \uBE44\uC804\uC11C\uB4E4\uC744
+        \uC544\uB08C\uC5C6\uC774 \uC3DF\uC544\uBD93\uC2B5\uB2C8\uB2E4."
+      probability: 100
+      rewards:
+      - rewardType: 11
+        rewardValue: 1
+        rewardDataID: "\uBE5B\uB098\uB294 \uB2F9\uADFC"
+      - rewardType: 7
+        rewardValue: 2
+        rewardDataID: "\uBB34\uC791\uC704 \uC720\uBB3C"
+      - rewardType: 6
+        rewardValue: 4
+        rewardDataID: "\uBB34\uC791\uC704 \uCE90\uB9AD\uD130 \uCE74\uB4DC"
+

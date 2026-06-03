@@ -1,63 +1,158 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// 적 캐릭터 한 명의 AI 행동을 정의합니다.
-/// BattleCharacter에 붙여 사용하며, EnemyTurnHandler가 순서대로 호출합니다.
-///
-/// 확장 방법: EnemyAI를 상속해 HealerAI, TankAI 등을 만들 수 있습니다.
-/// </summary>
 public class EnemyAI : MonoBehaviour
 {
-    [Header("행동 대상")]
-    [Tooltip("이 AI가 공격할 아군 파티. BattleManager에서 주입합니다.")]
+    [Header("대상 파티")]
     public List<BattleCharacter> targetParty;
+    public List<BattleCharacter> allyParty;
 
     private BattleCharacter _self;
+    private int _patternIndex;
 
     private void Awake()
     {
         _self = GetComponent<BattleCharacter>();
     }
 
-    /// <summary>
-    /// 적 턴에 EnemyTurnHandler가 호출합니다.
-    /// 현재는 랜덤 대상에게 스킬 0번을 사용하는 기초 AI입니다.
-    /// </summary>
     public void ExecuteTurn()
     {
-        if (_self == null || _self.status == null) return;
+        // 기절 상태면 이번 적 턴의 행동을 건너뜁니다.
+        if (_self == null || _self.status?.origin == null) return;
         if (targetParty == null || targetParty.Count == 0) return;
-
-        // 살아있는 대상만 추려 랜덤 선택
-        var alive = targetParty.FindAll(c => c.status.currentHp > 0);
-        if (alive.Count == 0) return;
-
-        BattleCharacter target = alive[Random.Range(0, alive.Count)];
-        UseFirstAvailableSkill(target);
-    }
-
-    private void UseFirstAvailableSkill(BattleCharacter target)
-    {
-        var skills = _self.status.dynamicActiveSkill;
-        if (skills == null || skills.Count == 0)
+        if (HasStatus(EffectType.Stun))
         {
-            // 스킬이 없으면 기본 공격 (고정 데미지)
-            float rawDmg = _self.status.FinalAttack;
-            target.ReceiveDamage(rawDmg, _self);
-            Debug.Log($"[EnemyAI] {_self.characterName} → {target.characterName} 기본공격 {rawDmg}");
+            Debug.Log($"[EnemyAI] {_self.characterName} 기절로 행동하지 못함");
             return;
         }
 
-        // 첫 번째 스킬 사용
-        SkillInfo skill     = skills[0];
-        int skillIdx        = _self.status.SkillLevelIndex;
-        SkillLevelData data = skill.levels[Mathf.Clamp(skillIdx, 0, skill.levels.Length - 1)];
+        // 데이터에 등록된 패턴을 순서대로 실행합니다.
+        List<EnemyPatternData> patterns = _self.status.origin.enemyPatterns;
+        if (patterns == null || patterns.Count == 0)
+        {
+            UseBasicAttack();
+            return;
+        }
 
-        // 싱글 타겟만 처리 (적 AI는 단순하게)
-        var targets = new System.Collections.Generic.List<BattleCharacter> { target };
-        EffectEngine.ProcessSkill(_self, targets, data);
+        EnemyPatternData pattern = patterns[Mathf.Abs(_patternIndex) % patterns.Count];
+        _patternIndex = (_patternIndex + 1) % patterns.Count;
 
-        Debug.Log($"[EnemyAI] {_self.characterName} → {target.characterName} [{skill.skillName}]");
+        if (pattern == null || pattern.effects == null || pattern.effects.Count == 0)
+        {
+            UseBasicAttack();
+            return;
+        }
+
+        List<BattleCharacter> targets = ResolveTargets(pattern.targetType);
+        if (targets.Count == 0) return;
+
+        SkillLevelData runtimePattern = new SkillLevelData
+        {
+            overrideCost = -1,
+            targetType = pattern.targetType,
+            effects = pattern.effects
+        };
+
+        EffectEngine.ProcessSkill(_self, targets, runtimePattern);
+        Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {pattern.patternName}");
+    }
+
+    private void UseBasicAttack()
+    {
+        // 패턴이 없거나 비어 있으면 기본 공격을 사용합니다.
+        BattleCharacter target = PickRandomAlive(targetParty);
+        if (target == null) return;
+
+        float rawDmg = _self.status.FinalAttack;
+        target.ReceiveDamage(rawDmg, _self);
+        Debug.Log($"[EnemyAI] {_self.characterName} -> {target.characterName} 기본 공격 {rawDmg}");
+    }
+
+    private List<BattleCharacter> ResolveTargets(TargetType targetType)
+    {
+        // 패턴의 대상 타입을 실제 살아있는 전투 캐릭터 목록으로 바꿉니다.
+        var result = new List<BattleCharacter>();
+        var enemies = GetAlive(targetParty);
+        var allies = GetAlive(allyParty);
+        if (_self != null && _self.status != null && _self.status.currentHp > 0 && !allies.Contains(_self))
+            allies.Add(_self);
+
+        BattleCharacter mainEnemy = PickRandomAlive(enemies);
+        BattleCharacter mainAlly = PickRandomAlive(allies);
+
+        switch (targetType)
+        {
+            case TargetType.SingleEnemy:
+                AddIfAlive(result, mainEnemy);
+                break;
+            case TargetType.LeftEnemy:
+                AddNeighbor(result, enemies, mainEnemy, -1);
+                break;
+            case TargetType.RightEnemy:
+                AddNeighbor(result, enemies, mainEnemy, 1);
+                break;
+            case TargetType.AdjacentEnemy:
+                AddNeighbor(result, enemies, mainEnemy, -1);
+                AddIfAlive(result, mainEnemy);
+                AddNeighbor(result, enemies, mainEnemy, 1);
+                break;
+            case TargetType.AllEnemy:
+                result.AddRange(enemies);
+                break;
+            case TargetType.Friendly:
+                AddIfAlive(result, mainAlly);
+                break;
+            case TargetType.AllFriendly:
+                result.AddRange(allies);
+                break;
+        }
+
+        return result;
+    }
+
+    private List<BattleCharacter> GetAlive(List<BattleCharacter> party)
+    {
+        // 체력이 남아 있는 캐릭터만 모읍니다.
+        var alive = new List<BattleCharacter>();
+        if (party == null) return alive;
+
+        foreach (BattleCharacter character in party)
+        {
+            if (character != null && character.status != null && character.status.currentHp > 0)
+                alive.Add(character);
+        }
+
+        return alive;
+    }
+
+    private BattleCharacter PickRandomAlive(List<BattleCharacter> party)
+    {
+        // 살아있는 대상 중 하나를 무작위로 고릅니다.
+        List<BattleCharacter> alive = GetAlive(party);
+        if (alive.Count == 0) return null;
+        return alive[Random.Range(0, alive.Count)];
+    }
+
+    private void AddNeighbor(List<BattleCharacter> result, List<BattleCharacter> party, BattleCharacter main, int offset)
+    {
+        // 기준 대상의 왼쪽/오른쪽 이웃을 결과에 추가합니다.
+        if (main == null || party == null) return;
+        int index = party.IndexOf(main) + offset;
+        if (index < 0 || index >= party.Count) return;
+        AddIfAlive(result, party[index]);
+    }
+
+    private void AddIfAlive(List<BattleCharacter> result, BattleCharacter character)
+    {
+        // 중복 없이 살아있는 캐릭터만 결과에 넣습니다.
+        if (character == null || character.status == null || character.status.currentHp <= 0) return;
+        if (!result.Contains(character)) result.Add(character);
+    }
+
+    private bool HasStatus(EffectType type)
+    {
+        // 현재 적에게 특정 상태이상이 걸려 있는지 확인합니다.
+        if (_self?.status?.activeStatusEffects == null) return false;
+        return _self.status.activeStatusEffects.Exists(effect => effect.effectType == type && effect.remainingTurns > 0);
     }
 }
