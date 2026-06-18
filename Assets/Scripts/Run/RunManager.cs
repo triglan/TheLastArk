@@ -76,7 +76,7 @@ public class RunManager : MonoBehaviour
                 break;
 
             case NodeType.Rest:
-                Debug.Log($"[RunManager] 휴식 노드 — RestScene 미구현");
+                SceneManager.LoadScene("VillageScene");
                 break;
         }
     }

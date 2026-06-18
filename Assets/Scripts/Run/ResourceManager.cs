@@ -106,6 +106,11 @@ namespace TheLastArk.Managers
             return Relics.Exists(r => r.relicID == relicID);
         }
 
+        public bool HasRelicEffect(RelicEffectType type)
+        {
+            return Relics.Exists(r => r.effectType == type);
+        }
+
         public float GetRelicBonus(RelicEffectType type)
         {
             float total = 0f;

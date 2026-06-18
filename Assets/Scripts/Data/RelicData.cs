@@ -2,13 +2,26 @@ using UnityEngine;
 
 namespace TheLastArk.Data
 {
+    public enum RelicRarity
+    {
+        Common,
+        Legendary
+    }
+
     public enum RelicEffectType
     {
         RestBonusHeal,
         BonusAttack,
         BonusMaxHP,
         BonusMaxMental,
-        BonusAP
+        BonusAP,
+        FreeRest,
+        CommLevelBonus,
+        ShopDiscount,
+        TavernDiscount,
+        TavernExtraMerc,
+        ShopFirstLegendary,
+        ExtraRefresh
     }
 
     [CreateAssetMenu(fileName = "NewRelic", menuName = "TheLastArk/Relic Data")]
@@ -19,6 +32,7 @@ namespace TheLastArk.Data
         [TextArea(3, 5)]
         public string description;
         public Sprite icon;
+        public RelicRarity rarity = RelicRarity.Common;
         public RelicEffectType effectType;
         public float effectValue;
     }
