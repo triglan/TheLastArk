@@ -84,6 +84,13 @@ public class MapManager : MonoBehaviour
                 Debug.LogWarning("[MapManager] 발생 가능한 이벤트가 없습니다.");
             }
         }
+
+        // 디버깅용 마을 씬 강제 이동 버튼
+        if (GUI.Button(new Rect(Screen.width - 240, 10, 110, 30), "Debug: Village"))
+        {
+            Debug.Log("[MapManager Debug] 마을 씬 강제 이동");
+            UnityEngine.SceneManagement.SceneManager.LoadScene("VillageScene");
+        }
     }
 
     // ─────────────────────────────────────────────

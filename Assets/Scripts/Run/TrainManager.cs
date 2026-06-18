@@ -80,6 +80,19 @@ namespace TheLastArk.Managers
             }
         }
 
+        public void IncreaseDurability(int amount)
+        {
+            if (amount <= 0) return;
+
+            int old = currentTrainDurability;
+            currentTrainDurability = Mathf.Min(maxTrainDurability, currentTrainDurability + amount);
+
+            if (old != currentTrainDurability)
+            {
+                OnDurabilityChanged?.Invoke();
+            }
+        }
+
         public bool AddCar(TrainCar newCar)
         {
             if (additionalCars.Count >= maxAdditionalCars) return false;

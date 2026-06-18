@@ -6,6 +6,9 @@ using UnityEngine;
 
 public class BattleManager : MonoBehaviour
 {
+    [Header("Config")]
+    [SerializeField] private BattleConfig battleConfig;
+
     [Header("파티")]
     public List<BattleCharacter> playerParty;
     public List<BattleCharacter> enemyParty;
@@ -14,7 +17,6 @@ public class BattleManager : MonoBehaviour
     public TargetArrow targetHandler;
 
     [Header("행동력")]
-    public int maxAP = 10;
     public int currentAP;
     public TextMeshProUGUI apText;
 
@@ -25,8 +27,6 @@ public class BattleManager : MonoBehaviour
     public TextMeshProUGUI phaseText;
     [Tooltip("플레이어 턴을 종료하는 버튼입니다. 비워두면 TurnEndButton 이름으로 자동 검색합니다.")]
     public UnityEngine.UI.Button turnEndButton;
-    [Tooltip("적 행동과 상태이상 처리 사이의 대기 시간입니다.")]
-    public float enemyActionDelay = 0.8f;
 
     private BattlePhase _currentPhase = BattlePhase.None;
     private int _turnCount = 1;
@@ -35,6 +35,14 @@ public class BattleManager : MonoBehaviour
     private readonly BattleSelectionState _selection = new BattleSelectionState();
 
     public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerTurn;
+    public BattleConfig Config => battleConfig;
+
+    private int MaxAP => battleConfig != null ? battleConfig.MaxAP : BattleConfig.DefaultMaxAP;
+    private float EnemyActionDelay => battleConfig != null ? battleConfig.EnemyActionDelay : BattleConfig.DefaultEnemyActionDelay;
+    private float StatusEffectDelay => battleConfig != null ? battleConfig.StatusEffectDelay : BattleConfig.DefaultStatusEffectDelay;
+    private int VictoryGold => battleConfig != null ? battleConfig.VictoryGold : BattleConfig.DefaultVictoryGold;
+    private int VictoryExp => battleConfig != null ? battleConfig.VictoryExp : BattleConfig.DefaultVictoryExp;
+    private string MapSceneName => battleConfig != null ? battleConfig.MapSceneName : BattleConfig.DefaultMapSceneName;
 
     private void Start()
     {
@@ -45,7 +53,7 @@ public class BattleManager : MonoBehaviour
     {
         // 전투 시작 시 행동력, 화면 표시, 적 행동 대상을 준비합니다.
         Debug.Log("[Battle] 🎮 InitializeAP() 호출 - 전투 시작!");
-        currentAP = maxAP;
+        currentAP = MaxAP;
         UpdateAPUI();
         UpdateTurnUI();
 
@@ -198,6 +206,8 @@ public class BattleManager : MonoBehaviour
         EffectEngine.ProcessSkill(actor, targets, levelData);
 
         _selection.Clear();
+        if (TryEndBattleIfPartyWiped()) return;
+
         if (currentAP <= 0) EndPlayerTurn();
     }
 
@@ -291,7 +301,7 @@ public class BattleManager : MonoBehaviour
     {
         // 플레이어 턴이 시작되면 행동력과 선택 상태를 초기화합니다.
         Debug.Log($"[Battle] 🎮 {_turnCount}턴: 아군 턴 시작");
-        currentAP = maxAP;
+        currentAP = MaxAP;
         UpdateAPUI();
         _selection.Clear();
     }
@@ -340,7 +350,7 @@ public class BattleManager : MonoBehaviour
             Debug.Log($"[Battle] 🔄 {enemy.characterName}이 행동합니다...");
             ai.ExecuteTurn();
 
-            yield return new WaitForSeconds(enemyActionDelay);
+            yield return new WaitForSeconds(EnemyActionDelay);
 
             if (IsPartyWiped(playerParty))
             {
@@ -362,7 +372,7 @@ public class BattleManager : MonoBehaviour
         allCombatants.AddRange(enemyParty);
         StatusEffectPhaseHandler.ProcessAll(allCombatants);
 
-        yield return new WaitForSeconds(0.3f);
+        yield return new WaitForSeconds(StatusEffectDelay);
         Debug.Log($"[Battle] ✓ 상태이상 처리 완료. 턴 종료 단계로 넘어갑니다.");
         EnterPhase(BattlePhase.TurnEnd);
     }
@@ -373,18 +383,7 @@ public class BattleManager : MonoBehaviour
         Debug.Log($"[Battle] 🏁 {_turnCount}턴: 턴 종료 단계");
         RemoveDeadCharacters();
 
-        if (IsPartyWiped(playerParty)) 
-        { 
-            Debug.LogWarning($"[Battle] ☠️ 플레이어 파티 전멸!");
-            EnterPhase(BattlePhase.BattleEnd); 
-            return; 
-        }
-        if (IsPartyWiped(enemyParty)) 
-        { 
-            Debug.LogWarning($"[Battle] 🎉 적 파티 전멸!");
-            EnterPhase(BattlePhase.BattleEnd); 
-            return; 
-        }
+        if (TryEndBattleIfPartyWiped()) return;
 
         _turnCount++;
         Debug.Log($"[Battle] ⏭️  턴 카운트 증가: {_turnCount}턴으로 진입");
@@ -401,7 +400,7 @@ public class BattleManager : MonoBehaviour
         if (BattleResultUIManager.Instance != null)
         {
             if (playerWin)
-                BattleResultUIManager.Instance.ShowVictoryScreen(100, 50, LoadMapScene);
+                BattleResultUIManager.Instance.ShowVictoryScreen(VictoryGold, VictoryExp, LoadMapScene);
             else
                 BattleResultUIManager.Instance.ShowDefeatScreen(LoadMapScene);
             return;
@@ -413,13 +412,13 @@ public class BattleManager : MonoBehaviour
 
     private void LoadMapScene()
     {
-        Debug.Log("[Battle] MapScene으로 이동합니다.");
-        UnityEngine.SceneManagement.SceneManager.LoadScene("MapScene");
+        Debug.Log($"[Battle] {MapSceneName}으로 이동합니다.");
+        UnityEngine.SceneManagement.SceneManager.LoadScene(MapSceneName);
     }
 
     public void UpdateAPUI()
     {
-        if (apText != null) apText.text = $"행동력: {currentAP} / {maxAP}";
+        if (apText != null) apText.text = $"행동력: {currentAP} / {MaxAP}";
     }
 
     private void UpdatePhaseUI()
@@ -498,6 +497,25 @@ public class BattleManager : MonoBehaviour
     private bool IsPartyWiped(List<BattleCharacter> party)
     {
         return party.TrueForAll(c => c == null || c.status.currentHp <= 0);
+    }
+
+    private bool TryEndBattleIfPartyWiped()
+    {
+        if (IsPartyWiped(playerParty))
+        {
+            Debug.LogWarning("[Battle] ☠️ 플레이어 파티 전멸!");
+            EnterPhase(BattlePhase.BattleEnd);
+            return true;
+        }
+
+        if (IsPartyWiped(enemyParty))
+        {
+            Debug.LogWarning("[Battle] 🎉 적 파티 전멸!");
+            EnterPhase(BattlePhase.BattleEnd);
+            return true;
+        }
+
+        return false;
     }
 
     private void RemoveDeadCharacters()
