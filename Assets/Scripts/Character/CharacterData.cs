@@ -5,8 +5,14 @@ using System.Collections.Generic;
 public class CharacterData : ScriptableObject
 {
     // 캐릭터 공통 정보입니다. 적 여부가 켜져 있으면 적 데이터로 취급합니다.
+    public string characterId;
     public string characterName;
+    public string jobName;
     public bool isEnemy = false;
+
+    public string DataId => isEnemy ? characterName : GetFirstValidText(characterId, jobName, characterName);
+    public string DisplayName => GetFirstValidText(characterName, jobName, characterId);
+    public string DataName => isEnemy ? characterName : GetFirstValidText(jobName, characterName, characterId);
 
     // 아군은 초상화와 스탠딩 이미지를 모두 쓰고, 적은 스탠딩 이미지만 씁니다.
     public Sprite standingSprite;
@@ -26,6 +32,41 @@ public class CharacterData : ScriptableObject
 
     [Header("적 행동 패턴")]
     public List<EnemyPatternData> enemyPatterns = new List<EnemyPatternData>();
+
+    public static string FormatCharacterId(int id)
+    {
+        return Mathf.Clamp(id, 0, 99).ToString("00");
+    }
+
+    public static bool IsValidCharacterId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || id.Length != 2) return false;
+        return int.TryParse(id, out int value) && value >= 0 && value <= 99;
+    }
+
+    public static string NormalizeCharacterId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return "";
+        return int.TryParse(id.Trim(), out int value) ? FormatCharacterId(value) : id.Trim();
+    }
+
+    private static string GetFirstValidText(params string[] values)
+    {
+        foreach (string value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value)) return value.Trim();
+        }
+        return "";
+    }
+
+    private void OnValidate()
+    {
+        if (isEnemy) return;
+
+        characterId = NormalizeCharacterId(characterId);
+        if (string.IsNullOrWhiteSpace(jobName))
+            jobName = characterName;
+    }
 }
 
 [System.Serializable]

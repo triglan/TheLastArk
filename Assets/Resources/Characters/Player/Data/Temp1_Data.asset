@@ -10,9 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
-  m_Name: Temp_Data
+  m_Name: Temp1_Data
   m_EditorClassIdentifier: 
+  characterId: 05
   characterName: Temp
+  jobName: Temp
+  isEnemy: 0
   standingSprite: {fileID: 0}
   portraitSprite: {fileID: 0}
   maxHp: 200
@@ -95,3 +98,4 @@ MonoBehaviour:
     - overrideCost: -1
       targetType: 0
       effects: []
+  enemyPatterns: []

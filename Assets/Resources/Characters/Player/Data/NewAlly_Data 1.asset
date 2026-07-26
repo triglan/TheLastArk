@@ -12,7 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
   m_Name: NewAlly_Data 1
   m_EditorClassIdentifier: 
+  characterId: 03
   characterName: NewAlly
+  jobName: NewAlly
+  isEnemy: 0
   standingSprite: {fileID: 0}
   portraitSprite: {fileID: 0}
   maxHp: 200
@@ -91,3 +94,4 @@ MonoBehaviour:
     - overrideCost: -1
       targetType: 0
       effects: []
+  enemyPatterns: []

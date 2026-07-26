@@ -48,7 +48,7 @@ public class CharacterStatus
         if (data != null && !data.isEnemy && TheLastArk.Managers.ResourceManager.Instance != null)
         {
             charLevel = TheLastArk.Managers.ResourceManager.Instance.GetCharacterLevelFromCards(
-                TheLastArk.Managers.ResourceManager.Instance.GetCardCount(data.characterName)
+                TheLastArk.Managers.ResourceManager.Instance.GetCardCount(data.DataId)
             );
             if (charLevel < 0) charLevel = 0;
         }

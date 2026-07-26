@@ -88,8 +88,43 @@ public class CharacterEditorWindow : EditorWindow
             CharacterData data = AssetDatabase.LoadAssetAtPath<CharacterData>(AssetDatabase.GUIDToAssetPath(guid));
             if (data != null) cachedCharacterList.Add(data);
         }
-        cachedCharacterList.Sort((a, b) => string.Compare(a.characterName, b.characterName, System.StringComparison.OrdinalIgnoreCase));
+        BackfillMissingPlayerIds();
+        cachedCharacterList.Sort((a, b) => string.Compare(a.DataName, b.DataName, System.StringComparison.OrdinalIgnoreCase));
         isDirtyCache = false;
+    }
+
+    private void BackfillMissingPlayerIds()
+    {
+        int nextId = 1;
+        bool changed = false;
+
+        cachedCharacterList.Sort((a, b) => string.Compare(AssetDatabase.GetAssetPath(a), AssetDatabase.GetAssetPath(b), System.StringComparison.OrdinalIgnoreCase));
+        foreach (CharacterData data in cachedCharacterList)
+        {
+            if (data == null || data.isEnemy) continue;
+
+            if (string.IsNullOrWhiteSpace(data.jobName))
+            {
+                data.jobName = string.IsNullOrWhiteSpace(data.characterName) ? "NewAlly" : data.characterName.Trim();
+                EditorUtility.SetDirty(data);
+                changed = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(data.characterId)) continue;
+
+            while (IsPlayerIdInUse(CharacterData.FormatCharacterId(nextId), data) && nextId <= 99)
+                nextId++;
+
+            if (nextId <= 99)
+            {
+                data.characterId = CharacterData.FormatCharacterId(nextId);
+                EditorUtility.SetDirty(data);
+                changed = true;
+                nextId++;
+            }
+        }
+
+        if (changed) AssetDatabase.SaveAssets();
     }
 
     private void DrawLeftPanel()
@@ -115,16 +150,20 @@ public class CharacterEditorWindow : EditorWindow
             isDirtyCache = true;
         }
 
+        if (IsEnemyMode && GUILayout.Button("Enemy Formations / Pools", GUILayout.Height(26)))
+        {
+            EnemyEncounterEditorWindow.ShowWindow();
+        }
+
         EditorGUILayout.Space(5);
         leftScroll = EditorGUILayout.BeginScrollView(leftScroll);
         foreach (CharacterData data in cachedCharacterList)
         {
             if (data == null || data.isEnemy != IsEnemyMode) continue;
-            string characterName = data.characterName ?? "";
-            if (!string.IsNullOrEmpty(searchText) && !characterName.ToLower().Contains(searchText.ToLower())) continue;
+            string displayName = GetEditorDisplayName(data);
+            if (!string.IsNullOrEmpty(searchText) && !displayName.ToLower().Contains(searchText.ToLower())) continue;
 
             EditorGUILayout.BeginHorizontal();
-            string displayName = string.IsNullOrWhiteSpace(characterName) ? "(이름 없음)" : characterName;
             bool isSelected = selectedData == data;
             if (GUILayout.Toggle(isSelected, displayName, "Button", GUILayout.Height(25), GUILayout.ExpandWidth(true)) && !isSelected)
             {
@@ -166,7 +205,7 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUI.BeginChangeCheck();
 
         if (string.IsNullOrEmpty(iconFolderPath))
-            iconFolderPath = $"{GetIllustFolder(selectedData.isEnemy)}/{selectedData.characterName}";
+            iconFolderPath = $"{GetIllustFolder(selectedData.isEnemy)}/{GetImageBindingKey(selectedData)}";
 
         DrawNameSection();
         DrawSpriteSection();
@@ -186,24 +225,55 @@ public class CharacterEditorWindow : EditorWindow
     private void DrawNameSection()
     {
         EditorGUILayout.BeginVertical("helpbox");
-        EditorGUILayout.LabelField(selectedData.isEnemy ? "적 데이터" : "아군 데이터", EditorStyles.boldLabel);
-        EditorGUI.BeginChangeCheck();
-        string newName = EditorGUILayout.DelayedTextField("캐릭터 이름", selectedData.characterName);
-        if (EditorGUI.EndChangeCheck() && !string.IsNullOrWhiteSpace(newName))
+        EditorGUILayout.LabelField(selectedData.isEnemy ? "Enemy Data" : "Player Data", EditorStyles.boldLabel);
+        if (!selectedData.isEnemy)
         {
-            selectedData.characterName = newName.Trim();
-            string assetPath = AssetDatabase.GetAssetPath(selectedData);
-            if (!string.IsNullOrEmpty(assetPath))
+            EditorGUI.BeginChangeCheck();
+            string newId = EditorGUILayout.DelayedTextField("ID (00-99)", selectedData.characterId);
+            if (EditorGUI.EndChangeCheck())
             {
-                string error = AssetDatabase.RenameAsset(assetPath, $"{selectedData.characterName}_Data");
-                if (!string.IsNullOrEmpty(error)) Debug.LogWarning($"[캐릭터 편집기] 이름 변경 실패: {error}");
+                selectedData.characterId = CharacterData.NormalizeCharacterId(newId);
                 MarkDirtyAndSave(selectedData);
-                AssetDatabase.Refresh();
+                isDirtyCache = true;
+            }
+
+            EditorGUI.BeginChangeCheck();
+            string newName = EditorGUILayout.DelayedTextField("Name", selectedData.characterName);
+            if (EditorGUI.EndChangeCheck() && !string.IsNullOrWhiteSpace(newName))
+            {
+                selectedData.characterName = newName.Trim();
+                MarkDirtyAndSave(selectedData);
+                isDirtyCache = true;
+            }
+
+            EditorGUI.BeginChangeCheck();
+            string newJobName = EditorGUILayout.DelayedTextField("Job", selectedData.jobName);
+            if (EditorGUI.EndChangeCheck() && !string.IsNullOrWhiteSpace(newJobName))
+            {
+                selectedData.jobName = newJobName.Trim();
+                RenameSelectedAssetToDataName();
+                MarkDirtyAndSave(selectedData);
                 iconFolderPath = "";
                 isDirtyCache = true;
             }
+
+            EditorGUILayout.EndVertical();
+            return;
         }
+
+        EditorGUI.BeginChangeCheck();
+        string newEnemyName = EditorGUILayout.DelayedTextField("Name", selectedData.characterName);
+        if (EditorGUI.EndChangeCheck() && !string.IsNullOrWhiteSpace(newEnemyName))
+        {
+            selectedData.characterName = newEnemyName.Trim();
+            RenameSelectedAssetToDataName();
+            MarkDirtyAndSave(selectedData);
+            iconFolderPath = "";
+            isDirtyCache = true;
+        }
+
         EditorGUILayout.EndVertical();
+        return;
     }
 
     private void DrawSpriteSection()
@@ -251,7 +321,7 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUILayout.LabelField("이미지 폴더", GUILayout.Width(82));
         iconFolderPath = EditorGUILayout.TextField(iconFolderPath);
         if (GUILayout.Button("자동 경로", GUILayout.Width(75)))
-            iconFolderPath = $"{GetIllustFolder(selectedData.isEnemy)}/{selectedData.characterName}";
+            iconFolderPath = $"{GetIllustFolder(selectedData.isEnemy)}/{GetImageBindingKey(selectedData)}";
         EditorGUILayout.EndHorizontal();
 
         if (GUILayout.Button("이미지 전체 바인딩", GUILayout.Height(26))) AutoBindAllImages();
@@ -267,7 +337,7 @@ public class CharacterEditorWindow : EditorWindow
         foreach (string guid in guids)
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
-            string suffix = ExtractSuffix(Path.GetFileNameWithoutExtension(path), selectedData.characterName);
+            string suffix = ExtractSuffix(Path.GetFileNameWithoutExtension(path), GetImageBindingKey(selectedData));
             if (suffix == null) continue;
 
             Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
@@ -420,7 +490,16 @@ public class CharacterEditorWindow : EditorWindow
             EditorGUILayout.BeginHorizontal("box");
             GUILayout.Label(ValidateCharacterData(data).Summary, GUILayout.Width(70));
             EditorGUI.BeginChangeCheck();
-            data.characterName = EditorGUILayout.TextField(data.characterName, GUILayout.Width(110));
+            if (data.isEnemy)
+            {
+                data.characterName = EditorGUILayout.TextField(data.characterName, GUILayout.Width(110));
+            }
+            else
+            {
+                data.characterId = CharacterData.NormalizeCharacterId(EditorGUILayout.TextField(data.characterId, GUILayout.Width(34)));
+                data.jobName = EditorGUILayout.TextField(data.jobName, GUILayout.Width(80));
+                data.characterName = EditorGUILayout.TextField(data.characterName, GUILayout.Width(90));
+            }
             data.maxHp = EditorGUILayout.FloatField(data.maxHp, GUILayout.Width(55));
             data.maxMental = EditorGUILayout.FloatField(data.maxMental, GUILayout.Width(55));
             data.baseAttack = EditorGUILayout.FloatField(data.baseAttack, GUILayout.Width(55));
@@ -445,10 +524,24 @@ public class CharacterEditorWindow : EditorWindow
         // 새 캐릭터 데이터는 종류에 따라 정해진 리소스 폴더에 바로 만듭니다.
         string folder = GetDataFolder(isEnemy);
         EnsureAssetFolder(folder);
-        string path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{(isEnemy ? "NewEnemy" : "NewAlly")}_Data.asset");
+        string defaultDataName = isEnemy ? "NewEnemy" : "NewAlly";
+        string path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{defaultDataName}_Data.asset");
         CharacterData data = CreateInstance<CharacterData>();
         InitData(data, isEnemy);
         data.characterName = NormalizeCharacterName(Path.GetFileNameWithoutExtension(path), isEnemy);
+        if (!isEnemy)
+        {
+            int nextId = GetNextPlayerId();
+            if (nextId > 99)
+            {
+                EditorUtility.DisplayDialog("ID limit reached", "Player character IDs are limited to 00-99.", "OK");
+                DestroyImmediate(data);
+                return;
+            }
+
+            data.characterId = CharacterData.FormatCharacterId(nextId);
+            data.jobName = NormalizeCharacterName(Path.GetFileNameWithoutExtension(path), false);
+        }
         AssetDatabase.CreateAsset(data, path);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -462,10 +555,28 @@ public class CharacterEditorWindow : EditorWindow
         // 복사본도 원본과 같은 아군/적 폴더 안에 만듭니다.
         string folder = GetDataFolder(origin.isEnemy);
         EnsureAssetFolder(folder);
-        string newPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{origin.characterName}_Copy_Data.asset");
+        int nextId = origin.isEnemy ? -1 : GetNextPlayerId();
+        if (!origin.isEnemy && nextId > 99)
+        {
+            EditorUtility.DisplayDialog("ID limit reached", "Player character IDs are limited to 00-99.", "OK");
+            return;
+        }
+
+        string copyName = $"{origin.DataName}_Copy";
+        string newPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{copyName}_Data.asset");
         AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(origin), newPath);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
+
+        CharacterData copy = AssetDatabase.LoadAssetAtPath<CharacterData>(newPath);
+        if (copy != null && !copy.isEnemy)
+        {
+            copy.characterId = CharacterData.FormatCharacterId(nextId);
+            copy.jobName = copyName;
+            copy.characterName = $"{origin.characterName}_Copy";
+            EditorUtility.SetDirty(copy);
+            AssetDatabase.SaveAssets();
+        }
     }
 
     private void DeleteCharacter(CharacterData data)
@@ -480,7 +591,9 @@ public class CharacterEditorWindow : EditorWindow
     {
         // 아군은 스킬 4개와 패시브를 만들고, 적은 기본 행동 패턴만 만듭니다.
         data.isEnemy = isEnemy;
+        data.characterId = isEnemy ? "" : "00";
         data.characterName = isEnemy ? "NewEnemy" : "NewAlly";
+        data.jobName = isEnemy ? "" : "NewAlly";
         data.maxHp = Mathf.Max(1f, data.maxHp);
         data.maxMental = Mathf.Max(1f, data.maxMental);
         data.baseAttack = Mathf.Max(1f, data.baseAttack);
@@ -537,6 +650,15 @@ public class CharacterEditorWindow : EditorWindow
         if (data.maxHp <= 0f) result.errors.Add("최대 체력은 0보다 커야 합니다.");
         if (data.maxMental <= 0f) result.errors.Add("최대 정신력은 0보다 커야 합니다.");
         if (data.baseAttack <= 0f) result.errors.Add("기본 공격력은 0보다 커야 합니다.");
+        if (!data.isEnemy)
+        {
+            if (!CharacterData.IsValidCharacterId(data.characterId)) result.errors.Add("Player ID must be 00-99.");
+            else if (IsPlayerIdInUse(data.characterId, data)) result.errors.Add($"Duplicate player ID: {data.characterId}");
+
+            if (string.IsNullOrWhiteSpace(data.jobName)) result.errors.Add("Job name is empty.");
+            else if (!string.IsNullOrEmpty(path) && Path.GetFileNameWithoutExtension(path) != $"{data.jobName}_Data")
+                result.warnings.Add($"Asset name should be {data.jobName}_Data.");
+        }
         if (data.isEnemy) ValidateEnemyPatterns(data, result);
         else ValidatePlayerSkills(data, result);
         return result;
@@ -570,6 +692,60 @@ public class CharacterEditorWindow : EditorWindow
         selectedData.enemyPatterns[a] = selectedData.enemyPatterns[b];
         selectedData.enemyPatterns[b] = temp;
         MarkDirtyAndSave(selectedData);
+    }
+
+    private string GetEditorDisplayName(CharacterData data)
+    {
+        if (data == null) return "(None)";
+        if (data.isEnemy) return string.IsNullOrWhiteSpace(data.characterName) ? "(No Name)" : data.characterName;
+        return $"{data.characterId} / {data.jobName} / {data.characterName}";
+    }
+
+    private string GetImageBindingKey(CharacterData data)
+    {
+        if (data == null) return "";
+        return data.isEnemy ? data.characterName : data.jobName;
+    }
+
+    private int GetNextPlayerId(CharacterData excluded = null)
+    {
+        int maxId = 0;
+        foreach (CharacterData data in cachedCharacterList)
+        {
+            if (data == null || data == excluded || data.isEnemy) continue;
+            if (!CharacterData.IsValidCharacterId(data.characterId)) continue;
+            if (int.TryParse(data.characterId, out int id) && id > maxId)
+                maxId = id;
+        }
+
+        return maxId + 1;
+    }
+
+    private bool IsPlayerIdInUse(string id, CharacterData excluded = null)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return false;
+        foreach (CharacterData data in cachedCharacterList)
+        {
+            if (data == null || data == excluded || data.isEnemy) continue;
+            if (data.characterId == id) return true;
+        }
+        return false;
+    }
+
+    private void RenameSelectedAssetToDataName()
+    {
+        if (selectedData == null) return;
+
+        string dataName = selectedData.DataName;
+        if (string.IsNullOrWhiteSpace(dataName)) return;
+
+        string assetPath = AssetDatabase.GetAssetPath(selectedData);
+        if (string.IsNullOrEmpty(assetPath)) return;
+
+        string error = AssetDatabase.RenameAsset(assetPath, $"{dataName}_Data");
+        if (!string.IsNullOrEmpty(error))
+            Debug.LogWarning($"[CharacterEditor] Rename failed: {error}");
+        AssetDatabase.Refresh();
     }
 
     private string NormalizeCharacterName(string rawName, bool isEnemy)

@@ -152,7 +152,7 @@ namespace TheLastArk.Village
                     CharacterData[] allCharacters = Resources.LoadAll<CharacterData>("Characters");
                     foreach (var data in allCharacters)
                     {
-                        if (data.characterName == leaderId)
+                        if (data.DataId == leaderId)
                         {
                             charData = data;
                             break;
