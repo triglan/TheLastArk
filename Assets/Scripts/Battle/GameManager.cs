@@ -53,6 +53,8 @@ public class GameManager : MonoBehaviour
 
         // Step 1: 전투 캐릭터 데이터를 준비합니다.
         Debug.Log("[GameManager] 📊 캐릭터 데이터 초기화");
+        ApplySelectedEnemyEncounter();
+
         foreach (var character in allCharacters)
         {
             if (character == null) continue;
@@ -82,6 +84,63 @@ public class GameManager : MonoBehaviour
         }
 
         Debug.Log("[GameManager] ✓ BeginBattleSetup() 완료");
+    }
+
+    private void ApplySelectedEnemyEncounter()
+    {
+        if (battleManager == null || battleManager.enemyParty == null) return;
+
+        EnemyEncounterData encounter = RunManager.Instance.CurrentEncounter;
+        if (encounter == null)
+        {
+            Debug.LogWarning("[GameManager] No runtime encounter was selected. Scene enemy setup will be used.");
+            return;
+        }
+
+        CharacterData[] enemyDataSlots = encounter.EnemySlots;
+        if (enemyDataSlots == null || enemyDataSlots.Length != EnemyEncounterData.SlotCount)
+        {
+            Debug.LogError($"[GameManager] Encounter '{encounter.DisplayName}' must contain exactly {EnemyEncounterData.SlotCount} slots.");
+            return;
+        }
+
+        List<BattleCharacter> sceneSlots = new List<BattleCharacter>(battleManager.enemyParty);
+        List<BattleCharacter> activeEnemies = new List<BattleCharacter>(EnemyEncounterData.SlotCount);
+
+        if (sceneSlots.Count < EnemyEncounterData.SlotCount)
+        {
+            Debug.LogError($"[GameManager] BattleScene requires {EnemyEncounterData.SlotCount} enemy slots, but only {sceneSlots.Count} are assigned.");
+            return;
+        }
+
+        for (int i = 0; i < EnemyEncounterData.SlotCount; i++)
+        {
+            BattleCharacter slot = sceneSlots[i];
+            CharacterData enemyData = enemyDataSlots[i];
+            if (slot == null) continue;
+
+            bool shouldActivate = enemyData != null;
+            slot.gameObject.SetActive(shouldActivate);
+            if (!shouldActivate) continue;
+
+            EnemyBattleCharacter enemy = slot.GetComponent<EnemyBattleCharacter>();
+            if (enemy == null)
+            {
+                Debug.LogError($"[GameManager] Enemy slot {i} has no EnemyBattleCharacter component.", slot);
+                slot.gameObject.SetActive(false);
+                continue;
+            }
+
+            enemy.enemyData = enemyData;
+            enemy.ApplyDataReference();
+            activeEnemies.Add(slot);
+        }
+
+        battleManager.enemyParty = activeEnemies;
+        allCharacters.RemoveAll(character => character != null && character.GetComponent<EnemyBattleCharacter>() != null);
+        allCharacters.AddRange(activeEnemies);
+
+        Debug.Log($"[GameManager] Applied encounter '{encounter.DisplayName}' with {activeEnemies.Count} enemies.");
     }
 
     private void Start()

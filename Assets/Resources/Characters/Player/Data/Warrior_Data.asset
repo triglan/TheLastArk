@@ -12,7 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
   m_Name: Warrior_Data
   m_EditorClassIdentifier: 
+  characterId: 06
   characterName: Warrior
+  jobName: Warrior
   isEnemy: 0
   standingSprite: {fileID: 21300000, guid: dd20b3ff80019de49976f9c79db4dabe, type: 3}
   portraitSprite: {fileID: 21300000, guid: 6c6088c09e1a0b643af8511df669fb78, type: 3}

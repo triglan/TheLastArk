@@ -199,7 +199,7 @@ namespace TheLastArk.UI
 
         private void CreateCharacterCard(CharacterData data)
         {
-            GameObject cardObj = new GameObject($"Card_{data.characterName}");
+            GameObject cardObj = new GameObject($"Card_{data.DataId}");
             cardObj.transform.SetParent(characterListContainer, false);
             // GridLayoutGroup overrides size, so we don't need to manually set sizeDelta or LayoutElement preferredWidth
             RectTransform rect = cardObj.AddComponent<RectTransform>();
@@ -233,7 +233,7 @@ namespace TheLastArk.UI
             RectTransform nameRect = nameObj.AddComponent<RectTransform>();
             nameRect.sizeDelta = new Vector2(0, 50);
             TextMeshProUGUI nameText = nameObj.AddComponent<TextMeshProUGUI>();
-            nameText.text = data.characterName;
+            nameText.text = data.DisplayName;
             nameText.fontSize = 32;
             nameText.alignment = TextAlignmentOptions.Center;
             nameText.color = Color.white;
@@ -254,7 +254,7 @@ namespace TheLastArk.UI
 
         private void OnCharacterSelected(CharacterData data)
         {
-            Debug.Log($"[MainMenuUI] Selected initial character: {data.characterName}");
+            Debug.Log($"[MainMenuUI] Selected initial character: {data.DisplayName} ({data.DataId})");
             
             // 파티 리더로 추가
             if (RunManager.Instance != null)
@@ -265,7 +265,7 @@ namespace TheLastArk.UI
                 // TODO: 실제 보유 카드로 등록 (테스트용으로 명함 부여)
                 if (TheLastArk.Managers.ResourceManager.Instance != null)
                 {
-                    TheLastArk.Managers.ResourceManager.Instance.AddCharacterCard(data.characterName, 1);
+                    TheLastArk.Managers.ResourceManager.Instance.AddCharacterCard(data.DataId, 1);
                 }
 
                 // 다음 씬으로 전환

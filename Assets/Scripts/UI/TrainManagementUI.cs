@@ -411,10 +411,11 @@ namespace TheLastArk.UI
             foreach (var data in allCharacters)
             {
                 if (data == null || data.isEnemy) continue;
-                int cards = ResourceManager.Instance.GetCardCount(data.characterName);
-                if (cards > 0 || partyDataIDs.Contains(data.characterName))
+                string dataId = data.DataId;
+                int cards = ResourceManager.Instance.GetCardCount(dataId);
+                if (cards > 0 || partyDataIDs.Contains(dataId))
                 {
-                    bool isLeader = (data.characterName == leaderID);
+                    bool isLeader = (dataId == leaderID);
                     CreateCharUI(data, isLeader);
                 }
             }
@@ -422,8 +423,9 @@ namespace TheLastArk.UI
 
         private void CreateCharUI(CharacterData data, bool isLeader)
         {
-            string charName = data.characterName;
-            int cardCount = ResourceManager.Instance.GetCardCount(charName);
+            string charId = data.DataId;
+            string charName = data.DisplayName;
+            int cardCount = ResourceManager.Instance.GetCardCount(charId);
             int level = ResourceManager.Instance.GetCharacterLevelFromCards(cardCount);
             if (level < 0) level = 0;
             int nextTarget = 0;
@@ -482,7 +484,7 @@ namespace TheLastArk.UI
             CreateTextUI(charObj.transform, $"[{charName}] Lv.{level}", 22, Color.green, Vector2.zero, Vector2.zero, Vector2.zero).rectTransform.sizeDelta = new Vector2(200, 30);
             
             // HP/Mental Status (from RunState)
-            var cStatus = RunManager.Instance.State.partyStatuses.Find(s => s.origin != null && s.origin.characterName == charName);
+            var cStatus = RunManager.Instance.State.partyStatuses.Find(s => s.origin != null && s.origin.DataId == charId);
             if (cStatus != null)
             {
                 CreateTextUI(charObj.transform, $"HP: {cStatus.currentHp}/{cStatus.FinalMaxHp}", 18, new Color(0.2f, 0.8f, 0.2f), Vector2.zero, Vector2.zero, Vector2.zero).rectTransform.sizeDelta = new Vector2(200, 25);
@@ -511,9 +513,10 @@ namespace TheLastArk.UI
             if (isLeaderAssignMode)
             {
                 // Set leader
-                if (RunManager.Instance != null && RunManager.Instance.State.partyDataIDs.Contains(data.characterName))
+                string dataId = data.DataId;
+                if (RunManager.Instance != null && RunManager.Instance.State.partyDataIDs.Contains(dataId))
                 {
-                    RunManager.Instance.State.leaderCharacterID = data.characterName;
+                    RunManager.Instance.State.leaderCharacterID = dataId;
                     isLeaderAssignMode = false;
                     UpdateLeaderAssignBtnVisuals();
                     UpdateCharactersUI();
@@ -544,7 +547,7 @@ namespace TheLastArk.UI
             // Calculate the current stat values from owned character cards.
             CharacterStatus tempStatus = new CharacterStatus(data);
             
-            detailStatsText.text = $"<color=yellow>[ {data.characterName} ]</color>\n" +
+            detailStatsText.text = $"<color=yellow>[ {data.DisplayName} ]</color>\n" +
                                    $"HP: {tempStatus.FinalMaxHp}\n" +
                                    $"Mental: {tempStatus.FinalMaxMental}\n" +
                                    $"Attack: {tempStatus.FinalAttack}";

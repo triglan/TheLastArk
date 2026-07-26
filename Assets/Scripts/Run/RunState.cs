@@ -29,6 +29,10 @@ public class RunState
     /// <summary>다음 N번 전투에 적용되는 업그레이드 스택 수 (이벤트 보상 등)</summary>
     public int upgradeNextBattlesCount = 0;
 
+    // Combat, Elite, and Boss entries share this run-wide encounter history.
+    public int combatCount = 0;
+    public List<string> appearedEncounterIDs = new List<string>();
+
     // ── 초기화 ────────────────────────────────────────────────────
     public void Reset()
     {
@@ -39,5 +43,7 @@ public class RunState
         relicIDs                = new List<string>();
         consumableIDs           = new List<string>();
         upgradeNextBattlesCount = 0;
+        combatCount              = 0;
+        appearedEncounterIDs     = new List<string>();
     }
 }

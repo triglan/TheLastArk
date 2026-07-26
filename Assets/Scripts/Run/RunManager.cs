@@ -8,6 +8,8 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public class RunManager : MonoBehaviour
 {
+    private const string CurrentRegionId = EnemyEncounterPool.DefaultRegionId;
+
     // ── 싱글톤 ────────────────────────────────────────────────────
     private static RunManager _instance;
     public static RunManager Instance
@@ -43,6 +45,10 @@ public class RunManager : MonoBehaviour
     public MapData CurrentMap  { get; set; }
     public MapNode CurrentNode { get; set; }
     public int CurrentTurn { get; set; }
+    public EnemyEncounterData CurrentEncounter { get; private set; }
+
+    [Header("Battle Encounter")]
+    [SerializeField] private BattleEncounterTable encounterTable;
 
     public int GetPartyTotalSense()
     {
@@ -67,6 +73,11 @@ public class RunManager : MonoBehaviour
             case NodeType.Combat:
             case NodeType.Elite:
             case NodeType.Boss:
+                if (!TryPrepareBattleEncounter(node))
+                {
+                    Debug.LogError($"[RunManager] No encounter matched region={CurrentRegionId}, floor={node.floor}, nodeType={node.nodeType}, combatCount={State.combatCount}.");
+                    return;
+                }
                 SceneManager.LoadScene("BattleScene");
                 break;
 
@@ -81,12 +92,36 @@ public class RunManager : MonoBehaviour
         }
     }
 
+    private bool TryPrepareBattleEncounter(MapNode node)
+    {
+        if (encounterTable == null)
+            encounterTable = BattleEncounterTable.LoadDefault();
+
+        EnemyEncounterData encounter = BattleEncounterResolver.Resolve(
+            encounterTable,
+            CurrentRegionId,
+            node.nodeType,
+            node.floor,
+            State.combatCount,
+            State.appearedEncounterIDs);
+
+        if (encounter == null) return false;
+
+        CurrentEncounter = encounter;
+        if (!State.appearedEncounterIDs.Contains(encounter.EncounterId))
+            State.appearedEncounterIDs.Add(encounter.EncounterId);
+        State.combatCount++;
+
+        Debug.Log($"[RunManager] Encounter selected: {encounter.DisplayName}, entryCount={State.combatCount}");
+        return true;
+    }
+
     // ── 파티 관리 ─────────────────────────────────────────────────
     public void AddPartyMember(CharacterData characterData)
     {
         if (characterData == null) return;
         
-        string id = characterData.characterName;
+        string id = characterData.DataId;
         if (!State.partyDataIDs.Contains(id))
         {
             State.partyDataIDs.Add(id);
@@ -108,5 +143,6 @@ public class RunManager : MonoBehaviour
         CurrentNode = null;
         CurrentTurn = 0;
         State.Reset();
+        CurrentEncounter = null;
     }
 }
