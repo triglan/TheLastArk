@@ -1,0 +1,287 @@
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using System.Text;
+using TheLastArk.UI;
+
+namespace TheLastArk.UI
+{
+    public class SkillTooltipUI : MonoBehaviour
+    {
+        private static SkillTooltipUI instance;
+        private static bool isQuitting = false;
+
+        public static bool HasInstance => instance != null && !isQuitting;
+
+        public static SkillTooltipUI Instance
+        {
+            get
+            {
+                if (isQuitting) return null;
+                if (instance == null)
+                {
+                    instance = FindObjectOfType<SkillTooltipUI>();
+                    if (instance == null && Application.isPlaying)
+                    {
+                        GameObject go = new GameObject("SkillTooltipUI");
+                        instance = go.AddComponent<SkillTooltipUI>();
+                        DontDestroyOnLoad(go);
+                    }
+                }
+                return instance;
+            }
+        }
+
+        private GameObject tooltipPanel;
+        private RectTransform tooltipRect;
+        private TextMeshProUGUI titleText;
+        private TextMeshProUGUI actorInfoText;
+        private TextMeshProUGUI descriptionText;
+        private TextMeshProUGUI levelProgressionText;
+
+        private void Awake()
+        {
+            if (instance == null)
+            {
+                instance = this;
+                DontDestroyOnLoad(gameObject);
+            }
+            else if (instance != this)
+            {
+                Destroy(gameObject);
+            }
+        }
+
+        private void OnApplicationQuit()
+        {
+            isQuitting = true;
+        }
+
+        private void OnDestroy()
+        {
+            if (instance == this)
+            {
+                isQuitting = true;
+            }
+        }
+
+        private void Update()
+        {
+            if (tooltipPanel != null && tooltipPanel.activeSelf)
+            {
+                FollowMousePosition();
+            }
+        }
+
+        private void FollowMousePosition()
+        {
+            if (tooltipRect == null) return;
+
+            Vector2 mousePos = Input.mousePosition;
+            float width = tooltipRect.sizeDelta.x;
+            float height = tooltipRect.sizeDelta.y;
+
+            // Pivot adjustment based on screen boundaries
+            float pivotX = (mousePos.x + width + 30 > Screen.width) ? 1.05f : -0.05f;
+            float pivotY = (mousePos.y + height + 30 > Screen.height) ? 1.05f : -0.05f;
+
+            tooltipRect.pivot = new Vector2(pivotX, pivotY);
+            tooltipRect.position = mousePos;
+        }
+
+        public void ShowTooltip(SkillInfo skill, BattleCharacter actor, RectTransform slotTransform = null)
+        {
+            if (skill == null) return;
+            EnsureUI();
+
+            int skillLevelIdx = (actor != null && actor.status != null) ? actor.status.SkillLevelIndex : 0;
+            SkillLevelData currentLevelData = (skill.levels != null && skill.levels.Length > 0) ? 
+                skill.levels[Mathf.Clamp(skillLevelIdx, 0, skill.levels.Length - 1)] : null;
+
+            int cost = (currentLevelData != null && currentLevelData.overrideCost >= 0) ? currentLevelData.overrideCost : skill.baseCost;
+
+            // 1. Header Title
+            titleText.text = $"[{skill.skillName}]  <color=#FFD700>({cost} AP)</color>";
+
+            // 2. Actor & Level Info
+            string charName = actor != null ? actor.characterName : "아군";
+            string levelTitle = (actor != null && actor.status != null) ? actor.status.LevelTitle : "0강";
+            int charLevel = (actor != null && actor.status != null) ? actor.status.charLevel : 0;
+            actorInfoText.text = $"시전: <color=#00FFCE>{charName}</color> | 강화: <color=#79FF5B>{levelTitle} ({charLevel}강)</color>";
+
+            // 3. Dynamic Calculated Description
+            StringBuilder descSb = new StringBuilder();
+            float atk = (actor != null && actor.status != null) ? actor.status.FinalAttack : 10f;
+            float spellPower = (actor != null && actor.status != null) ? actor.status.FinalSpellPower : 0f;
+
+            if (currentLevelData != null && currentLevelData.effects != null && currentLevelData.effects.Count > 0)
+            {
+                foreach (var effect in currentLevelData.effects)
+                {
+                    float val = (atk * effect.multiplier) + effect.fixedValue;
+                    switch (effect.type)
+                    {
+                        case EffectType.Damage:
+                            descSb.AppendLine($"💥 <color=#FF6B6B>물리 피해: {effect.multiplier * 100:F0}% 공격력 (데미지: {val:F1})</color>");
+                            break;
+                        case EffectType.Heal:
+                            descSb.AppendLine($"💚 <color=#51CF66>체력 회복: {effect.multiplier * 100:F0}% 계수 (회복량: {val:F1})</color>");
+                            break;
+                        case EffectType.Stun:
+                            descSb.AppendLine($"💫 <color=#FCC419>기절 효과: {effect.multiplier * 100:F0}% 확률로 {effect.fixedValue:F0}턴간 기절</color>");
+                            break;
+                        case EffectType.Bleed:
+                            descSb.AppendLine($"🩸 <color=#E03131>출혈: {effect.multiplier * 100:F0}% 턴당 피해 ({effect.fixedValue:F0}턴)</color>");
+                            break;
+                        case EffectType.Buff:
+                            descSb.AppendLine($"⚡ <color=#339AF0>공격력 증가 버프: +{val:F1}</color>");
+                            break;
+                        case EffectType.Taunt:
+                            descSb.AppendLine($"🛡️ <color=#845EF7>도발: {effect.fixedValue:F0}회 획득</color>");
+                            break;
+                        case EffectType.Counter:
+                            descSb.AppendLine($"⚔️ <color=#FF922B>반격: {effect.fixedValue:F0}회 획득</color>");
+                            break;
+                        case EffectType.Shield:
+                            descSb.AppendLine($"🛡️ <color=#4DABF7>보호막: 잃은 체력의 {effect.multiplier * 100:F0}% 생성</color>");
+                            break;
+                    }
+                }
+
+                if (currentLevelData.targetType == TargetType.RightEnemy)
+                {
+                    descSb.AppendLine($"➡️ <color=#FFA8A8>추가 효과: 대상의 오른쪽 적에게도 적중</color>");
+                }
+            }
+            else
+            {
+                descSb.AppendLine("기본 스킬 효과가 적용됩니다.");
+            }
+            descriptionText.text = descSb.ToString().TrimEnd();
+
+            // 4. Skill Level Progression Preview
+            StringBuilder progSb = new StringBuilder();
+            progSb.AppendLine("<color=#A0A0A0>── 스킬 강화 단계 ──</color>");
+            if (skill.levels != null)
+            {
+                for (int i = 0; i < skill.levels.Length; i++)
+                {
+                    string tag = (i == 0) ? "[기본]" : $"[+{i}강]";
+                    bool isCurrent = (i == skillLevelIdx);
+                    string colorTag = isCurrent ? "<color=#79FF5B>" : "<color=#888888>";
+                    string endColor = "</color>";
+
+                    progSb.AppendLine($"{colorTag}{tag} {(isCurrent ? "◀ 적용 중" : "")}{endColor}");
+                }
+            }
+            levelProgressionText.text = progSb.ToString().TrimEnd();
+
+            tooltipPanel.SetActive(true);
+            FollowMousePosition();
+        }
+
+        public void HideTooltip()
+        {
+            if (tooltipPanel != null)
+            {
+                tooltipPanel.SetActive(false);
+            }
+        }
+
+        private void EnsureUI()
+        {
+            if (tooltipPanel != null) return;
+
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (canvas == null)
+            {
+                GameObject cObj = new GameObject("TooltipCanvas");
+                canvas = cObj.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.sortingOrder = 120;
+                cObj.AddComponent<CanvasScaler>();
+                cObj.AddComponent<GraphicRaycaster>();
+            }
+
+            tooltipPanel = new GameObject("SkillTooltipPanel");
+            tooltipPanel.transform.SetParent(canvas.transform, false);
+
+            tooltipRect = tooltipPanel.AddComponent<RectTransform>();
+            tooltipRect.sizeDelta = new Vector2(320, 220);
+
+            Image bg = tooltipPanel.AddComponent<Image>();
+            bg.color = new Color(0.06f, 0.08f, 0.12f, 0.92f); // 반투명 다크 패널
+            bg.raycastTarget = false;
+
+            VerticalLayoutGroup layout = tooltipPanel.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(14, 14, 12, 12);
+            layout.spacing = 8;
+            layout.childControlHeight = false;
+
+            ContentSizeFitter fitter = tooltipPanel.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            // Title
+            GameObject titleObj = new GameObject("Title");
+            titleObj.transform.SetParent(tooltipPanel.transform, false);
+            LayoutElement tLe = titleObj.AddComponent<LayoutElement>();
+            tLe.preferredHeight = 30;
+            titleText = CreateTextUI(titleObj.transform, "스킬 이름", 22, Color.yellow);
+
+            // Actor Info
+            GameObject actorObj = new GameObject("ActorInfo");
+            actorObj.transform.SetParent(tooltipPanel.transform, false);
+            LayoutElement aLe = actorObj.AddComponent<LayoutElement>();
+            aLe.preferredHeight = 22;
+            actorInfoText = CreateTextUI(actorObj.transform, "시전 캐릭터", 16, Color.white);
+
+            // Divider line
+            GameObject divObj = new GameObject("Divider");
+            divObj.transform.SetParent(tooltipPanel.transform, false);
+            LayoutElement dLe = divObj.AddComponent<LayoutElement>();
+            dLe.preferredHeight = 2;
+            Image dImg = divObj.AddComponent<Image>();
+            dImg.color = new Color(1, 1, 1, 0.2f);
+            dImg.raycastTarget = false;
+
+            // Description
+            GameObject descObj = new GameObject("Description");
+            descObj.transform.SetParent(tooltipPanel.transform, false);
+            LayoutElement descLe = descObj.AddComponent<LayoutElement>();
+            descLe.preferredHeight = 80;
+            descriptionText = CreateTextUI(descObj.transform, "스킬 상세 설명", 18, Color.white);
+
+            // Progression
+            GameObject progObj = new GameObject("Progression");
+            progObj.transform.SetParent(tooltipPanel.transform, false);
+            LayoutElement pLe = progObj.AddComponent<LayoutElement>();
+            pLe.preferredHeight = 50;
+            levelProgressionText = CreateTextUI(progObj.transform, "강화 단계", 14, Color.gray);
+
+            tooltipPanel.SetActive(false);
+            TMPFontManager.ApplyFontToAll(tooltipPanel.transform);
+        }
+
+        private TextMeshProUGUI CreateTextUI(Transform parent, string text, int fontSize, Color color)
+        {
+            GameObject txtObj = new GameObject("Text");
+            txtObj.transform.SetParent(parent, false);
+            RectTransform rect = txtObj.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            TextMeshProUGUI tmp = txtObj.AddComponent<TextMeshProUGUI>();
+            tmp.text = text;
+            tmp.fontSize = fontSize;
+            tmp.color = color;
+            tmp.alignment = TextAlignmentOptions.Left;
+            tmp.enableWordWrapping = true;
+            tmp.font = TMPFontManager.MainKoreanFont;
+            tmp.raycastTarget = false;
+
+            return tmp;
+        }
+    }
+}

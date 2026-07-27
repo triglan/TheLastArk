@@ -51,10 +51,39 @@ public class GameManager : MonoBehaviour
             Debug.LogError("[GameManager] ❌ Hierarchy에서 'TurnEndButton'을 찾을 수 없습니다!");
         }
 
-        // Step 1: 전투 캐릭터 데이터를 준비합니다.
-        Debug.Log("[GameManager] 📊 캐릭터 데이터 초기화");
+        // Step 1: 전투 캐릭터 데이터를 준비합니다 (덱에 편성된 캐릭터만 스폰)
+        Debug.Log("[GameManager] 📊 캐릭터 데이터 초기화 및 덱 스폰 연동");
         ApplySelectedEnemyEncounter();
 
+        var partyIDs = RunManager.Instance != null ? RunManager.Instance.State.partyDataIDs : new List<string>();
+
+        // 최소 1명 필수 및 1명일 때는 무조건 리더 지정
+        if (partyIDs == null || partyIDs.Count == 0)
+        {
+            partyIDs = new List<string>();
+            // Fallback: 씬에 테스트 데이터가 있으면 기본 등록
+            foreach (var c in allCharacters)
+            {
+                if (c != null && c.GetComponent<EnemyBattleCharacter>() == null && c.testData != null)
+                {
+                    partyIDs.Add(c.testData.DataId);
+                }
+            }
+            if (RunManager.Instance != null && partyIDs.Count > 0)
+            {
+                RunManager.Instance.State.partyDataIDs = partyIDs;
+            }
+        }
+
+        if (partyIDs.Count == 1 && RunManager.Instance != null)
+        {
+            RunManager.Instance.State.leaderCharacterID = partyIDs[0];
+        }
+
+        string leaderID = RunManager.Instance != null ? RunManager.Instance.State.leaderCharacterID : "";
+
+        // 씬 내 아군 캐릭터 오브젝트와 적 캐릭터 오브젝트 구분
+        List<BattleCharacter> playerSlots = new List<BattleCharacter>();
         foreach (var character in allCharacters)
         {
             if (character == null) continue;
@@ -63,10 +92,64 @@ public class GameManager : MonoBehaviour
             if (enemyBC != null)
             {
                 enemyBC.InitializeForBattle();
-                continue;
             }
+            else
+            {
+                playerSlots.Add(character);
+            }
+        }
 
-            character.PrepareCharacterData();
+        // battleManager의 playerParty 리스트 갱신
+        if (battleManager != null)
+        {
+            battleManager.playerParty.Clear();
+        }
+
+        CharacterData[] allResCharacters = Resources.LoadAll<CharacterData>("Characters");
+
+        for (int i = 0; i < playerSlots.Count; i++)
+        {
+            BattleCharacter pChar = playerSlots[i];
+            if (i < partyIDs.Count)
+            {
+                string charId = partyIDs[i];
+                CharacterData data = null;
+                if (allResCharacters != null)
+                {
+                    foreach (var cd in allResCharacters)
+                    {
+                        if (cd != null && cd.DataId == charId)
+                        {
+                            data = cd;
+                            break;
+                        }
+                    }
+                }
+                if (data == null) data = pChar.testData;
+
+                bool isLeader = (charId == leaderID);
+                pChar.gameObject.SetActive(true);
+
+                if (data != null)
+                {
+                    pChar.Init(data, isLeader);
+                }
+                else
+                {
+                    pChar.isLeader = isLeader;
+                    pChar.PrepareCharacterData();
+                }
+
+                if (battleManager != null)
+                {
+                    battleManager.playerParty.Add(pChar);
+                }
+            }
+            else
+            {
+                // 덱 인원수보다 많은 씬 슬롯은 완벽히 비활성화하여 초상화 및 UI 숨김
+                pChar.gameObject.SetActive(false);
+            }
         }
 
         // Step 2: 공용 행동력 시스템 초기화

@@ -65,8 +65,8 @@ public class MapManager : MonoBehaviour
 
     void OnGUI()
     {
-        // 디버깅용 이벤트 강제 트리거 버튼 (화면 우측 상단, 작게)
-        if (GUI.Button(new Rect(Screen.width - 120, 10, 110, 30), "Debug: Event"))
+        // 디버깅용 이벤트 강제 트리거 버튼 (화면 좌측 하단)
+        if (GUI.Button(new Rect(10, Screen.height - 45, 110, 30), "Debug: Event"))
         {
             var eventMgr = EventManager.Instance;
             var eventData = eventMgr?.GetRandomEvent(1);
@@ -85,8 +85,8 @@ public class MapManager : MonoBehaviour
             }
         }
 
-        // 디버깅용 마을 씬 강제 이동 버튼
-        if (GUI.Button(new Rect(Screen.width - 240, 10, 110, 30), "Debug: Village"))
+        // 디버깅용 마을 씬 강제 이동 버튼 (화면 좌측 하단)
+        if (GUI.Button(new Rect(130, Screen.height - 45, 110, 30), "Debug: Village"))
         {
             Debug.Log("[MapManager Debug] 마을 씬 강제 이동");
             UnityEngine.SceneManagement.SceneManager.LoadScene("VillageScene");
@@ -177,11 +177,10 @@ private void InitializeMap()
                 resourceUI.Initialize(canvas.transform);
             }
             
-            // 기차 관리 버튼 생성
-            Transform existingTrainBtn = canvas.transform.Find("TrainManageButton");
-            if (existingTrainBtn == null)
+            // 디버그 버튼 생성
+            Transform existingDebugBtn = canvas.transform.Find("DebugConsumableButton");
+            if (existingDebugBtn == null)
             {
-                CreateTrainManagementButton(canvas.transform);
                 CreateDebugConsumableButton(canvas.transform);
                 CreateDebugRelicButton(canvas.transform);
             }

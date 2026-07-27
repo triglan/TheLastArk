@@ -1,24 +1,57 @@
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 using System.Collections.Generic;
+using TheLastArk.UI;
 
-public class SkillGroupUI : MonoBehaviour
+namespace UI
 {
-    public List<SkillSlotUI> slots;
-
-    public void SetupGroup(List<SkillInfo> skills, BattleCharacter owner)
+    public class SkillGroupUI : MonoBehaviour
     {
-        for (int i = 0; i < slots.Count; i++)
+        public TextMeshProUGUI charNameText;
+        public Image portraitImage;
+        public List<SkillSlotUI> slotUIList = new List<SkillSlotUI>();
+
+        public void SetupGroup(List<SkillInfo> skills, BattleCharacter owner)
         {
-            // 리스트의 Count를 기준으로 슬롯 활성화
-            if (i < skills.Count && skills[i] != null)
+            if (charNameText == null) charNameText = GetComponentInChildren<TextMeshProUGUI>();
+            if (portraitImage == null) portraitImage = GetComponentInChildren<Image>();
+
+            if (slotUIList == null || slotUIList.Count == 0)
             {
-                slots[i].gameObject.SetActive(true);
-                slots[i].SetSlot(skills[i], owner);
+                slotUIList = new List<SkillSlotUI>(GetComponentsInChildren<SkillSlotUI>(true));
             }
-            else
+
+            if (owner != null && owner.status != null)
             {
-                slots[i].gameObject.SetActive(false); // 남는 슬롯은 끔
+                if (charNameText != null)
+                {
+                    charNameText.text = owner.characterName;
+                    charNameText.font = TMPFontManager.MainKoreanFont;
+                }
+                if (portraitImage != null && owner.status.origin != null && owner.status.origin.portraitSprite != null)
+                {
+                    portraitImage.sprite = owner.status.origin.portraitSprite;
+                    portraitImage.color = Color.white;
+                }
             }
+
+            if (skills == null || slotUIList == null) return;
+
+            for (int i = 0; i < slotUIList.Count; i++)
+            {
+                if (i < skills.Count && skills[i] != null)
+                {
+                    slotUIList[i].gameObject.SetActive(true);
+                    slotUIList[i].SetupSlot(skills[i], owner);
+                }
+                else
+                {
+                    slotUIList[i].gameObject.SetActive(false);
+                }
+            }
+
+            TMPFontManager.ApplyFontToAll(transform);
         }
     }
 }

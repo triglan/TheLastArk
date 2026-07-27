@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 
 public class BattleCharacter : MonoBehaviour, IDamageable
@@ -22,22 +22,38 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     {
         if (status?.origin == null || status.origin.isEnemy || status.origin.activeSkills == null) return;
 
-        List<SkillInfo> pool = new List<SkillInfo>(status.origin.activeSkills);
-        for (int i = pool.Count - 1; i > 0; i--)
+        status.dynamicActiveSkill.Clear();
+
+        List<int> selectedIndices = status.selectedActiveSkillIndices;
+        if (selectedIndices == null || selectedIndices.Count < 2)
         {
-            int rnd = Random.Range(0, i + 1);
-            SkillInfo temp = pool[i];
-            pool[i] = pool[rnd];
-            pool[rnd] = temp;
+            selectedIndices = new List<int>() { 0, 1 };
         }
 
-        int countToExtract = 2 + (isLeader ? 1 : 0);
-        status.dynamicActiveSkill.Clear();
-        for (int i = 0; i < countToExtract; i++)
+        // 1. 선택된 2개의 액티브 스킬 탑재
+        foreach (int idx in selectedIndices)
         {
-            if (i < pool.Count) status.dynamicActiveSkill.Add(pool[i]);
+            if (idx >= 0 && idx < status.origin.activeSkills.Length && status.origin.activeSkills[idx] != null)
+            {
+                status.dynamicActiveSkill.Add(status.origin.activeSkills[idx]);
+            }
+        }
+
+        // 2. 리더인 경우 스킬칸 +1 보너스 (미선택된 스킬 중 1개 추가 탑재)
+        if (isLeader)
+        {
+            for (int i = 0; i < status.origin.activeSkills.Length; i++)
+            {
+                if (!selectedIndices.Contains(i) && status.origin.activeSkills[i] != null)
+                {
+                    status.dynamicActiveSkill.Add(status.origin.activeSkills[i]);
+                    break;
+                }
+            }
         }
     }
+
+    [HideInInspector] public bool hasResurrectedThisStage = false;
 
     public float ReceiveDamage(float amount, BattleCharacter attacker)
     {
@@ -45,11 +61,64 @@ public class BattleCharacter : MonoBehaviour, IDamageable
 
         float actualDamage = amount;
         status.currentHp -= actualDamage;
+
+        // 특성 [회생] 발동 검사 (체력 1 이하일 때 발동)
+        if (status.currentHp <= 1f)
+        {
+            TryTriggerResurrectionTrait();
+        }
+
         if (status.currentHp < 0) status.currentHp = 0;
 
         Debug.Log($"{gameObject.name} 피격! 남은 체력: {status.currentHp}");
         if (view != null) view.UpdateVisual(status);
         return actualDamage;
+    }
+
+    public void TryTriggerResurrectionTrait()
+    {
+        if (status == null || status.origin == null) return;
+
+        bool canResurrect = false;
+
+        // 1. 본인이 회생 특성 보유 & 1강 이상(개방) 상태인 경우
+        if (!hasResurrectedThisStage && status.IsTraitUnlocked && status.origin.passiveSkill != null &&
+            !string.IsNullOrEmpty(status.origin.passiveSkill.skillName) && status.origin.passiveSkill.skillName.Contains("회생"))
+        {
+            canResurrect = true;
+        }
+        // 2. 본인이 개방되지 않았더라도 파티원 중 4강(각성 개화) 회생 특성을 가진 아군이 있는 경우
+        else if (!hasResurrectedThisStage)
+        {
+            var bm = FindObjectOfType<BattleManager>();
+            if (bm != null && bm.playerParty != null)
+            {
+                foreach (var ally in bm.playerParty)
+                {
+                    if (ally != null && ally.status != null && ally.status.IsTraitAwakened && ally.status.origin != null &&
+                        ally.status.origin.passiveSkill != null && !string.IsNullOrEmpty(ally.status.origin.passiveSkill.skillName) &&
+                        ally.status.origin.passiveSkill.skillName.Contains("회생"))
+                    {
+                        canResurrect = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (canResurrect && status.currentMental > 1f)
+        {
+            hasResurrectedThisStage = true;
+            status.currentHp = 1f;
+
+            float consumedMental = status.currentMental - 1f;
+            status.currentMental = 1f;
+
+            float healAmount = consumedMental * 2f; // 소모한 정신력의 200%만큼 체력 회복
+            ReceiveHeal(healAmount, this);
+
+            Debug.Log($"✨ [{characterName}] 특성 [회생] 발동! 정신력 {consumedMental} 소모 -> 체력 {healAmount} 회복!");
+        }
     }
 
     public float ReceiveHeal(float amount, BattleCharacter healer)

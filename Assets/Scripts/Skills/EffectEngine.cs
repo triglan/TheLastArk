@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 
 public static class EffectEngine
@@ -58,6 +58,32 @@ public static class EffectEngine
                 target.status.bonusAttack += calculatedValue;
                 _lastCalculatedValue = calculatedValue;
                 if (target.view != null) target.view.UpdateVisual(target.status);
+                break;
+
+            case EffectType.Taunt:
+                int tauntTurns = Mathf.Max(1, Mathf.RoundToInt(calculatedValue));
+                target.status.ApplyStatusEffect(effect.type, 0f, tauntTurns);
+                _lastCalculatedValue = tauntTurns;
+                Debug.Log($"🛡️ {target.characterName} 도발 {tauntTurns}회 획득!");
+                break;
+
+            case EffectType.Counter:
+                int counterTurns = Mathf.Max(1, Mathf.RoundToInt(calculatedValue));
+                target.status.ApplyStatusEffect(effect.type, 0f, counterTurns);
+                _lastCalculatedValue = counterTurns;
+                Debug.Log($"⚔️ {target.characterName} 반격 {counterTurns}회 획득!");
+                break;
+
+            case EffectType.Shield:
+                int shieldTurns = Mathf.Max(1, Mathf.RoundToInt(effect.fixedValue > 0 ? effect.fixedValue : 1));
+                target.status.ApplyStatusEffect(effect.type, calculatedValue, shieldTurns);
+                _lastCalculatedValue = calculatedValue;
+                Debug.Log($"🛡️ {target.characterName} 보호막 {calculatedValue} 획득!");
+                break;
+
+            case EffectType.Resurrection:
+                target.TryTriggerResurrectionTrait();
+                _lastCalculatedValue = 1f;
                 break;
         }
     }

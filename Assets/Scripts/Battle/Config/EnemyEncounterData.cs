@@ -14,6 +14,19 @@ public class EnemyEncounterData : ScriptableObject
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public CharacterData[] EnemySlots => enemySlots;
 
+    public static EnemyEncounterData CreateRuntimeInstance(string id, string nameText, CharacterData[] slots)
+    {
+        var data = CreateInstance<EnemyEncounterData>();
+        data.encounterId = id;
+        data.displayName = nameText;
+        if (slots != null)
+        {
+            data.enemySlots = new CharacterData[SlotCount];
+            Array.Copy(slots, data.enemySlots, Mathf.Min(slots.Length, SlotCount));
+        }
+        return data;
+    }
+
     public bool HasAnyEnemy
     {
         get

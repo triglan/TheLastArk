@@ -15,12 +15,17 @@ MonoBehaviour:
   characterId: 03
   characterName: NewAlly
   jobName: NewAlly
+  synergies: 
   isEnemy: 0
   standingSprite: {fileID: 0}
   portraitSprite: {fileID: 0}
   maxHp: 200
   maxMental: 200
   baseAttack: 25
+  spellPower: 0
+  armor: 3
+  magicResist: 3
+  critRate: 0
   levelStatMultipliers:
   - 0
   - 0.5

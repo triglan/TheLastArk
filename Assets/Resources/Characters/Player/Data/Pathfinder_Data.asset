@@ -15,12 +15,17 @@ MonoBehaviour:
   characterId: 04
   characterName: Pathfinder
   jobName: Pathfinder
+  synergies: 040000000e000000
   isEnemy: 0
   standingSprite: {fileID: 21300000, guid: f1719d0417e5693448ea6c68f19fef49, type: 3}
   portraitSprite: {fileID: 21300000, guid: c91ae052e3d5bac4dbbe19a2580fcef9, type: 3}
   maxHp: 200
   maxMental: 200
   baseAttack: 25
+  spellPower: 0
+  armor: 3
+  magicResist: 3
+  critRate: 0
   levelStatMultipliers:
   - 0
   - 0.5

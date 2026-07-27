@@ -1,40 +1,135 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
+using TheLastArk.UI;
 
-public class SkillSlotUI : MonoBehaviour
+namespace UI
 {
-    [Header("UI References")]
-    public Image skillIcon;
-    public TextMeshProUGUI costText;
-    public Button slotButton; // ¿ŒΩ∫∆Â≈Õø°º≠ πˆ∆∞ ƒƒ∆˜≥Õ∆Æ ø¨∞·
-
-    [Header("Data")]
-    public SkillInfo assignedSkill;
-    public BattleCharacter skillOwner;
-
-    public void SetSlot(SkillInfo data, BattleCharacter owner)
+    public class SkillSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
-        assignedSkill = data;
-        skillOwner = owner;
+        [Header("UI Component References")]
+        public Image iconImage;
+        public TextMeshProUGUI costText;
+        public TextMeshProUGUI nameText;
+        public Button button;
 
-        if (assignedSkill != null)
+        private SkillInfo currentSkill;
+        private BattleCharacter currentActor;
+
+        private void AutoFindComponents()
         {
-            gameObject.SetActive(true);
-            if (skillIcon != null) skillIcon.sprite = assignedSkill.skillIcon;
-            if (costText != null) costText.text = assignedSkill.baseCost.ToString();
-        }
-        else 
-        { 
-            gameObject.SetActive(false); 
-        }
-    }
+            if (button == null) button = GetComponent<Button>();
 
-    public void OnClickSlot()
-    {
-        if (assignedSkill == null || skillOwner == null) return;
+            if (iconImage == null)
+            {
+                Image[] imgs = GetComponentsInChildren<Image>(true);
+                foreach (var img in imgs)
+                {
+                    if (img.gameObject != gameObject) { iconImage = img; break; }
+                }
+                if (iconImage == null) iconImage = GetComponent<Image>();
+            }
 
-        BattleManager bm = FindAnyObjectByType<BattleManager>();
-        if (bm != null) bm.SelectSkill(assignedSkill, skillOwner);
+            TextMeshProUGUI[] tmps = GetComponentsInChildren<TextMeshProUGUI>(true);
+            if (tmps.Length > 0)
+            {
+                foreach (var tmp in tmps)
+                {
+                    if (tmp.name.ToLower().Contains("cost")) costText = tmp;
+                    else if (tmp.name.ToLower().Contains("name") || tmp.name.ToLower().Contains("title")) nameText = tmp;
+                }
+
+                if (nameText == null && tmps.Length > 0) nameText = tmps[0];
+                if (costText == null && tmps.Length > 1) costText = tmps[1];
+            }
+        }
+
+        public void SetupSlot(SkillInfo skill, BattleCharacter actor)
+        {
+            currentSkill = skill;
+            currentActor = actor;
+
+            AutoFindComponents();
+
+            if (button != null)
+            {
+                button.onClick.RemoveAllListeners();
+                button.onClick.AddListener(OnClickSlot);
+            }
+
+            if (skill != null)
+            {
+                int skillLevelIdx = (actor != null && actor.status != null) ? actor.status.SkillLevelIndex : 0;
+                int cost = skill.baseCost;
+                if (skill.levels != null && skill.levels.Length > skillLevelIdx && skill.levels[skillLevelIdx] != null && skill.levels[skillLevelIdx].overrideCost >= 0)
+                {
+                    cost = skill.levels[skillLevelIdx].overrideCost;
+                }
+
+                if (nameText != null)
+                {
+                    nameText.text = skill.skillName;
+                    nameText.font = TMPFontManager.MainKoreanFont;
+                    nameText.color = Color.white;
+                }
+
+                if (costText != null)
+                {
+                    costText.text = $"{cost}";
+                    costText.font = TMPFontManager.MainKoreanFont;
+                    costText.color = Color.yellow;
+                }
+
+                if (iconImage != null)
+                {
+                    if (skill.skillIcon != null)
+                    {
+                        iconImage.sprite = skill.skillIcon;
+                        iconImage.color = Color.white;
+                    }
+                    else
+                    {
+                        iconImage.sprite = null;
+                        iconImage.color = new Color(0.2f, 0.4f, 0.65f, 0.9f); // ÏïÑÏù¥ÏΩò ÏóÜÏùÑ Ïãú ÍπîÎÅîÌïú ÌååÎûÄ Î∞∞Í≤Ω
+                    }
+                }
+            }
+        }
+
+        public void OnClickSlot()
+        {
+            if (currentSkill != null && currentActor != null)
+            {
+                SkillTooltipUI.Instance.HideTooltip();
+
+                var bm = FindObjectOfType<BattleManager>();
+                if (bm != null)
+                {
+                    bm.SelectSkill(currentSkill, currentActor);
+                }
+            }
+        }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (currentSkill != null)
+            {
+                SkillTooltipUI.Instance.ShowTooltip(currentSkill, currentActor, GetComponent<RectTransform>());
+            }
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            SkillTooltipUI.Instance.HideTooltip();
+        }
+
+        private void OnDisable()
+        {
+            if (SkillTooltipUI.HasInstance)
+            {
+                SkillTooltipUI.Instance.HideTooltip();
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UI;
 using UnityEngine;
+using TheLastArk.UI;
 
 public class BattleManager : MonoBehaviour
 {
@@ -37,7 +38,16 @@ public class BattleManager : MonoBehaviour
     public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerTurn;
     public BattleConfig Config => battleConfig;
 
-    private int MaxAP => battleConfig != null ? battleConfig.MaxAP : BattleConfig.DefaultMaxAP;
+    private int MaxAP
+    {
+        get
+        {
+            int baseAP = battleConfig != null ? battleConfig.MaxAP : BattleConfig.DefaultMaxAP;
+            int relicAP = TheLastArk.Managers.ResourceManager.Instance != null ? (int)TheLastArk.Managers.ResourceManager.Instance.GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAP) : 0;
+            int synergyAP = TheLastArk.Character.SynergyCalculator.GetTotalSynergyBonusAP();
+            return baseAP + relicAP + synergyAP;
+        }
+    }
     private float EnemyActionDelay => battleConfig != null ? battleConfig.EnemyActionDelay : BattleConfig.DefaultEnemyActionDelay;
     private float StatusEffectDelay => battleConfig != null ? battleConfig.StatusEffectDelay : BattleConfig.DefaultStatusEffectDelay;
     private int VictoryGold => battleConfig != null ? battleConfig.VictoryGold : BattleConfig.DefaultVictoryGold;
@@ -141,10 +151,10 @@ public class BattleManager : MonoBehaviour
         _selection.Clear();
         _selection.Set(skill, actor);
 
-        if (targetHandler.target != null)
+        if (targetHandler != null && targetHandler.target != null)
             PerformSkill();
         else
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
+            TheLastArk.UI.NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
     }
 
     public void SelectConsumable(int consumableIndex)
@@ -165,10 +175,10 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        if (targetHandler.target != null)
+        if (targetHandler != null && targetHandler.target != null)
             PerformConsumable();
         else
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
+            TheLastArk.UI.NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
     }
 
     public void PerformSkill()
