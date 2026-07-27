@@ -21,12 +21,23 @@ public class EnemyEncounterPool : ScriptableObject
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public string RegionId => string.IsNullOrWhiteSpace(regionId) ? DefaultRegionId : regionId;
     public NodeType NodeType => nodeType;
+    public int MinFloor => minFloor;
+    public int MaxFloor => maxFloor;
+    public int MinCombatCount => minCombatCount;
+    public int MaxCombatCount => maxCombatCount;
     public int Priority => priority;
     public IReadOnlyList<EnemyEncounterData> Encounters => encounters;
+    public IReadOnlyList<EnemyEncounterData> Formations => encounters;
+
+    public bool MatchesRegion(string targetRegionId)
+    {
+        string target = string.IsNullOrWhiteSpace(targetRegionId) ? DefaultRegionId : targetRegionId.Trim();
+        return string.Equals(RegionId, target, System.StringComparison.OrdinalIgnoreCase);
+    }
 
     public bool Matches(string targetRegionId, NodeType targetNodeType, int floor, int combatCount)
     {
-        return string.Equals(RegionId, targetRegionId, System.StringComparison.OrdinalIgnoreCase)
+        return MatchesRegion(targetRegionId)
             && nodeType == targetNodeType
             && floor >= minFloor
             && floor <= maxFloor

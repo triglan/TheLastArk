@@ -16,9 +16,9 @@ public static class BattleEncounterResolver
         List<EnemyEncounterPool> matchedPools = new List<EnemyEncounterPool>();
         int highestPriority = int.MinValue;
 
-        if (table != null && table.Pools != null)
+        if (table != null)
         {
-            foreach (EnemyEncounterPool pool in table.Pools)
+            foreach (EnemyEncounterPool pool in table.GetPoolsForRegion(regionId))
             {
                 if (pool == null || !pool.Matches(regionId, nodeType, floor, combatCount)) continue;
 
@@ -47,10 +47,10 @@ public static class BattleEncounterResolver
         }
 
         // 2. Fallback 1: regionId, floor 무시하고 nodeType에 맞는 임의의 풀 검색
-        if (table != null && table.Pools != null)
+        if (table != null)
         {
             List<EnemyEncounterData> fallbackEncounters = new List<EnemyEncounterData>();
-            foreach (EnemyEncounterPool pool in table.Pools)
+            foreach (EnemyEncounterPool pool in table.GetAllPools())
             {
                 if (pool == null || pool.NodeType != nodeType) continue;
                 var list = CollectValidEncounters(pool, appearedEncounterIds, true);

@@ -11,11 +11,13 @@ public class EnemyEncounterEditorWindow : EditorWindow
     private enum EditMode { Encounters, Pools }
 
     private readonly List<Object> assets = new List<Object>();
+    private readonly Dictionary<string, bool> regionFoldouts = new Dictionary<string, bool>();
     private EditMode mode;
     private Object selectedAsset;
     private UnityEditor.Editor selectedEditor;
     private Vector2 listScroll;
     private Vector2 inspectorScroll;
+    private string newRegionId = EnemyEncounterPool.DefaultRegionId;
 
     [MenuItem("Window/Battle/Enemy Encounter Editor")]
     public static void ShowWindow()
@@ -52,7 +54,14 @@ public class EnemyEncounterEditorWindow : EditorWindow
     private void DrawAssetList()
     {
         EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(260f), GUILayout.ExpandHeight(true));
-        EditorGUILayout.LabelField(mode == EditMode.Encounters ? "Enemy Formations" : "Encounter Pools", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField(mode == EditMode.Encounters ? "Enemy Formations" : "Maps / Encounter Pools", EditorStyles.boldLabel);
+
+        if (mode == EditMode.Pools)
+        {
+            DrawPoolTreeList();
+            EditorGUILayout.EndVertical();
+            return;
+        }
 
         if (GUILayout.Button(mode == EditMode.Encounters ? "+ Create Formation" : "+ Create Pool", GUILayout.Height(28f)))
             CreateAssetForCurrentMode();
@@ -62,7 +71,7 @@ public class EnemyEncounterEditorWindow : EditorWindow
         {
             if (asset == null) continue;
             bool isSelected = selectedAsset == asset;
-            if (GUILayout.Toggle(isSelected, asset.name, "Button") && !isSelected)
+            if (GUILayout.Toggle(isSelected, GetDisplayLabel(asset), "Button") && !isSelected)
                 SelectAsset(asset);
         }
         EditorGUILayout.EndScrollView();
@@ -75,6 +84,62 @@ public class EnemyEncounterEditorWindow : EditorWindow
         EditorGUILayout.EndVertical();
     }
 
+    private void DrawPoolTreeList()
+    {
+        BattleEncounterTable table = GetOrCreateTable();
+        table.SyncRegionsFromPools();
+
+        EditorGUILayout.BeginHorizontal();
+        newRegionId = EditorGUILayout.TextField(newRegionId);
+        if (GUILayout.Button("+ Map", GUILayout.Width(58f)))
+            CreateRegion(table, newRegionId);
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(4f);
+        listScroll = EditorGUILayout.BeginScrollView(listScroll);
+        foreach (EnemyEncounterRegionPools region in table.Regions)
+        {
+            if (region == null) continue;
+
+            string regionId = region.RegionId;
+            if (!regionFoldouts.ContainsKey(regionId))
+                regionFoldouts[regionId] = true;
+
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.BeginHorizontal();
+            regionFoldouts[regionId] = EditorGUILayout.Foldout(regionFoldouts[regionId], regionId, true, EditorStyles.boldLabel);
+            if (GUILayout.Button("+ Pool", GUILayout.Width(62f)))
+                CreatePoolForRegion(regionId);
+            EditorGUILayout.EndHorizontal();
+
+            if (regionFoldouts[regionId])
+            {
+                foreach (EnemyEncounterPool pool in region.Pools)
+                {
+                    if (pool == null) continue;
+                    DrawPoolRow(pool);
+                }
+            }
+            EditorGUILayout.EndVertical();
+        }
+        EditorGUILayout.EndScrollView();
+
+        EditorGUI.BeginDisabledGroup(selectedAsset == null);
+        GUI.color = new Color(1f, 0.6f, 0.6f);
+        if (GUILayout.Button("Delete Selected")) DeleteSelectedAsset();
+        GUI.color = Color.white;
+        EditorGUI.EndDisabledGroup();
+    }
+
+    private void DrawPoolRow(EnemyEncounterPool pool)
+    {
+        bool isSelected = selectedAsset == pool;
+        string label = $"{pool.DisplayName} - {pool.MinFloor}~{pool.MaxFloor}F";
+        label += $" / {pool.NodeType}";
+        if (GUILayout.Toggle(isSelected, label, "Button") && !isSelected)
+            SelectAsset(pool);
+    }
+
     private void DrawSelectedInspector()
     {
         EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
@@ -85,7 +150,8 @@ public class EnemyEncounterEditorWindow : EditorWindow
             return;
         }
 
-        EditorGUILayout.LabelField(selectedAsset.name, EditorStyles.boldLabel);
+        EditorGUILayout.LabelField(GetDisplayLabel(selectedAsset), EditorStyles.boldLabel);
+        DrawNameEditor();
         DrawValidationMessage();
         inspectorScroll = EditorGUILayout.BeginScrollView(inspectorScroll);
         if (selectedEditor == null || selectedEditor.target != selectedAsset)
@@ -93,9 +159,37 @@ public class EnemyEncounterEditorWindow : EditorWindow
             if (selectedEditor != null) DestroyImmediate(selectedEditor);
             selectedEditor = UnityEditor.Editor.CreateEditor(selectedAsset);
         }
+        EditorGUI.BeginChangeCheck();
         selectedEditor.OnInspectorGUI();
+        if (EditorGUI.EndChangeCheck() && selectedAsset is EnemyEncounterPool)
+            SyncTableRegions();
         EditorGUILayout.EndScrollView();
         EditorGUILayout.EndVertical();
+    }
+
+    private void DrawNameEditor()
+    {
+        if (!(selectedAsset is EnemyEncounterData) && !(selectedAsset is EnemyEncounterPool)) return;
+
+        SerializedObject serializedAsset = new SerializedObject(selectedAsset);
+        SerializedProperty displayName = serializedAsset.FindProperty("displayName");
+        if (displayName == null) return;
+
+        EditorGUI.BeginChangeCheck();
+        string label = selectedAsset is EnemyEncounterData ? "Formation Name" : "Pool Name";
+        string nextName = EditorGUILayout.DelayedTextField(label, displayName.stringValue);
+        if (!EditorGUI.EndChangeCheck()) return;
+
+        nextName = string.IsNullOrWhiteSpace(nextName) ? selectedAsset.name : nextName.Trim();
+        displayName.stringValue = nextName;
+        serializedAsset.ApplyModifiedProperties();
+
+        RenameAsset(selectedAsset, nextName, selectedAsset is EnemyEncounterData ? "Formation" : "Pool");
+        EditorUtility.SetDirty(selectedAsset);
+        AssetDatabase.SaveAssets();
+        RefreshAssets();
+        SelectAsset(selectedAsset);
+        Selection.activeObject = selectedAsset;
     }
 
     private void DrawValidationMessage()
@@ -119,7 +213,7 @@ public class EnemyEncounterEditorWindow : EditorWindow
         {
             EnsureAssetFolder(EncounterFolder);
             EnemyEncounterData encounter = CreateInstance<EnemyEncounterData>();
-            string path = AssetDatabase.GenerateUniqueAssetPath($"{EncounterFolder}/EnemyEncounter.asset");
+            string path = AssetDatabase.GenerateUniqueAssetPath($"{EncounterFolder}/NewFormation_Formation.asset");
             AssetDatabase.CreateAsset(encounter, path);
             SaveAndSelect(encounter);
             return;
@@ -127,10 +221,33 @@ public class EnemyEncounterEditorWindow : EditorWindow
 
         EnsureAssetFolder(PoolFolder);
         EnemyEncounterPool pool = CreateInstance<EnemyEncounterPool>();
-        string poolPath = AssetDatabase.GenerateUniqueAssetPath($"{PoolFolder}/EnemyEncounterPool.asset");
+        string poolPath = AssetDatabase.GenerateUniqueAssetPath($"{PoolFolder}/NewPool_Pool.asset");
         AssetDatabase.CreateAsset(pool, poolPath);
         RegisterPool(GetOrCreateTable(), pool);
         SaveAndSelect(pool);
+    }
+
+    private void CreatePoolForRegion(string regionId)
+    {
+        EnsureAssetFolder(PoolFolder);
+        EnemyEncounterPool pool = CreateInstance<EnemyEncounterPool>();
+        SetSerializedString(pool, "regionId", regionId);
+        string poolPath = AssetDatabase.GenerateUniqueAssetPath($"{PoolFolder}/{SanitizeAssetName(regionId)}_NewPool_Pool.asset");
+        AssetDatabase.CreateAsset(pool, poolPath);
+        RegisterPool(GetOrCreateTable(), pool);
+        SaveAndSelect(pool);
+    }
+
+    private void CreateRegion(BattleEncounterTable table, string regionId)
+    {
+        if (table == null) return;
+
+        string normalized = string.IsNullOrWhiteSpace(regionId) ? EnemyEncounterPool.DefaultRegionId : regionId.Trim();
+        table.EnsureRegion(normalized);
+        regionFoldouts[normalized] = true;
+        EditorUtility.SetDirty(table);
+        AssetDatabase.SaveAssets();
+        RefreshAssets();
     }
 
     private void DeleteSelectedAsset()
@@ -148,7 +265,12 @@ public class EnemyEncounterEditorWindow : EditorWindow
     private BattleEncounterTable GetOrCreateTable()
     {
         BattleEncounterTable table = AssetDatabase.LoadAssetAtPath<BattleEncounterTable>(TablePath);
-        if (table != null) return table;
+        if (table != null)
+        {
+            table.SyncRegionsFromPools();
+            EditorUtility.SetDirty(table);
+            return table;
+        }
 
         EnsureAssetFolder("Assets/Resources/Battle");
         table = CreateInstance<BattleEncounterTable>();
@@ -158,16 +280,14 @@ public class EnemyEncounterEditorWindow : EditorWindow
 
     private static void RegisterPool(BattleEncounterTable table, EnemyEncounterPool pool)
     {
-        SerializedObject serializedTable = new SerializedObject(table);
-        SerializedProperty pools = serializedTable.FindProperty("pools");
-        pools.InsertArrayElementAtIndex(pools.arraySize);
-        pools.GetArrayElementAtIndex(pools.arraySize - 1).objectReferenceValue = pool;
-        serializedTable.ApplyModifiedProperties();
+        table.RegisterPool(pool);
+        AddLegacyPoolReference(table, pool);
         EditorUtility.SetDirty(table);
     }
 
     private static void UnregisterPool(BattleEncounterTable table, EnemyEncounterPool pool)
     {
+        table.UnregisterPool(pool);
         SerializedObject serializedTable = new SerializedObject(table);
         SerializedProperty pools = serializedTable.FindProperty("pools");
         for (int i = pools.arraySize - 1; i >= 0; i--)
@@ -178,6 +298,20 @@ public class EnemyEncounterEditorWindow : EditorWindow
         }
         serializedTable.ApplyModifiedProperties();
         EditorUtility.SetDirty(table);
+    }
+
+    private static void AddLegacyPoolReference(BattleEncounterTable table, EnemyEncounterPool pool)
+    {
+        SerializedObject serializedTable = new SerializedObject(table);
+        SerializedProperty pools = serializedTable.FindProperty("pools");
+        for (int i = 0; i < pools.arraySize; i++)
+        {
+            if (pools.GetArrayElementAtIndex(i).objectReferenceValue == pool) return;
+        }
+
+        pools.InsertArrayElementAtIndex(pools.arraySize);
+        pools.GetArrayElementAtIndex(pools.arraySize - 1).objectReferenceValue = pool;
+        serializedTable.ApplyModifiedProperties();
     }
 
     private void SaveAndSelect(Object asset)
@@ -198,7 +332,7 @@ public class EnemyEncounterEditorWindow : EditorWindow
             Object asset = AssetDatabase.LoadAssetAtPath<Object>(AssetDatabase.GUIDToAssetPath(guid));
             if (asset != null) assets.Add(asset);
         }
-        assets.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+        assets.Sort((a, b) => string.CompareOrdinal(GetDisplayLabel(a), GetDisplayLabel(b)));
         Repaint();
     }
 
@@ -221,5 +355,60 @@ public class EnemyEncounterEditorWindow : EditorWindow
             if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(current, parts[i]);
             current = next;
         }
+    }
+
+    private void SyncTableRegions()
+    {
+        BattleEncounterTable table = GetOrCreateTable();
+        table.SyncRegionsFromPools();
+        EditorUtility.SetDirty(table);
+        AssetDatabase.SaveAssets();
+        RefreshAssets();
+    }
+
+    private static string GetDisplayLabel(Object asset)
+    {
+        if (asset is EnemyEncounterData encounter) return encounter.DisplayName;
+        if (asset is EnemyEncounterPool pool) return pool.DisplayName;
+        return asset != null ? asset.name : "(None)";
+    }
+
+    private static void RenameAsset(Object asset, string displayName, string suffix)
+    {
+        if (asset == null) return;
+
+        string path = AssetDatabase.GetAssetPath(asset);
+        if (string.IsNullOrEmpty(path)) return;
+
+        string assetName = $"{SanitizeAssetName(displayName)}_{suffix}";
+        string error = AssetDatabase.RenameAsset(path, assetName);
+        if (!string.IsNullOrEmpty(error))
+            Debug.LogWarning($"[EnemyEncounterEditor] Rename failed: {error}");
+    }
+
+    private static void SetSerializedString(Object asset, string propertyName, string value)
+    {
+        SerializedObject serializedAsset = new SerializedObject(asset);
+        SerializedProperty property = serializedAsset.FindProperty(propertyName);
+        if (property == null) return;
+
+        property.stringValue = value;
+        serializedAsset.ApplyModifiedProperties();
+        EditorUtility.SetDirty(asset);
+    }
+
+    private static string SanitizeAssetName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName)) return "Unnamed";
+
+        char[] invalidChars = System.IO.Path.GetInvalidFileNameChars();
+        string result = rawName.Trim();
+        foreach (char invalidChar in invalidChars)
+        {
+            result = result.Replace(invalidChar.ToString(), "");
+        }
+
+        result = result.Replace(" ", "");
+        return string.IsNullOrWhiteSpace(result) ? "Unnamed" : result;
     }
 }

@@ -290,7 +290,7 @@ namespace TheLastArk.UI
             detailSkillsText.color = new Color(0.8f, 0.8f, 0.8f);
             if (mainFont != null) detailSkillsText.font = mainFont;
 
-            // ?リ린 踰꾪듉
+            // 닫기 버튼
             GameObject closeBtnObj = new GameObject("DetailCloseBtn");
             closeBtnObj.transform.SetParent(detailPopupPanel.transform, false);
             RectTransform closeRect = closeBtnObj.AddComponent<RectTransform>();

@@ -12,6 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 311b870d9d484e2a87f5f787687d3950, type: 3}
   m_Name: BattleEncounterTable
   m_EditorClassIdentifier: 
+  regions:
+  - regionId: temp
+    pools:
+    - {fileID: 11400000, guid: 5a421485ffc6f9c458683eb9f0c069cb, type: 2}
+    - {fileID: 11400000, guid: 1a895e21797c43846b4496c195dc51c4, type: 2}
+    - {fileID: 11400000, guid: 18d68bfb76ceb034582e94cace80c164, type: 2}
+  - regionId: temp2
+    pools: []
   pools:
   - {fileID: 11400000, guid: 5a421485ffc6f9c458683eb9f0c069cb, type: 2}
   - {fileID: 11400000, guid: 1a895e21797c43846b4496c195dc51c4, type: 2}
+  - {fileID: 11400000, guid: 18d68bfb76ceb034582e94cace80c164, type: 2}

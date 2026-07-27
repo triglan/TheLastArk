@@ -4,24 +4,25 @@ using TMPro;
 using UI;
 using UnityEngine;
 using TheLastArk.UI;
+using TheLastArk.Managers;
 
 public class BattleManager : MonoBehaviour
 {
     [Header("Config")]
     [SerializeField] private BattleConfig battleConfig;
 
-    [Header("파티")]
+    [Header("Party")]
     public List<BattleCharacter> playerParty;
     public List<BattleCharacter> enemyParty;
 
-    [Header("참조")]
+    [Header("References")]
     public TargetArrow targetHandler;
 
-    [Header("행동력")]
+    [Header("Action Points")]
     public int currentAP;
     public TextMeshProUGUI apText;
 
-    [Header("턴 UI")]
+    [Header("Turn UI")]
     [Tooltip("현재 턴 수를 표시합니다.")]
     public TextMeshProUGUI turnCountText;
     [Tooltip("현재 전투 페이즈를 표시합니다.")]
@@ -48,21 +49,20 @@ public class BattleManager : MonoBehaviour
             return baseAP + relicAP + synergyAP;
         }
     }
+
     private float EnemyActionDelay => battleConfig != null ? battleConfig.EnemyActionDelay : BattleConfig.DefaultEnemyActionDelay;
     private float StatusEffectDelay => battleConfig != null ? battleConfig.StatusEffectDelay : BattleConfig.DefaultStatusEffectDelay;
     private int VictoryGold => battleConfig != null ? battleConfig.VictoryGold : BattleConfig.DefaultVictoryGold;
-    private int VictoryExp => battleConfig != null ? battleConfig.VictoryExp : BattleConfig.DefaultVictoryExp;
     private string MapSceneName => battleConfig != null ? battleConfig.MapSceneName : BattleConfig.DefaultMapSceneName;
 
     private void Start()
     {
-        Debug.Log("[Battle] ⚠️ BattleManager.Start() - BeginBattleSetup()은 GameManager에서 호출되어야 합니다!");
+        Debug.Log("[Battle] BattleManager.Start() - BeginBattleSetup()은 GameManager에서 호출되어야 합니다.");
     }
 
     public void InitializeAP()
     {
-        // 전투 시작 시 행동력, 화면 표시, 적 행동 대상을 준비합니다.
-        Debug.Log("[Battle] 🎮 InitializeAP() 호출 - 전투 시작!");
+        Debug.Log("[Battle] InitializeAP() 호출 - 전투 시작.");
         currentAP = MaxAP;
         UpdateAPUI();
         UpdateTurnUI();
@@ -83,7 +83,6 @@ public class BattleManager : MonoBehaviour
 
     private void EnsureTopResourceUI()
     {
-        // 전투 장면에서도 상단 자원 화면을 볼 수 있게 캔버스를 보장합니다.
         GameObject topBarCanvasObj = GameObject.Find("TopBarCanvas");
         if (topBarCanvasObj == null)
         {
@@ -112,8 +111,7 @@ public class BattleManager : MonoBehaviour
 
     private void EnterPhase(BattlePhase next)
     {
-        // 전투 페이즈를 바꾸고 해당 페이즈의 진입 처리를 실행합니다.
-        Debug.Log($"[Battle] 📍 페이즈 전환: {_currentPhase} → {next}");
+        Debug.Log($"[Battle] 페이즈 전환: {_currentPhase} -> {next}");
         _currentPhase = next;
         UpdatePhaseUI();
         UpdateTurnEndButtonState();
@@ -121,23 +119,23 @@ public class BattleManager : MonoBehaviour
         switch (next)
         {
             case BattlePhase.PlayerTurn:
-                Debug.Log($"[Battle] ⏸️  OnEnterPlayerTurn() 호출");
+                Debug.Log("[Battle] OnEnterPlayerTurn() 호출");
                 OnEnterPlayerTurn();
                 break;
             case BattlePhase.EnemyTurn:
-                Debug.Log($"[Battle] 🎬 RunEnemyTurn() 코루틴 시작");
+                Debug.Log("[Battle] RunEnemyTurn() 코루틴 시작");
                 StartCoroutine(RunEnemyTurn());
                 break;
             case BattlePhase.StatusEffect:
-                Debug.Log($"[Battle] 🎬 RunStatusEffectPhase() 코루틴 시작");
+                Debug.Log("[Battle] RunStatusEffectPhase() 코루틴 시작");
                 StartCoroutine(RunStatusEffectPhase());
                 break;
             case BattlePhase.TurnEnd:
-                Debug.Log($"[Battle] ⏸️  OnEnterTurnEnd() 호출");
+                Debug.Log("[Battle] OnEnterTurnEnd() 호출");
                 OnEnterTurnEnd();
                 break;
             case BattlePhase.BattleEnd:
-                Debug.Log($"[Battle] ⏸️  OnEnterBattleEnd() 호출");
+                Debug.Log("[Battle] OnEnterBattleEnd() 호출");
                 OnEnterBattleEnd();
                 break;
         }
@@ -145,7 +143,6 @@ public class BattleManager : MonoBehaviour
 
     public void SelectSkill(SkillInfo skill, BattleCharacter actor)
     {
-        // 플레이어가 스킬을 고르면 대상 선택 상태로 저장합니다.
         if (!IsPlayerTurn) return;
 
         _selection.Clear();
@@ -154,12 +151,11 @@ public class BattleManager : MonoBehaviour
         if (targetHandler != null && targetHandler.target != null)
             PerformSkill();
         else
-            TheLastArk.UI.NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
+            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
     }
 
     public void SelectConsumable(int consumableIndex)
     {
-        // 플레이어가 소모품을 고르면 대상 선택 또는 즉시 사용을 처리합니다.
         if (!IsPlayerTurn) return;
 
         var resMgr = TheLastArk.Managers.ResourceManager.Instance;
@@ -178,12 +174,11 @@ public class BattleManager : MonoBehaviour
         if (targetHandler != null && targetHandler.target != null)
             PerformConsumable();
         else
-            TheLastArk.UI.NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
+            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
     }
 
     public void PerformSkill()
     {
-        // 선택된 스킬을 행동력과 대상 조건을 확인한 뒤 실행합니다.
         if (!IsPlayerTurn) return;
         if (!_selection.IsReady || targetHandler.target == null) return;
 
@@ -223,7 +218,6 @@ public class BattleManager : MonoBehaviour
 
     public void PerformConsumable()
     {
-        // 선택된 소모품을 대상 조건에 맞게 적용합니다.
         if (!IsPlayerTurn) return;
         if (!_selection.IsReady || _selection.Consumable == null) return;
 
@@ -291,26 +285,42 @@ public class BattleManager : MonoBehaviour
 
     public void EndPlayerTurn()
     {
-        // 플레이어 턴을 끝내고 적 턴으로 넘깁니다.
         if (_lastTurnEndClickFrame == Time.frameCount) return;
         _lastTurnEndClickFrame = Time.frameCount;
 
-        Debug.Log($"[Battle] ▶ EndPlayerTurn() 호출. 현재 페이즈: {_currentPhase}");
+        Debug.Log($"[Battle] EndPlayerTurn() 호출. 현재 페이즈: {_currentPhase}");
 
         if (!IsPlayerTurn)
         {
-            Debug.LogWarning($"[Battle] ❌ 턴 종료 입력 무시: 현재 페이즈가 플레이어 턴이 아닙니다. CurrentPhase: {_currentPhase}");
+            Debug.LogWarning($"[Battle] 턴 종료 입력 무시: 현재 페이즈가 플레이어 턴이 아닙니다. CurrentPhase: {_currentPhase}");
             return;
         }
 
-        Debug.Log($"[Battle] ✓ 적 턴으로 전환합니다. EnemyParty 수: {enemyParty.Count}");
+        Debug.Log($"[Battle] 적 턴으로 전환합니다. EnemyParty 수: {enemyParty.Count}");
         EnterPhase(BattlePhase.EnemyTurn);
+    }
+
+    public void DebugWinBattle()
+    {
+        if (_currentPhase == BattlePhase.BattleEnd) return;
+
+        Debug.LogWarning("[Battle] DebugWinBattle() 호출. 적 파티를 즉시 전멸 처리합니다.");
+        if (enemyParty != null)
+        {
+            foreach (BattleCharacter enemy in enemyParty)
+            {
+                if (enemy == null || enemy.status == null) continue;
+                enemy.status.currentHp = 0f;
+                if (enemy.view != null) enemy.view.UpdateVisual(enemy.status);
+            }
+        }
+
+        EnterPhase(BattlePhase.BattleEnd);
     }
 
     private void OnEnterPlayerTurn()
     {
-        // 플레이어 턴이 시작되면 행동력과 선택 상태를 초기화합니다.
-        Debug.Log($"[Battle] 🎮 {_turnCount}턴: 아군 턴 시작");
+        Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");
         currentAP = MaxAP;
         UpdateAPUI();
         _selection.Clear();
@@ -318,8 +328,8 @@ public class BattleManager : MonoBehaviour
 
     private IEnumerator RunEnemyTurn()
     {
-        Debug.Log($"[Battle] 👿 {_turnCount}턴: 적 턴 시작. 생존 적 수 확인 중...");
-        Debug.Log($"[Battle] 📊 enemyParty 총 수: {enemyParty.Count}");
+        Debug.Log($"[Battle] {_turnCount}턴: 적 턴 시작. 생존 적 수 확인 중...");
+        Debug.Log($"[Battle] enemyParty 총 수: {enemyParty.Count}");
 
         int aliveEnemies = 0;
         foreach (BattleCharacter enemy in enemyParty)
@@ -327,11 +337,11 @@ public class BattleManager : MonoBehaviour
             if (enemy != null && enemy.status.currentHp > 0)
                 aliveEnemies++;
         }
-        Debug.Log($"[Battle] 👿 생존 적: {aliveEnemies}명");
+        Debug.Log($"[Battle] 생존 적: {aliveEnemies}명");
 
         if (aliveEnemies == 0)
         {
-            Debug.LogWarning($"[Battle] ⚠️ 생존 적이 없습니다! 상태이상 처리로 넘어갑니다.");
+            Debug.LogWarning("[Battle] 생존 적이 없습니다. 상태이상 처리로 넘어갑니다.");
             EnterPhase(BattlePhase.StatusEffect);
             yield break;
         }
@@ -340,84 +350,94 @@ public class BattleManager : MonoBehaviour
         {
             if (enemy == null)
             {
-                Debug.LogWarning($"[Battle] ⚠️ Enemy가 null입니다!");
+                Debug.LogWarning("[Battle] Enemy가 null입니다.");
                 continue;
             }
 
             if (enemy.status.currentHp <= 0)
             {
-                Debug.Log($"[Battle] ⚠️ {enemy.characterName}은 이미 사망했습니다.");
+                Debug.Log($"[Battle] {enemy.characterName}은 이미 사망했습니다.");
                 continue;
             }
 
             EnemyAI ai = enemy.GetComponent<EnemyAI>();
             if (ai == null)
             {
-                Debug.LogError($"[Battle] ❌ {enemy.characterName}에 EnemyAI 컴포넌트가 없습니다!");
+                Debug.LogError($"[Battle] {enemy.characterName}에 EnemyAI 컴포넌트가 없습니다.");
                 continue;
             }
 
-            Debug.Log($"[Battle] 🔄 {enemy.characterName}이 행동합니다...");
+            Debug.Log($"[Battle] {enemy.characterName}이 행동합니다.");
             ai.ExecuteTurn();
 
             yield return new WaitForSeconds(EnemyActionDelay);
 
             if (IsPartyWiped(playerParty))
             {
-                Debug.Log($"[Battle] ☠️ 플레이어 파티 전멸! 전투 종료로 넘어갑니다.");
+                Debug.Log("[Battle] 플레이어 파티 전멸. 전투 종료로 넘어갑니다.");
                 EnterPhase(BattlePhase.BattleEnd);
                 yield break;
             }
         }
 
-        Debug.Log($"[Battle] ✓ 적 턴 완료. 상태이상 처리로 넘어갑니다.");
+        Debug.Log("[Battle] 적 턴 완료. 상태이상 처리로 넘어갑니다.");
         EnterPhase(BattlePhase.StatusEffect);
     }
 
     private IEnumerator RunStatusEffectPhase()
     {
-        Debug.Log($"[Battle] 🔬 {_turnCount}턴: 상태이상 처리 시작");
+        Debug.Log($"[Battle] {_turnCount}턴: 상태이상 처리 시작");
 
         var allCombatants = new List<BattleCharacter>(playerParty);
         allCombatants.AddRange(enemyParty);
         StatusEffectPhaseHandler.ProcessAll(allCombatants);
 
         yield return new WaitForSeconds(StatusEffectDelay);
-        Debug.Log($"[Battle] ✓ 상태이상 처리 완료. 턴 종료 단계로 넘어갑니다.");
+        Debug.Log("[Battle] 상태이상 처리 완료. 턴 종료 단계로 넘어갑니다.");
         EnterPhase(BattlePhase.TurnEnd);
     }
 
     private void OnEnterTurnEnd()
     {
-        // 사망 여부를 정리하고 다음 턴으로 넘어갑니다.
-        Debug.Log($"[Battle] 🏁 {_turnCount}턴: 턴 종료 단계");
+        Debug.Log($"[Battle] {_turnCount}턴: 턴 종료 단계");
         RemoveDeadCharacters();
 
         if (TryEndBattleIfPartyWiped()) return;
 
         _turnCount++;
-        Debug.Log($"[Battle] ⏭️  턴 카운트 증가: {_turnCount}턴으로 진입");
+        Debug.Log($"[Battle] 턴 카운트 증가: {_turnCount}턴으로 진입");
         UpdateTurnUI();
         EnterPhase(BattlePhase.PlayerTurn);
     }
 
     private void OnEnterBattleEnd()
     {
-        // 전투 결과 화면을 표시하고 이후 맵 장면으로 돌아갑니다.
         bool playerWin = IsPartyWiped(enemyParty);
         Debug.Log($"[Battle] 전투 종료: {(playerWin ? "승리" : "패배")}");
 
         if (BattleResultUIManager.Instance != null)
         {
             if (playerWin)
-                BattleResultUIManager.Instance.ShowVictoryScreen(VictoryGold, VictoryExp, LoadMapScene);
+            {
+                GiveVictoryRewards();
+                BattleResultUIManager.Instance.ShowVictoryScreen(VictoryGold, LoadMapScene);
+            }
             else
                 BattleResultUIManager.Instance.ShowDefeatScreen(LoadMapScene);
             return;
         }
 
+        if (playerWin) GiveVictoryRewards();
         NotificationManager.Instance.ShowMessage(playerWin ? "승리!" : "패배...", playerWin ? Color.cyan : Color.red);
         Invoke(nameof(LoadMapScene), 2f);
+    }
+
+    private void GiveVictoryRewards()
+    {
+        if (VictoryGold <= 0) return;
+
+        ResourceManager.Instance.AddGold(VictoryGold);
+        Debug.Log($"[Battle] 승리 보상 지급: 골드 +{VictoryGold}");
     }
 
     private void LoadMapScene()
@@ -428,12 +448,17 @@ public class BattleManager : MonoBehaviour
 
     public void UpdateAPUI()
     {
-        if (apText != null) apText.text = $"행동력: {currentAP} / {MaxAP}";
+        if (apText == null) return;
+
+        TMPFontManager.ApplyFont(apText);
+        apText.text = $"행동력 {currentAP} / {MaxAP}";
     }
 
     private void UpdatePhaseUI()
     {
         if (phaseText == null) return;
+
+        TMPFontManager.ApplyFont(phaseText);
         phaseText.text = _currentPhase switch
         {
             BattlePhase.PlayerTurn => "아군 턴",
@@ -447,61 +472,64 @@ public class BattleManager : MonoBehaviour
 
     private void CacheTurnEndButton()
     {
-        Debug.Log("[Battle] 🔍 CacheTurnEndButton() 호출");
-        
+        Debug.Log("[Battle] CacheTurnEndButton() 호출");
+
         if (turnEndButton == null)
         {
-            Debug.Log("[Battle] ⚠️  turnEndButton이 null, GameObject.Find로 검색...");
+            Debug.Log("[Battle] turnEndButton이 null입니다. TurnEndButton 오브젝트를 검색합니다.");
             GameObject buttonObject = GameObject.Find("TurnEndButton");
             if (buttonObject == null)
             {
-                Debug.LogWarning("[Battle] ❌ TurnEndButton 오브젝트를 찾지 못했습니다!");
+                Debug.LogWarning("[Battle] TurnEndButton 오브젝트를 찾지 못했습니다.");
                 return;
             }
 
-            Debug.Log("[Battle] ✓ TurnEndButton GameObject 찾음");
+            Debug.Log("[Battle] TurnEndButton GameObject 찾음");
             turnEndButton = buttonObject.GetComponent<UnityEngine.UI.Button>();
         }
 
         if (turnEndButton == null)
         {
-            Debug.LogWarning("[Battle] ❌ TurnEndButton 오브젝트에 Button 컴포넌트가 없습니다!");
+            Debug.LogWarning("[Battle] TurnEndButton 오브젝트에 Button 컴포넌트가 없습니다.");
             return;
         }
 
-        Debug.Log("[Battle] ✓ TurnEndButton Button 컴포넌트 획득");
+        Debug.Log("[Battle] TurnEndButton Button 컴포넌트 획득");
 
         if (_turnEndButtonListenerBound)
         {
-            Debug.Log("[Battle] ℹ️  리스너가 이미 등록되어 있습니다");
+            Debug.Log("[Battle] 턴 종료 버튼 리스너가 이미 등록되어 있습니다.");
             return;
         }
 
         turnEndButton.onClick.RemoveListener(EndPlayerTurn);
         turnEndButton.onClick.AddListener(EndPlayerTurn);
         _turnEndButtonListenerBound = true;
-        Debug.Log("[Battle] ✓ EndPlayerTurn 리스너 등록 완료");
+        Debug.Log("[Battle] EndPlayerTurn 리스너 등록 완료");
     }
 
     public void UpdateTurnEndButtonState()
     {
         if (turnEndButton == null)
         {
-            Debug.LogWarning("[Battle] ⚠️  turnEndButton이 null이어서 Interactable을 설정할 수 없습니다!");
+            Debug.LogWarning("[Battle] turnEndButton이 null이어서 Interactable을 설정할 수 없습니다.");
             return;
         }
 
         bool shouldBeInteractable = IsPlayerTurn;
         if (turnEndButton.interactable != shouldBeInteractable)
         {
-            Debug.Log($"[Battle] 🔘 TurnEndButton Interactable 변경: {turnEndButton.interactable} → {shouldBeInteractable}");
+            Debug.Log($"[Battle] TurnEndButton Interactable 변경: {turnEndButton.interactable} -> {shouldBeInteractable}");
             turnEndButton.interactable = shouldBeInteractable;
         }
     }
 
     private void UpdateTurnUI()
     {
-        if (turnCountText != null) turnCountText.text = $"{_turnCount}턴";
+        if (turnCountText == null) return;
+
+        TMPFontManager.ApplyFont(turnCountText);
+        turnCountText.text = $"{_turnCount}턴";
     }
 
     private bool IsPartyWiped(List<BattleCharacter> party)
@@ -513,14 +541,14 @@ public class BattleManager : MonoBehaviour
     {
         if (IsPartyWiped(playerParty))
         {
-            Debug.LogWarning("[Battle] ☠️ 플레이어 파티 전멸!");
+            Debug.LogWarning("[Battle] 플레이어 파티 전멸.");
             EnterPhase(BattlePhase.BattleEnd);
             return true;
         }
 
         if (IsPartyWiped(enemyParty))
         {
-            Debug.LogWarning("[Battle] 🎉 적 파티 전멸!");
+            Debug.LogWarning("[Battle] 적 파티 전멸.");
             EnterPhase(BattlePhase.BattleEnd);
             return true;
         }

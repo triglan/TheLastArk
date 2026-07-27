@@ -17,7 +17,7 @@ MonoBehaviour:
   regionId: temp
   nodeType: 1
   minFloor: 1
-  maxFloor: 15
+  maxFloor: 3
   minCombatCount: 0
   maxCombatCount: 99
   priority: 0

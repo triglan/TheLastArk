@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: EnemyEncounter 4
   m_EditorClassIdentifier: 
   encounterId: 1500fc124a614a57a5bed07f17160bb7
-  displayName: New Encounter
+  displayName: "4\uC778\uC870"
   enemySlots:
   - {fileID: 11400000, guid: 8ea9dc9335716604ca8be6c70932cfc8, type: 2}
   - {fileID: 11400000, guid: 8ea9dc9335716604ca8be6c70932cfc8, type: 2}
