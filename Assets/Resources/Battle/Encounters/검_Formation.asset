@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c6e0c7fef8f43039138dafafdd11ec5, type: 3}
-  m_Name: EnemyEncounter
+  m_Name: "\uAC80_Formation"
   m_EditorClassIdentifier: 
   encounterId: a85c107ed61243f69d267d7f03512568
-  displayName: "\uC778\uCE74\uC6B4\uD1301"
+  displayName: "\uAC80"
   enemySlots:
   - {fileID: 0}
   - {fileID: 11400000, guid: 9c4ba19e86ac5624d935565365bcaab1, type: 2}

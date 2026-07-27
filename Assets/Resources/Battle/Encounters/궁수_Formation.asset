@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c6e0c7fef8f43039138dafafdd11ec5, type: 3}
-  m_Name: EnemyEncounter 3
+  m_Name: "\uAD81\uC218_Formation"
   m_EditorClassIdentifier: 
-  encounterId: 60a7b32c9bd7466b9e35534aac699c00
-  displayName: New Encounter
+  encounterId: e32756fa7b48424f8b1791eec2471c6f
+  displayName: "\uAD81\uC218"
   enemySlots:
   - {fileID: 0}
-  - {fileID: 11400000, guid: 9c4ba19e86ac5624d935565365bcaab1, type: 2}
   - {fileID: 11400000, guid: 8ea9dc9335716604ca8be6c70932cfc8, type: 2}
-  - {fileID: 11400000, guid: 8ea9dc9335716604ca8be6c70932cfc8, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
