@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 
 [CreateAssetMenu(fileName = "NewCharacter", menuName = "Battle/Character")]
@@ -8,6 +8,7 @@ public class CharacterData : ScriptableObject
     public string characterId;
     public string characterName;
     public string jobName;
+    public List<TheLastArk.Data.SynergyType> synergies = new List<TheLastArk.Data.SynergyType>();
     public bool isEnemy = false;
 
     public string DataId => isEnemy ? characterName : GetFirstValidText(characterId, jobName, characterName);
@@ -19,12 +20,16 @@ public class CharacterData : ScriptableObject
     public Sprite portraitSprite;
 
     [Header("기본 능력치")]
-    public float maxHp = 200f;
-    public float maxMental = 200f;
-    public float baseAttack = 25f;
+    public float maxHp = 35f;
+    public float maxMental = 30f;
+    public float baseAttack = 5f;
+    public float spellPower = 0f;
+    public float armor = 3f;
+    public float magicResist = 3f;
+    public float critRate = 0f;
 
-    [Header("아군 강화 배율")]
-    public float[] levelStatMultipliers = new float[5] { 0f, 0.5f, 1.0f, 2.0f, 3.0f };
+    [Header("아군 강화 배율 (0강:0%, 1강:20%, 2강:50%, 3강:100%, 4강:200%)")]
+    public float[] levelStatMultipliers = new float[5] { 0f, 0.2f, 0.5f, 1.0f, 2.0f };
 
     [Header("아군 스킬")]
     public SkillInfo passiveSkill;
@@ -108,4 +113,4 @@ public class EnemyPatternData
 }
 
 public enum TargetType { SingleEnemy, LeftEnemy, RightEnemy, AdjacentEnemy, AllEnemy, Friendly, AllFriendly }
-public enum EffectType { Damage, Heal, Buff, Stun, Bleed }
+public enum EffectType { Damage, Heal, Buff, Stun, Bleed, Taunt, Counter, Shield, Resurrection }

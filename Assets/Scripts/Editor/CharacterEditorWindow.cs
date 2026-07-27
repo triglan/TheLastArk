@@ -210,6 +210,7 @@ public class CharacterEditorWindow : EditorWindow
         DrawNameSection();
         DrawSpriteSection();
         DrawBaseStatsSection();
+        DrawSynergiesSection();
         DrawValidationSection();
         DrawBulkImageSection();
 
@@ -292,6 +293,114 @@ public class CharacterEditorWindow : EditorWindow
         selectedData.maxHp = EditorGUILayout.FloatField("최대 체력", selectedData.maxHp);
         selectedData.maxMental = EditorGUILayout.FloatField("최대 정신력", selectedData.maxMental);
         selectedData.baseAttack = EditorGUILayout.FloatField("기본 공격력", selectedData.baseAttack);
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawSynergiesSection()
+    {
+        if (selectedData == null || selectedData.isEnemy) return;
+
+        EditorGUILayout.BeginVertical("helpbox");
+        if (selectedData.synergies == null)
+        {
+            selectedData.synergies = new System.Collections.Generic.List<TheLastArk.Data.SynergyType>();
+        }
+
+        EditorGUILayout.LabelField($"시너지 설정 (등록된 시너지: {selectedData.synergies.Count}개)", EditorStyles.boldLabel);
+
+        // 1. 현재 등록된 시너지 뱃지 (클릭 시 삭제)
+        if (selectedData.synergies.Count > 0)
+        {
+            EditorGUILayout.BeginHorizontal();
+            for (int i = 0; i < selectedData.synergies.Count; i++)
+            {
+                var synType = selectedData.synergies[i];
+                var info = TheLastArk.Character.SynergyDatabase.GetInfo(synType);
+
+                GUI.backgroundColor = new Color(0.2f, 0.6f, 0.9f);
+                if (GUILayout.Button($"{info.iconEmoji} {info.displayName}  ✕", GUILayout.Height(24)))
+                {
+                    selectedData.synergies.RemoveAt(i);
+                    MarkDirtyAndSave(selectedData);
+                    GUI.backgroundColor = Color.white;
+                    break;
+                }
+                GUI.backgroundColor = Color.white;
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+        else
+        {
+            EditorGUILayout.HelpBox("등록된 시너지가 없습니다. 아래 버튼을 눌러 시너지를 부여하세요.", MessageType.Info);
+        }
+
+        EditorGUILayout.Space(6);
+
+        // 2. 세력 시너지 매트릭스
+        EditorGUILayout.LabelField("── [세력 시너지] ───────────────────────", EditorStyles.miniBoldLabel);
+        EditorGUILayout.BeginHorizontal();
+        int factionCols = 0;
+        foreach (TheLastArk.Data.SynergyType synType in System.Enum.GetValues(typeof(TheLastArk.Data.SynergyType)))
+        {
+            var info = TheLastArk.Character.SynergyDatabase.GetInfo(synType);
+            if (!info.isFaction) continue;
+
+            bool hasSyn = selectedData.synergies.Contains(synType);
+            GUI.backgroundColor = hasSyn ? new Color(0.3f, 0.9f, 0.4f) : Color.white;
+            bool newHas = GUILayout.Toggle(hasSyn, $"{info.iconEmoji} {info.displayName}", "Button", GUILayout.Height(24));
+            GUI.backgroundColor = Color.white;
+
+            if (newHas != hasSyn)
+            {
+                if (newHas) selectedData.synergies.Add(synType);
+                else selectedData.synergies.Remove(synType);
+                MarkDirtyAndSave(selectedData);
+            }
+
+            factionCols++;
+            if (factionCols % 3 == 0)
+            {
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+            }
+        }
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(6);
+
+        // 3. 직업 시너지 매트릭스
+        EditorGUILayout.LabelField("── [직업 시너지] ───────────────────────", EditorStyles.miniBoldLabel);
+        EditorGUILayout.BeginHorizontal();
+        int jobCols = 0;
+        foreach (TheLastArk.Data.SynergyType synType in System.Enum.GetValues(typeof(TheLastArk.Data.SynergyType)))
+        {
+            var info = TheLastArk.Character.SynergyDatabase.GetInfo(synType);
+            if (info.isFaction) continue;
+
+            if (synType == TheLastArk.Data.SynergyType.Defender || synType == TheLastArk.Data.SynergyType.Steam ||
+                synType == TheLastArk.Data.SynergyType.Mechanic || synType == TheLastArk.Data.SynergyType.Vanguard) continue;
+
+            bool hasSyn = selectedData.synergies.Contains(synType);
+            GUI.backgroundColor = hasSyn ? new Color(0.3f, 0.85f, 0.95f) : Color.white;
+            bool newHas = GUILayout.Toggle(hasSyn, $"{info.iconEmoji} {info.displayName}", "Button", GUILayout.Height(24));
+            GUI.backgroundColor = Color.white;
+
+            if (newHas != hasSyn)
+            {
+                if (newHas) selectedData.synergies.Add(synType);
+                else selectedData.synergies.Remove(synType);
+                MarkDirtyAndSave(selectedData);
+            }
+
+            jobCols++;
+            if (jobCols % 3 == 0)
+            {
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+            }
+        }
+        EditorGUILayout.EndHorizontal();
+
         EditorGUILayout.EndVertical();
     }
 

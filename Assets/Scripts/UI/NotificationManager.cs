@@ -1,39 +1,117 @@
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using System.Collections;
 
-namespace UI
+namespace TheLastArk.UI
 {
     public class NotificationManager : MonoBehaviour
     {
-        public static NotificationManager Instance;
+        private static NotificationManager instance;
+        public static NotificationManager Instance
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    instance = FindObjectOfType<NotificationManager>();
+                    if (instance == null)
+                    {
+                        GameObject go = new GameObject("NotificationManager");
+                        instance = go.AddComponent<NotificationManager>();
+                        DontDestroyOnLoad(go);
+                    }
+                }
+                return instance;
+            }
+        }
 
-        public GameObject notificationPrefab; // BattleNotification 스크립트가 붙은 프리팹
-        public Transform canvasTransform;     // UI 상위 캔버스
+        private GameObject notificationCanvasObj;
+        private TextMeshProUGUI notificationText;
+        private Coroutine hideCoroutine;
 
         private void Awake()
         {
-            // 싱글톤 초기화
-            if (Instance == null) Instance = this;
-            else Destroy(gameObject);
+            if (instance == null)
+            {
+                instance = this;
+                DontDestroyOnLoad(gameObject);
+            }
+            else if (instance != this)
+            {
+                Destroy(gameObject);
+            }
         }
 
         public void ShowMessage(string message, Color color)
         {
-            if (notificationPrefab == null || canvasTransform == null)
+            Debug.Log($"[Notification] {message}");
+            EnsureUI();
+
+            if (notificationText != null)
             {
-                Debug.LogWarning("NotificationManager: 프리팹이나 캔버스가 연결되지 않았습니다.");
-                return;
+                notificationText.text = message;
+                notificationText.color = color;
+                notificationCanvasObj.SetActive(true);
+
+                if (hideCoroutine != null) StopCoroutine(hideCoroutine);
+                hideCoroutine = StartCoroutine(HideMessageAfterDelay(2.5f));
+            }
+        }
+
+        private IEnumerator HideMessageAfterDelay(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            if (notificationCanvasObj != null)
+            {
+                notificationCanvasObj.SetActive(false);
+            }
+        }
+
+        private void EnsureUI()
+        {
+            if (notificationCanvasObj != null && notificationText != null) return;
+
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (canvas == null)
+            {
+                GameObject cObj = new GameObject("NotificationCanvas");
+                canvas = cObj.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.sortingOrder = 100;
+                cObj.AddComponent<CanvasScaler>();
+                cObj.AddComponent<GraphicRaycaster>();
             }
 
-            GameObject obj = Instantiate(notificationPrefab, canvasTransform);
+            notificationCanvasObj = new GameObject("NotificationPanel");
+            notificationCanvasObj.transform.SetParent(canvas.transform, false);
+            notificationCanvasObj.transform.SetAsLastSibling();
 
-            // 화면 정중앙(0,0)에 생성
-            obj.transform.localPosition = Vector3.zero;
+            RectTransform rect = notificationCanvasObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.3f, 0.75f);
+            rect.anchorMax = new Vector2(0.7f, 0.85f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
 
-            NotificationUI noti = obj.GetComponent<NotificationUI>();
-            if (noti != null)
-            {
-                noti.Show(message, color);
-            }
+            Image bg = notificationCanvasObj.AddComponent<Image>();
+            bg.color = new Color(0.1f, 0.1f, 0.15f, 0.9f);
+            bg.raycastTarget = false;
+
+            GameObject textObj = new GameObject("MessageText");
+            textObj.transform.SetParent(notificationCanvasObj.transform, false);
+            RectTransform tRect = textObj.AddComponent<RectTransform>();
+            tRect.anchorMin = Vector2.zero;
+            tRect.anchorMax = Vector2.one;
+            tRect.offsetMin = Vector2.zero;
+            tRect.offsetMax = Vector2.zero;
+
+            notificationText = textObj.AddComponent<TextMeshProUGUI>();
+            notificationText.fontSize = 26;
+            notificationText.alignment = TextAlignmentOptions.Center;
+            notificationText.font = TMPFontManager.MainKoreanFont;
+            notificationText.raycastTarget = false;
+
+            notificationCanvasObj.SetActive(false);
         }
     }
 }

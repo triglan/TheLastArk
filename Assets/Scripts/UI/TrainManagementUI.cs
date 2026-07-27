@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
@@ -60,7 +60,7 @@ namespace TheLastArk.UI
             Image bg = popupPanel.AddComponent<Image>();
             bg.color = new Color(0, 0, 0, 0.95f);
 
-            // ?リ린 踰꾪듉
+            // 닫기 버튼
             GameObject closeBtnObj = new GameObject("CloseButton");
             closeBtnObj.transform.SetParent(popupPanel.transform, false);
             RectTransform closeRect = closeBtnObj.AddComponent<RectTransform>();
@@ -76,9 +76,9 @@ namespace TheLastArk.UI
             Button closeBtn = closeBtnObj.AddComponent<Button>();
             closeBtn.onClick.AddListener(Hide);
 
-            CreateTextUI(closeBtnObj.transform, "?リ린", 24, Color.white, new Vector2(0, 0), Vector2.zero, Vector2.one);
+            CreateTextUI(closeBtnObj.transform, "닫기", 24, Color.white, new Vector2(0, 0), Vector2.zero, Vector2.one);
 
-            // 湲곗감 泥대젰諛??곸뿭
+            // 기차 체력바 영역
             GameObject hpBarArea = new GameObject("TrainHpArea");
             hpBarArea.transform.SetParent(popupPanel.transform, false);
             RectTransform hpRect = hpBarArea.AddComponent<RectTransform>();
@@ -591,7 +591,7 @@ namespace TheLastArk.UI
                 float ratio = max > 0 ? cur / max : 0;
                 
                 if (fill != null) fill.anchorMax = new Vector2(ratio, 1f);
-                if (text != null) text.text = $"湲곗감 泥대젰: {cur} / {max}";
+                if (text != null) text.text = $"기차 내구도: {cur} / {max}";
             }
         }
     }

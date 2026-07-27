@@ -25,14 +25,15 @@ namespace TheLastArk.UI
             panelRect.anchorMin = new Vector2(0, 1);
             panelRect.anchorMax = new Vector2(1, 1);
             panelRect.pivot = new Vector2(0.5f, 1);
+            panelRect.anchoredPosition = Vector2.zero;
             panelRect.sizeDelta = new Vector2(0, 80);
 
             Image panelBg = panelObj.AddComponent<Image>();
             panelBg.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
 
             HorizontalLayoutGroup layout = panelObj.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(20, 20, 10, 10);
-            layout.spacing = 30;
+            layout.padding = new RectOffset(15, 15, 5, 5);
+            layout.spacing = 15;
             layout.childAlignment = TextAnchor.MiddleLeft;
             layout.childControlWidth = false;
             layout.childForceExpandWidth = false;
@@ -71,7 +72,7 @@ namespace TheLastArk.UI
             GameObject consumableContainer = new GameObject("Consumables");
             consumableContainer.transform.SetParent(panelObj.transform, false);
             HorizontalLayoutGroup consLayout = consumableContainer.AddComponent<HorizontalLayoutGroup>();
-            consLayout.spacing = 10;
+            consLayout.spacing = 8;
             consLayout.childControlWidth = false;
             consLayout.childControlHeight = false;
             consLayout.childForceExpandWidth = false;
@@ -82,7 +83,7 @@ namespace TheLastArk.UI
                 GameObject slotObj = new GameObject($"Slot_{i}");
                 slotObj.transform.SetParent(consumableContainer.transform, false);
                 RectTransform slotRect = slotObj.AddComponent<RectTransform>();
-                slotRect.sizeDelta = new Vector2(70, 70); // 정사각형으로 변경
+                slotRect.sizeDelta = new Vector2(60, 60);
                 
                 Image bgImage = slotObj.AddComponent<Image>();
                 bgImage.color = new Color(0, 0, 0, 0.5f); // 빈 칸 반투명 배경
@@ -106,10 +107,10 @@ namespace TheLastArk.UI
                 textRect.anchorMax = Vector2.one;
                 textRect.sizeDelta = Vector2.zero;
                 TextMeshProUGUI textTmp = textObj.AddComponent<TextMeshProUGUI>();
-                textTmp.fontSize = 16;
+                textTmp.fontSize = 14;
                 textTmp.color = Color.white;
                 textTmp.alignment = TextAlignmentOptions.Center;
-                textTmp.enableWordWrapping = false; // 글자가 세로로 줄바꿈되지 않도록 설정
+                textTmp.enableWordWrapping = false;
                 if (mainFont != null) textTmp.font = mainFont;
                 consumableTexts.Add(textTmp);
 
@@ -124,6 +125,13 @@ namespace TheLastArk.UI
                     }
                 });
             }
+
+            // ── Flexible Spacer: 소모품과 관리 아이콘 사이를 밀어내서 아이콘을 우측 끝으로 ──
+            GameObject spacer = new GameObject("Spacer");
+            spacer.transform.SetParent(panelObj.transform, false);
+            spacer.AddComponent<RectTransform>();
+            LayoutElement spacerLe = spacer.AddComponent<LayoutElement>();
+            spacerLe.flexibleWidth = 1f; // 남은 공간을 전부 차지
 
             // 유물 목록 UI (좌측 상단, 자원 바 아래)
             GameObject relicsObj = new GameObject("RelicsContainer");
@@ -140,6 +148,62 @@ namespace TheLastArk.UI
             HorizontalLayoutGroup relicsLayout = relicsObj.AddComponent<HorizontalLayoutGroup>();
             relicsLayout.spacing = 5;
             relicsLayout.childControlWidth = true;
+
+            // ── 상단바 우측 끝 고정: 관리 아이콘 4개 (기차, 캐릭터, 가방, 환경설정) ──
+            GameObject mgmtIconsContainer = new GameObject("ManagementIcons", typeof(RectTransform));
+            mgmtIconsContainer.transform.SetParent(panelObj.transform, false);
+
+            RectTransform mgmtRect = mgmtIconsContainer.GetComponent<RectTransform>();
+            mgmtRect.anchorMin = new Vector2(1, 0.5f);
+            mgmtRect.anchorMax = new Vector2(1, 0.5f);
+            mgmtRect.pivot = new Vector2(1, 0.5f);
+            mgmtRect.anchoredPosition = new Vector2(-15, 0); // 화면 우측 끝에서 15px 띄움
+            mgmtRect.sizeDelta = new Vector2(270, 60);
+
+            // 상단바 HorizontalLayoutGroup이 수동 앵커 위치를 무시하지 못하도록 ignoreLayout = true 설정
+            LayoutElement mgmtLe = mgmtIconsContainer.AddComponent<LayoutElement>();
+            mgmtLe.ignoreLayout = true;
+
+            HorizontalLayoutGroup mgmtLayout = mgmtIconsContainer.AddComponent<HorizontalLayoutGroup>();
+            mgmtLayout.spacing = 8;
+            mgmtLayout.childControlWidth = false;
+            mgmtLayout.childControlHeight = false;
+            mgmtLayout.childForceExpandWidth = false;
+            mgmtLayout.childForceExpandHeight = false;
+            mgmtLayout.childAlignment = TextAnchor.MiddleRight;
+
+            // 1) 기차 아이콘
+            CreateTopBarIconButton(mgmtIconsContainer.transform, "🚆", "기차",
+                new Color(0.2f, 0.35f, 0.55f, 1f), mainFont, () =>
+                {
+                    ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Train);
+                });
+
+            // 2) 캐릭터 아이콘
+            CreateTopBarIconButton(mgmtIconsContainer.transform, "👤", "캐릭터",
+                new Color(0.25f, 0.45f, 0.3f, 1f), mainFont, () =>
+                {
+                    ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Character);
+                });
+
+            // 3) 가방 아이콘
+            CreateTopBarIconButton(mgmtIconsContainer.transform, "🎒", "가방",
+                new Color(0.5f, 0.35f, 0.2f, 1f), mainFont, () =>
+                {
+                    ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Inventory);
+                });
+
+            // 4) 환경설정 아이콘 (단독 팝업 호출)
+            CreateTopBarIconButton(mgmtIconsContainer.transform, "⚙️", "설정",
+                new Color(0.35f, 0.35f, 0.35f, 1f), mainFont, () =>
+                {
+                    ManagementUIManager.Instance.ShowSettingsPopup();
+                });
+
+            // 시너지 표시 바 생성
+            SynergyUIBar synBar = gameObject.GetComponent<SynergyUIBar>();
+            if (synBar == null) synBar = gameObject.AddComponent<SynergyUIBar>();
+            synBar.Initialize(parent);
 
             // 이벤트 구독
             if (ResourceManager.Instance != null)
@@ -168,6 +232,56 @@ namespace TheLastArk.UI
             rect.sizeDelta = new Vector2(2, 60);
             Image img = div.AddComponent<Image>();
             img.color = new Color(1, 1, 1, 0.3f);
+        }
+
+        /// <summary>상단바 우측 아이콘 버튼 하나를 생성합니다.</summary>
+        private void CreateTopBarIconButton(Transform parent, string icon, string label,
+            Color bgColor, TMP_FontAsset font, UnityEngine.Events.UnityAction onClick)
+        {
+            GameObject btnObj = new GameObject($"TopBarIcon_{label}");
+            btnObj.transform.SetParent(parent, false);
+
+            RectTransform btnRect = btnObj.AddComponent<RectTransform>();
+            btnRect.sizeDelta = new Vector2(60, 60);
+
+            Image btnBg = btnObj.AddComponent<Image>();
+            btnBg.color = bgColor;
+
+            Button btn = btnObj.AddComponent<Button>();
+            btn.onClick.AddListener(onClick);
+
+            // 아이콘 이모지 (상단)
+            GameObject iconObj = new GameObject("Icon");
+            iconObj.transform.SetParent(btnObj.transform, false);
+            RectTransform iconRect = iconObj.AddComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0, 0.35f);
+            iconRect.anchorMax = new Vector2(1, 1f);
+            iconRect.offsetMin = Vector2.zero;
+            iconRect.offsetMax = Vector2.zero;
+
+            TextMeshProUGUI iconTmp = iconObj.AddComponent<TextMeshProUGUI>();
+            iconTmp.text = icon;
+            iconTmp.fontSize = 24;
+            iconTmp.color = Color.white;
+            iconTmp.alignment = TextAlignmentOptions.Center;
+            if (font != null) iconTmp.font = font;
+
+            // 라벨 텍스트 (하단)
+            GameObject labelObj = new GameObject("Label");
+            labelObj.transform.SetParent(btnObj.transform, false);
+            RectTransform labelRect = labelObj.AddComponent<RectTransform>();
+            labelRect.anchorMin = new Vector2(0, 0);
+            labelRect.anchorMax = new Vector2(1, 0.35f);
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+
+            TextMeshProUGUI labelTmp = labelObj.AddComponent<TextMeshProUGUI>();
+            labelTmp.text = label;
+            labelTmp.fontSize = 12;
+            labelTmp.color = Color.white;
+            labelTmp.alignment = TextAlignmentOptions.Center;
+            labelTmp.enableWordWrapping = false;
+            if (font != null) labelTmp.font = font;
         }
 
         private void UpdateTrainHp()

@@ -221,17 +221,7 @@ namespace TheLastArk.Village
             GameObject restBtnObj = CreateMenuButton(rightObj.transform, "휴식 (체력/정신력/기차 25% 회복)", () => TryEnterFacility("Rest", ApplyRestEffect), mainFont);
             restButton = restBtnObj.GetComponent<Button>();
 
-            // 기차 관리 (Does not consume action points)
-            CreateMenuButton(rightObj.transform, "기차 관리", () => 
-            {
-                var trainUI = FindObjectOfType<TrainManagementUI>();
-                if (trainUI == null) 
-                {
-                    GameObject uiObj = new GameObject("TrainManagementUI");
-                    trainUI = uiObj.AddComponent<TrainManagementUI>();
-                }
-                trainUI.Show();
-            }, mainFont, new Color(0.2f, 0.4f, 0.6f, 1f));
+            // (기차/캐릭터/가방/환경설정 관리는 상단바 아이콘으로 이동됨)
 
             // Return to map button
             CreateMenuButton(rightObj.transform, "탐색 계속", () => 
