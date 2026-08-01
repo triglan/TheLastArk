@@ -25,8 +25,6 @@ public class BattleManager : MonoBehaviour
     [Header("Turn UI")]
     [Tooltip("현재 턴 수를 표시합니다.")]
     public TextMeshProUGUI turnCountText;
-    [Tooltip("현재 전투 페이즈를 표시합니다.")]
-    public TextMeshProUGUI phaseText;
     [Tooltip("플레이어 턴을 종료하는 버튼입니다. 비워두면 TurnEndButton 이름으로 자동 검색합니다.")]
     public UnityEngine.UI.Button turnEndButton;
 
@@ -113,7 +111,6 @@ public class BattleManager : MonoBehaviour
     {
         Debug.Log($"[Battle] 페이즈 전환: {_currentPhase} -> {next}");
         _currentPhase = next;
-        UpdatePhaseUI();
         UpdateTurnEndButtonState();
 
         switch (next)
@@ -452,22 +449,6 @@ public class BattleManager : MonoBehaviour
 
         TMPFontManager.ApplyFont(apText);
         apText.text = $"행동력 {currentAP} / {MaxAP}";
-    }
-
-    private void UpdatePhaseUI()
-    {
-        if (phaseText == null) return;
-
-        TMPFontManager.ApplyFont(phaseText);
-        phaseText.text = _currentPhase switch
-        {
-            BattlePhase.PlayerTurn => "아군 턴",
-            BattlePhase.EnemyTurn => "적 턴",
-            BattlePhase.StatusEffect => "상태이상",
-            BattlePhase.TurnEnd => "턴 종료",
-            BattlePhase.BattleEnd => "전투 종료",
-            _ => "-------"
-        };
     }
 
     private void CacheTurnEndButton()

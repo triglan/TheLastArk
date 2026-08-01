@@ -12,16 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
   m_Name: Temp1_Data
   m_EditorClassIdentifier: 
-  characterId: 05
+  characterId: 00
   characterName: Temp
   jobName: Temp
   synergies: 
   isEnemy: 0
   standingSprite: {fileID: 0}
   portraitSprite: {fileID: 0}
-  maxHp: 200
-  maxMental: 200
-  baseAttack: 25
+  maxHp: 30
+  maxMental: 30
+  baseAttack: 5
   spellPower: 0
   armor: 3
   magicResist: 3
