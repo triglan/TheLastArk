@@ -11,28 +11,24 @@ namespace TheLastArk.UI
     public class ShopUI : MonoBehaviour
     {
         private GameObject popupPanel;
-        private TMPro.TMP_FontAsset mainFont;
+        private TMP_FontAsset mainFont;
 
         private Transform contentArea;
-        private Transform tabsArea;
         private Button refreshBtn;
         private TextMeshProUGUI refreshBtnText;
 
-        private enum TabType { Consumable, Relic, Equipment }
-        private TabType currentTab = TabType.Consumable;
+        // Unified 6 Shop Items (Consumables + Relics)
+        private class ShopItemSlot
+        {
+            public bool isRelic; // true: Relic, false: Consumable
+            public ConsumableData consumable;
+            public RelicData relic;
+            public int price;
+            public bool sold;
+        }
 
-        // Data for current items
-        private List<ConsumableData> currentConsumables = new List<ConsumableData>();
-        private List<int> consumablePrices = new List<int>();
-        private List<bool> consumableSold = new List<bool>();
-        private int consumableRefreshes = 1;
-
-        private List<RelicData> currentRelics = new List<RelicData>();
-        private List<int> relicPrices = new List<int>();
-        private List<bool> relicSold = new List<bool>();
-        private int relicRefreshes = 1;
-
-        private int equipmentRefreshes = 1;
+        private List<ShopItemSlot> currentShopSlots = new List<ShopItemSlot>();
+        private int remainingRefreshes = 1;
 
         public void Show()
         {
@@ -47,14 +43,9 @@ namespace TheLastArk.UI
                 extraRefresh = 1;
             }
 
-            consumableRefreshes = 1 + extraRefresh;
-            relicRefreshes = 1 + extraRefresh;
-            equipmentRefreshes = 1 + extraRefresh;
-
-            GenerateConsumables();
-            GenerateRelics();
-            
-            SwitchTab(TabType.Consumable);
+            remainingRefreshes = 1 + extraRefresh;
+            GenerateShopItems();
+            RefreshUI();
             popupPanel.SetActive(true);
         }
 
@@ -65,7 +56,7 @@ namespace TheLastArk.UI
 
         private void CreateUI()
         {
-            mainFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Main_Fonts");
+            mainFont = Resources.Load<TMP_FontAsset>("Fonts/Main_Fonts");
 
             Canvas canvas = FindObjectOfType<Canvas>();
             popupPanel = new GameObject("ShopPopup");
@@ -79,7 +70,7 @@ namespace TheLastArk.UI
             rect.offsetMax = Vector2.zero;
 
             Image bg = popupPanel.AddComponent<Image>();
-            bg.color = new Color(0, 0, 0, 0.95f);
+            bg.color = new Color(0.06f, 0.08f, 0.12f, 0.95f);
 
             // 닫기 버튼
             GameObject closeBtnObj = new GameObject("CloseButton");
@@ -88,8 +79,8 @@ namespace TheLastArk.UI
             closeRect.anchorMin = new Vector2(1, 1);
             closeRect.anchorMax = new Vector2(1, 1);
             closeRect.pivot = new Vector2(1, 1);
-            closeRect.anchoredPosition = new Vector2(-30, -30);
-            closeRect.sizeDelta = new Vector2(100, 50);
+            closeRect.anchoredPosition = new Vector2(-40, -40);
+            closeRect.sizeDelta = new Vector2(100, 48);
 
             Image closeImg = closeBtnObj.AddComponent<Image>();
             closeImg.color = new Color(0.8f, 0.2f, 0.2f, 1f);
@@ -97,363 +88,241 @@ namespace TheLastArk.UI
             Button closeBtn = closeBtnObj.AddComponent<Button>();
             closeBtn.onClick.AddListener(Hide);
 
-            CreateTextUI(closeBtnObj.transform, "닫기", 24, Color.white, Vector2.zero, Vector2.zero, Vector2.one);
+            CreateTextUI(closeBtnObj.transform, "닫기", 24, Color.white);
 
-            // Title
-            CreateTextUI(popupPanel.transform, "상점가", 40, Color.white, new Vector2(0, -60), new Vector2(0.5f, 1), new Vector2(0.5f, 1)).rectTransform.sizeDelta = new Vector2(400, 60);
+            // Title Header (상점가 - 소모품 & 유물 거래)
+            GameObject titleObj = new GameObject("TitleText");
+            titleObj.transform.SetParent(popupPanel.transform, false);
+            RectTransform titleRect = titleObj.AddComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0.1f, 0.88f);
+            titleRect.anchorMax = new Vector2(0.9f, 0.96f);
+            titleRect.offsetMin = Vector2.zero;
+            titleRect.offsetMax = Vector2.zero;
 
-            // Tabs Area
-            GameObject tabsObj = new GameObject("TabsArea");
-            tabsObj.transform.SetParent(popupPanel.transform, false);
-            tabsArea = tabsObj.AddComponent<RectTransform>();
-            RectTransform tabsRect = (RectTransform)tabsArea;
-            tabsRect.anchorMin = new Vector2(0.1f, 0.8f);
-            tabsRect.anchorMax = new Vector2(0.9f, 0.9f);
-            tabsRect.offsetMin = Vector2.zero;
-            tabsRect.offsetMax = Vector2.zero;
+            CreateTextUI(titleObj.transform, "🏪 상점가 (소모품 & 유물 거래)", 36, Color.yellow);
 
-            HorizontalLayoutGroup tLayout = tabsObj.AddComponent<HorizontalLayoutGroup>();
-            tLayout.spacing = 20;
-            tLayout.childControlWidth = true;
-            tLayout.childForceExpandWidth = true;
+            // Refresh Items Button
+            GameObject refreshBtnObj = new GameObject("RefreshButton");
+            refreshBtnObj.transform.SetParent(popupPanel.transform, false);
+            RectTransform rRect = refreshBtnObj.AddComponent<RectTransform>();
+            rRect.anchorMin = new Vector2(0.7f, 0.88f);
+            rRect.anchorMax = new Vector2(0.85f, 0.94f);
+            rRect.offsetMin = Vector2.zero;
+            rRect.offsetMax = Vector2.zero;
 
-            CreateTabButton(tabsArea, "잡화점 (소모품)", TabType.Consumable);
-            CreateTabButton(tabsArea, "고고학자 (유물)", TabType.Relic);
-            CreateTabButton(tabsArea, "대장간 (장비)", TabType.Equipment);
+            Image rImg = refreshBtnObj.AddComponent<Image>();
+            rImg.color = new Color(0.2f, 0.5f, 0.8f, 1f);
 
-            // Refresh Button
-            GameObject refBtnObj = new GameObject("RefreshButton");
-            refBtnObj.transform.SetParent(popupPanel.transform, false);
-            RectTransform refRect = refBtnObj.AddComponent<RectTransform>();
-            refRect.anchorMin = new Vector2(0.5f, 0.1f);
-            refRect.anchorMax = new Vector2(0.5f, 0.1f);
-            refRect.pivot = new Vector2(0.5f, 0);
-            refRect.anchoredPosition = new Vector2(0, 0);
-            refRect.sizeDelta = new Vector2(300, 60);
+            refreshBtn = refreshBtnObj.AddComponent<Button>();
+            refreshBtn.onClick.AddListener(OnClickRefresh);
 
-            Image refImg = refBtnObj.AddComponent<Image>();
-            refImg.color = new Color(0.2f, 0.4f, 0.8f, 1f);
+            refreshBtnText = CreateTextUI(refreshBtnObj.transform, "🔄 상품 새로고침", 20, Color.white);
 
-            refreshBtn = refBtnObj.AddComponent<Button>();
-            refreshBtn.onClick.AddListener(OnRefreshClicked);
+            // 6-Item Grid Content Container
+            GameObject gridObj = new GameObject("ShopGridArea");
+            gridObj.transform.SetParent(popupPanel.transform, false);
+            RectTransform gridRect = gridObj.AddComponent<RectTransform>();
+            gridRect.anchorMin = new Vector2(0.1f, 0.1f);
+            gridRect.anchorMax = new Vector2(0.9f, 0.82f);
+            gridRect.offsetMin = Vector2.zero;
+            gridRect.offsetMax = Vector2.zero;
 
-            refreshBtnText = CreateTextUI(refBtnObj.transform, "새로고침", 28, Color.white, Vector2.zero, Vector2.zero, Vector2.one);
+            GridLayoutGroup grid = gridObj.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(480, 240);
+            grid.spacing = new Vector2(40, 30);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 3; // 3 Columns x 2 Rows = Total 6 Items
+            grid.childAlignment = TextAnchor.MiddleCenter;
 
-            // Content Area
-            GameObject contentObj = new GameObject("ContentArea");
-            contentObj.transform.SetParent(popupPanel.transform, false);
-            contentArea = contentObj.AddComponent<RectTransform>();
-            RectTransform cRect = (RectTransform)contentArea;
-            cRect.anchorMin = new Vector2(0.1f, 0.2f);
-            cRect.anchorMax = new Vector2(0.9f, 0.75f);
-            cRect.offsetMin = Vector2.zero;
-            cRect.offsetMax = Vector2.zero;
-
-            HorizontalLayoutGroup cLayout = contentObj.AddComponent<HorizontalLayoutGroup>();
-            cLayout.spacing = 40;
-            cLayout.childControlWidth = true;
-            cLayout.childForceExpandWidth = true;
+            contentArea = gridObj.transform;
         }
 
-        private void CreateTabButton(Transform parent, string text, TabType type)
+        private void GenerateShopItems()
         {
-            GameObject btnObj = new GameObject($"Tab_{type}");
-            btnObj.transform.SetParent(parent, false);
+            currentShopSlots.Clear();
 
-            Image img = btnObj.AddComponent<Image>();
-            img.color = new Color(0.3f, 0.3f, 0.3f, 1f);
-
-            Button btn = btnObj.AddComponent<Button>();
-            btn.onClick.AddListener(() => SwitchTab(type));
-
-            CreateTextUI(btnObj.transform, text, 28, Color.white, Vector2.zero, Vector2.zero, Vector2.one);
-        }
-
-        private void SwitchTab(TabType type)
-        {
-            currentTab = type;
-            RenderContent();
-            UpdateRefreshButton();
-        }
-
-        private void UpdateRefreshButton()
-        {
-            int left = 0;
-            if (currentTab == TabType.Consumable) left = consumableRefreshes;
-            else if (currentTab == TabType.Relic) left = relicRefreshes;
-            else if (currentTab == TabType.Equipment) left = equipmentRefreshes;
-
-            refreshBtnText.text = $"새로고침 (남은 횟수: {left})";
-            refreshBtn.interactable = (left > 0);
-            refreshBtn.GetComponent<Image>().color = left > 0 ? new Color(0.2f, 0.4f, 0.8f, 1f) : new Color(0.3f, 0.3f, 0.3f, 1f);
-        }
-
-        private void OnRefreshClicked()
-        {
-            if (currentTab == TabType.Consumable && consumableRefreshes > 0)
+            // 1. Generate 3 Consumables
+            var allConsumables = Resources.LoadAll<ConsumableData>("Consumables").ToList();
+            if (allConsumables.Count == 0)
             {
-                consumableRefreshes--;
-                GenerateConsumables();
+                allConsumables = Resources.LoadAll<ConsumableData>("").ToList();
             }
-            else if (currentTab == TabType.Relic && relicRefreshes > 0)
-            {
-                relicRefreshes--;
-                GenerateRelics();
-            }
-            else if (currentTab == TabType.Equipment && equipmentRefreshes > 0)
-            {
-                equipmentRefreshes--;
-                // GenerateEquipments(); // no-op
-            }
-            
-            RenderContent();
-            UpdateRefreshButton();
-        }
 
-        private void RenderContent()
-        {
-            foreach (Transform child in contentArea) Destroy(child.gameObject);
-
-            if (currentTab == TabType.Consumable)
+            allConsumables = allConsumables.OrderBy(x => Random.value).ToList();
+            int cCount = Mathf.Min(3, allConsumables.Count);
+            for (int i = 0; i < cCount; i++)
             {
-                for (int i = 0; i < currentConsumables.Count; i++)
+                currentShopSlots.Add(new ShopItemSlot
                 {
-                    CreateItemSlot(currentConsumables[i].consumableName, currentConsumables[i].description, currentConsumables[i].icon, consumablePrices[i], consumableSold[i], i);
-                }
+                    isRelic = false,
+                    consumable = allConsumables[i],
+                    price = 50 + (i * 10),
+                    sold = false
+                });
             }
-            else if (currentTab == TabType.Relic)
+
+            // 2. Generate 3 Relics
+            var allRelics = Resources.LoadAll<RelicData>("Relics").ToList();
+            if (allRelics.Count == 0)
             {
-                for (int i = 0; i < currentRelics.Count; i++)
-                {
-                    CreateItemSlot(currentRelics[i].relicName, currentRelics[i].description, currentRelics[i].icon, relicPrices[i], relicSold[i], i);
-                }
+                allRelics = Resources.LoadAll<RelicData>("").ToList();
             }
-            else if (currentTab == TabType.Equipment)
+
+            allRelics = allRelics.OrderBy(x => Random.value).ToList();
+            int rCount = Mathf.Min(3, allRelics.Count);
+            for (int i = 0; i < rCount; i++)
             {
-                for (int i = 0; i < 3; i++)
+                currentShopSlots.Add(new ShopItemSlot
                 {
-                    CreateDummySlot();
-                }
+                    isRelic = true,
+                    relic = allRelics[i],
+                    price = 100 + (i * 25),
+                    sold = false
+                });
             }
         }
 
-        private void CreateItemSlot(string name, string desc, Sprite icon, int price, bool isSold, int index)
+        private void OnClickRefresh()
         {
-            GameObject slotObj = new GameObject($"Slot_{index}");
-            slotObj.transform.SetParent(contentArea, false);
-
-            Image bg = slotObj.AddComponent<Image>();
-            bg.color = new Color(0.2f, 0.2f, 0.25f, 1f);
-
-            // Icon
-            GameObject iconObj = new GameObject("Icon");
-            iconObj.transform.SetParent(slotObj.transform, false);
-            RectTransform iconRect = iconObj.AddComponent<RectTransform>();
-            iconRect.anchorMin = new Vector2(0.5f, 0.7f);
-            iconRect.anchorMax = new Vector2(0.5f, 0.95f);
-            iconRect.pivot = new Vector2(0.5f, 1f);
-            iconRect.sizeDelta = new Vector2(0, 0); // use anchors
-            iconRect.offsetMin = new Vector2(-60, 0);
-            iconRect.offsetMax = new Vector2(60, 0);
-            Image img = iconObj.AddComponent<Image>();
-            if (icon != null) img.sprite = icon;
-            else img.color = Color.gray;
-            img.preserveAspect = true;
-
-            // Name
-            CreateTextUI(slotObj.transform, name, 28, Color.yellow, Vector2.zero, new Vector2(0, 0.55f), new Vector2(1, 0.65f));
-
-            // Desc
-            TextMeshProUGUI descTmp = CreateTextUI(slotObj.transform, desc, 20, Color.white, Vector2.zero, new Vector2(0.05f, 0.2f), new Vector2(0.95f, 0.5f));
-            descTmp.alignment = TextAlignmentOptions.Top;
-
-            // Buy Button
-            GameObject buyBtnObj = new GameObject("BuyButton");
-            buyBtnObj.transform.SetParent(slotObj.transform, false);
-            RectTransform buyRect = buyBtnObj.AddComponent<RectTransform>();
-            buyRect.anchorMin = new Vector2(0.1f, 0.05f);
-            buyRect.anchorMax = new Vector2(0.9f, 0.15f);
-            buyRect.offsetMin = Vector2.zero;
-            buyRect.offsetMax = Vector2.zero;
-
-            Image buyImg = buyBtnObj.AddComponent<Image>();
-            Button buyBtn = buyBtnObj.AddComponent<Button>();
-
-            TextMeshProUGUI buyTxt = CreateTextUI(buyBtnObj.transform, isSold ? "SOLD OUT" : $"{price} G", 28, Color.white, Vector2.zero, Vector2.zero, Vector2.one);
-
-            if (isSold)
+            if (remainingRefreshes > 0)
             {
-                buyImg.color = new Color(0.2f, 0.2f, 0.2f, 1f);
-                buyBtn.interactable = false;
+                remainingRefreshes--;
+                GenerateShopItems();
+                RefreshUI();
             }
             else
             {
-                buyImg.color = new Color(0.2f, 0.6f, 0.2f, 1f);
-                buyBtn.onClick.AddListener(() => OnBuyClicked(index, price));
-            }
-        }
-
-        private void CreateDummySlot()
-        {
-            GameObject slotObj = new GameObject("Slot_Dummy");
-            slotObj.transform.SetParent(contentArea, false);
-
-            Image bg = slotObj.AddComponent<Image>();
-            bg.color = new Color(0.15f, 0.15f, 0.15f, 1f);
-
-            CreateTextUI(slotObj.transform, "?", 80, Color.gray, Vector2.zero, new Vector2(0, 0.5f), new Vector2(1, 1));
-            CreateTextUI(slotObj.transform, "장비 시스템\n준비 중...", 28, Color.white, Vector2.zero, new Vector2(0, 0), new Vector2(1, 0.5f));
-        }
-
-        private void GenerateConsumables()
-        {
-            currentConsumables.Clear();
-            consumablePrices.Clear();
-            consumableSold.Clear();
-
-            var all = Resources.LoadAll<ConsumableData>("Consumables").ToList();
-            Shuffle(all);
-
-            float discount = 0f;
-            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.ShopDiscount))
-            {
-                discount = 0.3f;
-            }
-
-            for (int i = 0; i < 3 && i < all.Count; i++)
-            {
-                currentConsumables.Add(all[i]);
-                int basePrice = Random.Range(30, 71); // 30~70 Gold
-                int finalPrice = Mathf.RoundToInt(basePrice * (1f - discount));
-                consumablePrices.Add(finalPrice);
-                consumableSold.Add(false);
-            }
-        }
-
-        private void GenerateRelics()
-        {
-            currentRelics.Clear();
-            relicPrices.Clear();
-            relicSold.Clear();
-
-            var all = Resources.LoadAll<RelicData>("Relics").ToList();
-            
-            // Remove already owned relics
-            if (ResourceManager.Instance != null)
-            {
-                all.RemoveAll(r => ResourceManager.Instance.HasRelic(r.relicID));
-            }
-
-            // Separate pools by rarity
-            var commonRelics = all.Where(r => r.rarity == RelicRarity.Common).ToList();
-            var legendaryRelics = all.Where(r => r.rarity == RelicRarity.Legendary).ToList();
-
-            Shuffle(commonRelics);
-            Shuffle(legendaryRelics);
-
-            float discount = 0f;
-            bool forceFirstLegendary = false;
-
-            if (ResourceManager.Instance != null)
-            {
-                if (ResourceManager.Instance.HasRelicEffect(RelicEffectType.ShopDiscount)) discount = 0.3f;
-                if (ResourceManager.Instance.HasRelicEffect(RelicEffectType.ShopFirstLegendary)) forceFirstLegendary = true;
-            }
-
-            for (int i = 0; i < 3; i++)
-            {
-                RelicData selectedRelic = null;
-
-                if (i == 0 && forceFirstLegendary && legendaryRelics.Count > 0)
+                // Buy refresh with gold (50 Gold)
+                if (RunManager.Instance != null && RunManager.Instance.State != null && RunManager.Instance.State.gold >= 50)
                 {
-                    selectedRelic = legendaryRelics[0];
-                    legendaryRelics.RemoveAt(0);
+                    RunManager.Instance.State.gold -= 50;
+                    GenerateShopItems();
+                    RefreshUI();
                 }
-                else if (commonRelics.Count > 0)
+                else
                 {
-                    selectedRelic = commonRelics[0];
-                    commonRelics.RemoveAt(0);
-                }
-
-                if (selectedRelic != null)
-                {
-                    currentRelics.Add(selectedRelic);
-                    int basePrice = Random.Range(120, 171); // 120~170 Gold
-                    int finalPrice = Mathf.RoundToInt(basePrice * (1f - discount));
-                    relicPrices.Add(finalPrice);
-                    relicSold.Add(false);
+                    NotificationManager.Instance?.ShowMessage("새로고침 골드(50G)가 부족합니다.", Color.red);
                 }
             }
         }
 
-        private void OnBuyClicked(int index, int price)
+        private void RefreshUI()
         {
-            if (ResourceManager.Instance == null) return;
+            if (contentArea == null) return;
 
-            if (ResourceManager.Instance.SpendGold(price))
+            // Clear old UI slots
+            foreach (Transform child in contentArea)
             {
-                if (currentTab == TabType.Consumable)
-                {
-                    if (ResourceManager.Instance.AddConsumable(currentConsumables[index]))
-                    {
-                        consumableSold[index] = true;
-                    }
-                    else
-                    {
-                        // Inventory full, refund gold
-                        ResourceManager.Instance.AddGold(price);
-                        Debug.LogWarning("소모품 인벤토리가 가득 찼습니다.");
-                        return;
-                    }
-                }
-                else if (currentTab == TabType.Relic)
-                {
-                    ResourceManager.Instance.AddRelic(currentRelics[index]);
-                    relicSold[index] = true;
-                }
-
-                RenderContent();
+                Destroy(child.gameObject);
             }
-            else
+
+            // Update refresh button text
+            if (refreshBtnText != null)
             {
-                Debug.LogWarning("골드가 부족합니다!");
+                refreshBtnText.text = remainingRefreshes > 0 ? $"🔄 무료 리롤 ({remainingRefreshes})" : "🔄 리롤 (50 Gold)";
+            }
+
+            // Render 6 Shop Item Cards
+            for (int i = 0; i < currentShopSlots.Count; i++)
+            {
+                int index = i;
+                ShopItemSlot slot = currentShopSlots[i];
+
+                GameObject cardObj = new GameObject($"ShopCard_{i}");
+                cardObj.transform.SetParent(contentArea, false);
+
+                Image bg = cardObj.AddComponent<Image>();
+                bg.color = new Color(0.12f, 0.16f, 0.24f, 0.95f);
+
+                VerticalLayoutGroup layout = cardObj.AddComponent<VerticalLayoutGroup>();
+                layout.padding = new RectOffset(16, 16, 14, 14);
+                layout.spacing = 10;
+                layout.childControlHeight = false;
+
+                // Category Tag (소모품 or 유물)
+                string catTag = slot.isRelic ? "🏆 유물" : "🧪 소모품";
+                Color catColor = slot.isRelic ? new Color(1f, 0.85f, 0.3f) : new Color(0.3f, 0.85f, 1f);
+                CreateTextUI(cardObj.transform, catTag, 18, catColor);
+
+                // Item Name
+                string nameText = slot.isRelic ? (slot.relic != null ? slot.relic.relicName : "유물") : (slot.consumable != null ? slot.consumable.consumableName : "소모품");
+                CreateTextUI(cardObj.transform, nameText, 24, Color.white);
+
+                // Item Description
+                string descText = slot.isRelic ? (slot.relic != null ? slot.relic.description : "유물 효과") : (slot.consumable != null ? slot.consumable.description : "소모품 효과");
+                CreateTextUI(cardObj.transform, descText, 15, Color.gray);
+
+                // Buy / Sold Out Button
+                GameObject buyBtnObj = new GameObject("BuyButton");
+                buyBtnObj.transform.SetParent(cardObj.transform, false);
+                LayoutElement bLe = buyBtnObj.AddComponent<LayoutElement>();
+                bLe.preferredHeight = 44;
+
+                Image bImg = buyBtnObj.AddComponent<Image>();
+                bImg.color = slot.sold ? new Color(0.3f, 0.3f, 0.3f, 1f) : new Color(0.2f, 0.65f, 0.3f, 1f);
+
+                Button buyBtn = buyBtnObj.AddComponent<Button>();
+                buyBtn.interactable = !slot.sold;
+
+                string btnLabel = slot.sold ? "품절" : $"💰 {slot.price} G 구매";
+                CreateTextUI(buyBtnObj.transform, btnLabel, 20, Color.white);
+
+                buyBtn.onClick.AddListener(() => OnClickBuyItem(index));
             }
         }
 
-        private void Shuffle<T>(List<T> list)
+        private void OnClickBuyItem(int index)
         {
-            int n = list.Count;
-            while (n > 1)
+            if (index < 0 || index >= currentShopSlots.Count) return;
+            ShopItemSlot slot = currentShopSlots[index];
+            if (slot.sold) return;
+
+            int gold = RunManager.Instance != null ? RunManager.Instance.State.gold : 0;
+            if (gold < slot.price)
             {
-                n--;
-                int k = Random.Range(0, n + 1);
-                T value = list[k];
-                list[k] = list[n];
-                list[n] = value;
+                NotificationManager.Instance?.ShowMessage("골드가 부족합니다!", Color.red);
+                return;
             }
+
+            // Deduct Gold
+            if (RunManager.Instance != null)
+            {
+                RunManager.Instance.State.gold -= slot.price;
+            }
+
+            // Grant Item
+            if (slot.isRelic && slot.relic != null)
+            {
+                ResourceManager.Instance?.AddRelic(slot.relic.relicID);
+                NotificationManager.Instance?.ShowMessage($"유물 [{slot.relic.relicName}] 획득!", Color.cyan);
+            }
+            else if (!slot.isRelic && slot.consumable != null)
+            {
+                ResourceManager.Instance?.AddConsumable(slot.consumable);
+                NotificationManager.Instance?.ShowMessage($"소모품 [{slot.consumable.consumableName}] 획득!", Color.green);
+            }
+
+            slot.sold = true;
+            RefreshUI();
         }
 
-        private TextMeshProUGUI CreateTextUI(Transform parent, string text, int fontSize, Color color, Vector2 anchoredPos, Vector2 minA, Vector2 maxA)
+        private TextMeshProUGUI CreateTextUI(Transform parent, string text, int fontSize, Color color)
         {
             GameObject txtObj = new GameObject("Text");
             txtObj.transform.SetParent(parent, false);
             RectTransform rect = txtObj.AddComponent<RectTransform>();
-            rect.anchorMin = minA;
-            rect.anchorMax = maxA;
-            rect.anchoredPosition = anchoredPos;
-            
-            if (minA != maxA)
-                rect.sizeDelta = Vector2.zero;
-            else
-                rect.sizeDelta = new Vector2(300, 50);
-            
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
             TextMeshProUGUI tmp = txtObj.AddComponent<TextMeshProUGUI>();
             tmp.text = text;
             tmp.fontSize = fontSize;
             tmp.color = color;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.enableWordWrapping = true;
-            if (mainFont != null) tmp.font = mainFont;
+            tmp.font = mainFont != null ? mainFont : TMPFontManager.MainKoreanFont;
 
             return tmp;
         }

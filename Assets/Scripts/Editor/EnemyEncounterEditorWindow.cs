@@ -8,7 +8,7 @@ public class EnemyEncounterEditorWindow : EditorWindow
     private const string PoolFolder = "Assets/Resources/Battle/EncounterPools";
     private const string TablePath = "Assets/Resources/Battle/BattleEncounterTable.asset";
 
-    private enum EditMode { Encounters, Pools }
+    public enum EditMode { Encounters, Pools }
 
     private readonly List<Object> assets = new List<Object>();
     private readonly Dictionary<string, bool> regionFoldouts = new Dictionary<string, bool>();
@@ -45,15 +45,39 @@ public class EnemyEncounterEditorWindow : EditorWindow
         }
 
         EditorGUILayout.Space(4f);
+        DrawEditorBody(null);
+    }
+
+    public void DrawEmbedded(EditMode embeddedMode, System.Action drawLeftHeader)
+    {
+        if (mode != embeddedMode)
+        {
+            mode = embeddedMode;
+            SelectAsset(null);
+            RefreshAssets();
+        }
+
+        DrawEditorBody(drawLeftHeader);
+    }
+
+    public void RefreshEmbedded()
+    {
+        RefreshAssets();
+    }
+
+    private void DrawEditorBody(System.Action drawLeftHeader)
+    {
         EditorGUILayout.BeginHorizontal();
-        DrawAssetList();
+        DrawAssetList(drawLeftHeader);
         DrawSelectedInspector();
         EditorGUILayout.EndHorizontal();
     }
 
-    private void DrawAssetList()
+    private void DrawAssetList(System.Action drawLeftHeader)
     {
         EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(260f), GUILayout.ExpandHeight(true));
+        drawLeftHeader?.Invoke();
+        if (drawLeftHeader != null) EditorGUILayout.Space(6f);
         EditorGUILayout.LabelField(mode == EditMode.Encounters ? "Enemy Formations" : "Maps / Encounter Pools", EditorStyles.boldLabel);
 
         if (mode == EditMode.Pools)

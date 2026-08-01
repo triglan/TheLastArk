@@ -23,4 +23,3 @@ MonoBehaviour:
   priority: 0
   encounters:
   - {fileID: 11400000, guid: d48056aa95fb60b42bd9cad39894fc7c, type: 2}
-  - {fileID: 11400000, guid: 0bdaa2bcd9ed0e7458bc3e8e064e65c7, type: 2}
