@@ -70,6 +70,12 @@ public class CharacterEditorWindow : EditorWindow
         if (embeddedEncounterEditor != null) embeddedEncounterEditor.RefreshEmbedded();
     }
 
+    private void OnProjectChange()
+    {
+        isDirtyCache = true;
+        Repaint();
+    }
+
     private void OnDisable()
     {
         EditorApplication.update -= FlushPendingSaveIfReady;
@@ -173,8 +179,54 @@ public class CharacterEditorWindow : EditorWindow
             if (data != null) cachedCharacterList.Add(data);
         }
         BackfillMissingPlayerIds();
-        cachedCharacterList.Sort((a, b) => string.Compare(a.DataName, b.DataName, System.StringComparison.OrdinalIgnoreCase));
+        cachedCharacterList.Sort(CompareCharactersForEditor);
         isDirtyCache = false;
+    }
+
+    private static int CompareCharactersForEditor(CharacterData a, CharacterData b)
+    {
+        if (ReferenceEquals(a, b)) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+
+        if (a.isEnemy != b.isEnemy)
+            return a.isEnemy ? 1 : -1;
+
+        if (!a.isEnemy)
+        {
+            bool aHasValidId = CharacterData.IsValidCharacterId(a.characterId);
+            bool bHasValidId = CharacterData.IsValidCharacterId(b.characterId);
+
+            if (aHasValidId != bHasValidId)
+                return aHasValidId ? -1 : 1;
+
+            if (aHasValidId && bHasValidId)
+            {
+                int.TryParse(a.characterId, out int aId);
+                int.TryParse(b.characterId, out int bId);
+                int idComparison = aId.CompareTo(bId);
+                if (idComparison != 0) return idComparison;
+            }
+            else
+            {
+                int invalidIdComparison = string.Compare(
+                    a.characterId,
+                    b.characterId,
+                    System.StringComparison.OrdinalIgnoreCase);
+                if (invalidIdComparison != 0) return invalidIdComparison;
+            }
+        }
+
+        int nameComparison = string.Compare(
+            a.DataName,
+            b.DataName,
+            System.StringComparison.OrdinalIgnoreCase);
+        if (nameComparison != 0) return nameComparison;
+
+        return string.Compare(
+            AssetDatabase.GetAssetPath(a),
+            AssetDatabase.GetAssetPath(b),
+            System.StringComparison.OrdinalIgnoreCase);
     }
 
     private void BackfillMissingPlayerIds()
@@ -676,7 +728,9 @@ public class CharacterEditorWindow : EditorWindow
             }
             else
             {
+                string previousId = data.characterId;
                 data.characterId = CharacterData.NormalizeCharacterId(EditorGUILayout.TextField(data.characterId, GUILayout.Width(34)));
+                if (data.characterId != previousId) isDirtyCache = true;
                 data.jobName = EditorGUILayout.TextField(data.jobName, GUILayout.Width(80));
                 data.characterName = EditorGUILayout.TextField(data.characterName, GUILayout.Width(90));
             }

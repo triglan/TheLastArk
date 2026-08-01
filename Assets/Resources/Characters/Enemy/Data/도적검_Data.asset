@@ -20,8 +20,8 @@ MonoBehaviour:
   standingSprite: {fileID: 21300000, guid: 0f03a35786b197d41a26a7b44eae3d1e, type: 3}
   portraitSprite: {fileID: 0}
   maxHp: 30
-  maxMental: 200
-  baseAttack: 25
+  maxMental: 30
+  baseAttack: 3
   spellPower: 0
   armor: 3
   magicResist: 3
