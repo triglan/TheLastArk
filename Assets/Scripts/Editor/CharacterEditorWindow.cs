@@ -42,6 +42,16 @@ public class CharacterEditorWindow : EditorWindow
     [MenuItem("Window/Battle/캐릭터 편집기 #e")]
     public static void ShowWindow()
     {
+        CharacterEditorWindow[] openedWindows = Resources.FindObjectsOfTypeAll<CharacterEditorWindow>();
+        if (openedWindows.Length > 0)
+        {
+            for (int i = 0; i < openedWindows.Length; i++)
+            {
+                openedWindows[i].Close();
+            }
+            return;
+        }
+
         CharacterEditorWindow window = GetWindow<CharacterEditorWindow>("편집기");
         window.minSize = new Vector2(1200, 700);
     }

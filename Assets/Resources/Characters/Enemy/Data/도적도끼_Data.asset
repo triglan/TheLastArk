@@ -12,13 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
   m_Name: "\uB3C4\uC801\uB3C4\uB07C_Data"
   m_EditorClassIdentifier: 
+  characterId: 
   characterName: "\uB3C4\uC801\uB3C4\uB07C"
+  jobName: 
+  synergies: 
   isEnemy: 1
   standingSprite: {fileID: 21300000, guid: 7eb07a621ecf04a469147f16f20559ff, type: 3}
   portraitSprite: {fileID: 0}
-  maxHp: 200
+  maxHp: 40
   maxMental: 200
   baseAttack: 25
+  spellPower: 0
+  armor: 3
+  magicResist: 3
+  critRate: 0
   levelStatMultipliers:
   - 0
   - 0.5

@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class CharacterStatus
+public class CharacterStatus : ISerializationCallbackReceiver
 {
+    public const int EquipmentSlotCount = 2;
+
     public CharacterData origin; // 원본 캐릭터 데이터입니다.
 
     // 전투 중 계속 바뀌는 현재 수치입니다.
@@ -55,15 +57,15 @@ public class CharacterStatus
     public List<ActiveStatusEffect> activeStatusEffects = new List<ActiveStatusEffect>();
 
     // 캐릭터당 최대 2개 장비 장착 슬롯
-    public TheLastArk.Data.EquipmentData[] equippedItems = new TheLastArk.Data.EquipmentData[2];
+    public TheLastArk.Data.EquipmentData[] equippedItems = new TheLastArk.Data.EquipmentData[EquipmentSlotCount];
 
-    public float EquipmentBonusAttack => (equippedItems[0] != null ? equippedItems[0].bonusAttack : 0) + (equippedItems[1] != null ? equippedItems[1].bonusAttack : 0);
-    public float EquipmentBonusSpellPower => (equippedItems[0] != null ? equippedItems[0].bonusSpellPower : 0) + (equippedItems[1] != null ? equippedItems[1].bonusSpellPower : 0);
-    public float EquipmentBonusHp => (equippedItems[0] != null ? equippedItems[0].bonusHp : 0) + (equippedItems[1] != null ? equippedItems[1].bonusHp : 0);
-    public float EquipmentBonusMental => (equippedItems[0] != null ? equippedItems[0].bonusMental : 0) + (equippedItems[1] != null ? equippedItems[1].bonusMental : 0);
-    public float EquipmentBonusArmor => (equippedItems[0] != null ? equippedItems[0].bonusArmor : 0) + (equippedItems[1] != null ? equippedItems[1].bonusArmor : 0);
-    public float EquipmentBonusMagicResist => (equippedItems[0] != null ? equippedItems[0].bonusMagicResist : 0) + (equippedItems[1] != null ? equippedItems[1].bonusMagicResist : 0);
-    public float EquipmentBonusCritRate => (equippedItems[0] != null ? equippedItems[0].bonusCritRate : 0) + (equippedItems[1] != null ? equippedItems[1].bonusCritRate : 0);
+    public float EquipmentBonusAttack => GetEquipmentBonus(EquipmentStat.Attack);
+    public float EquipmentBonusSpellPower => GetEquipmentBonus(EquipmentStat.SpellPower);
+    public float EquipmentBonusHp => GetEquipmentBonus(EquipmentStat.Hp);
+    public float EquipmentBonusMental => GetEquipmentBonus(EquipmentStat.Mental);
+    public float EquipmentBonusArmor => GetEquipmentBonus(EquipmentStat.Armor);
+    public float EquipmentBonusMagicResist => GetEquipmentBonus(EquipmentStat.MagicResist);
+    public float EquipmentBonusCritRate => GetEquipmentBonus(EquipmentStat.CritRate);
 
     public float FinalMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergyHpMultiplier())) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
     public float FinalMaxMental => origin != null ? origin.maxMental * (1 + GetMultiplier()) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental;
@@ -103,6 +105,7 @@ public class CharacterStatus
 
     public CharacterStatus(CharacterData data)
     {
+        EnsureEquipmentSlots();
         origin = data;
         currentHp = data != null ? data.maxHp : 0f;
         currentMental = data != null ? data.maxMental : 0f;
@@ -128,6 +131,83 @@ public class CharacterStatus
         }
 
         dynamicActiveSkill = new List<SkillInfo>();
+    }
+
+    public TheLastArk.Data.EquipmentData GetEquippedItem(int slotIndex)
+    {
+        EnsureEquipmentSlots();
+        return IsValidEquipmentSlot(slotIndex) ? equippedItems[slotIndex] : null;
+    }
+
+    public bool SetEquippedItem(int slotIndex, TheLastArk.Data.EquipmentData equipment)
+    {
+        EnsureEquipmentSlots();
+        if (!IsValidEquipmentSlot(slotIndex)) return false;
+
+        equippedItems[slotIndex] = equipment;
+        return true;
+    }
+
+    public void EnsureEquipmentSlots()
+    {
+        if (equippedItems != null && equippedItems.Length == EquipmentSlotCount) return;
+
+        TheLastArk.Data.EquipmentData[] resized = new TheLastArk.Data.EquipmentData[EquipmentSlotCount];
+        if (equippedItems != null)
+            System.Array.Copy(equippedItems, resized, System.Math.Min(equippedItems.Length, EquipmentSlotCount));
+
+        equippedItems = resized;
+    }
+
+    public void OnBeforeSerialize()
+    {
+        EnsureEquipmentSlots();
+    }
+
+    public void OnAfterDeserialize()
+    {
+        EnsureEquipmentSlots();
+    }
+
+    private bool IsValidEquipmentSlot(int slotIndex)
+    {
+        return slotIndex >= 0 && slotIndex < EquipmentSlotCount;
+    }
+
+    private float GetEquipmentBonus(EquipmentStat stat)
+    {
+        EnsureEquipmentSlots();
+
+        float total = 0f;
+        for (int i = 0; i < EquipmentSlotCount; i++)
+        {
+            TheLastArk.Data.EquipmentData equipment = equippedItems[i];
+            if (equipment == null) continue;
+
+            switch (stat)
+            {
+                case EquipmentStat.Attack: total += equipment.bonusAttack; break;
+                case EquipmentStat.SpellPower: total += equipment.bonusSpellPower; break;
+                case EquipmentStat.Hp: total += equipment.bonusHp; break;
+                case EquipmentStat.Mental: total += equipment.bonusMental; break;
+                case EquipmentStat.Armor: total += equipment.bonusArmor; break;
+                case EquipmentStat.MagicResist: total += equipment.bonusMagicResist; break;
+                case EquipmentStat.CritRate: total += equipment.bonusCritRate; break;
+            }
+        }
+
+        return total;
+    }
+
+    private enum EquipmentStat
+    {
+        Attack,
+        SpellPower,
+        Hp,
+        Mental,
+        Armor,
+        MagicResist,
+        CritRate
     }
 
     public float GetMultiplier()

@@ -930,10 +930,10 @@ namespace TheLastArk.UI
             // 4. Render 2 Equipment Slots (장비 슬롯 2칸)
             foreach (Transform child in detailEquipmentsArea) Destroy(child.gameObject);
 
-            for (int sIdx = 0; sIdx < 2; sIdx++)
+            for (int sIdx = 0; sIdx < CharacterStatus.EquipmentSlotCount; sIdx++)
             {
                 int slotIndex = sIdx;
-                TheLastArk.Data.EquipmentData equipped = status.equippedItems[slotIndex];
+                TheLastArk.Data.EquipmentData equipped = status.GetEquippedItem(slotIndex);
 
                 GameObject eqBtnObj = new GameObject($"EquipSlot_{slotIndex}");
                 eqBtnObj.transform.SetParent(detailEquipmentsArea, false);
@@ -983,7 +983,7 @@ namespace TheLastArk.UI
                     {
                         // 장비 해제
                         if (EquipmentTooltipUI.Instance != null) EquipmentTooltipUI.Instance.HideTooltip();
-                        status.equippedItems[slotIndex] = null;
+                        status.SetEquippedItem(slotIndex, null);
                         NotificationManager.Instance?.ShowMessage($"[{equipped.equipmentName}] 장비를 해제했습니다.", Color.yellow);
                         ShowCharacterDetailPopup(data);
                     });
@@ -1141,7 +1141,7 @@ namespace TheLastArk.UI
                     btn.onClick.AddListener(() =>
                     {
                         if (EquipmentTooltipUI.Instance != null) EquipmentTooltipUI.Instance.HideTooltip();
-                        status.equippedItems[slotIndex] = equipData;
+                        status.SetEquippedItem(slotIndex, equipData);
                         NotificationManager.Instance?.ShowMessage($"[{charData.DisplayName}]에게 [{equipData.equipmentName}] 장착 완료!", Color.green);
                         equipSelectModalPanel.SetActive(false);
                         ShowCharacterDetailPopup(charData);

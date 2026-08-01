@@ -22,4 +22,4 @@ MonoBehaviour:
   maxCombatCount: 99
   priority: 0
   encounters:
-  - {fileID: 11400000, guid: 2e0063126f137c3498e2f456d8d6919d, type: 2}
+  - {fileID: 11400000, guid: 58fa9c7bca0bd3c43b4dd304b3939f9b, type: 2}
