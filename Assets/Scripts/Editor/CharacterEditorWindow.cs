@@ -5,7 +5,7 @@ using System.IO;
 
 public class CharacterEditorWindow : EditorWindow
 {
-    private enum CharacterEditorMode { Player, Enemy }
+    private enum CharacterEditorMode { Player, Enemy, Formations, Pools }
 
     private const string PLAYER_DATA_FOLDER = "Assets/Resources/Characters/Player/Data";
     private const string PLAYER_ILLUST_FOLDER = "Assets/Resources/Characters/Player/Illust";
@@ -26,8 +26,10 @@ public class CharacterEditorWindow : EditorWindow
     private bool showValidationDetails;
     private bool hasPendingSave;
     private double nextSaveTime;
+    private EnemyEncounterEditorWindow embeddedEncounterEditor;
 
     private bool IsEnemyMode => editorMode == CharacterEditorMode.Enemy;
+    private bool IsCharacterMode => editorMode == CharacterEditorMode.Player || editorMode == CharacterEditorMode.Enemy;
 
     private class CharacterValidationResult
     {
@@ -40,28 +42,50 @@ public class CharacterEditorWindow : EditorWindow
     [MenuItem("Window/Battle/캐릭터 편집기 #e")]
     public static void ShowWindow()
     {
-        CharacterEditorWindow window = GetWindow<CharacterEditorWindow>("캐릭터 편집기");
+        CharacterEditorWindow window = GetWindow<CharacterEditorWindow>("편집기");
         window.minSize = new Vector2(1200, 700);
     }
 
     private void OnEnable()
     {
         isDirtyCache = true;
+        EnsureEmbeddedEncounterEditor();
         EditorApplication.update -= FlushPendingSaveIfReady;
         EditorApplication.update += FlushPendingSaveIfReady;
     }
 
-    private void OnFocus() => isDirtyCache = true;
+    private void OnFocus()
+    {
+        isDirtyCache = true;
+        if (embeddedEncounterEditor != null) embeddedEncounterEditor.RefreshEmbedded();
+    }
+
     private void OnDisable()
     {
         EditorApplication.update -= FlushPendingSaveIfReady;
         FlushPendingSaveNow();
+
+        if (embeddedEncounterEditor != null)
+        {
+            DestroyImmediate(embeddedEncounterEditor);
+            embeddedEncounterEditor = null;
+        }
     }
 
     private void OnLostFocus() => FlushPendingSaveNow();
 
     private void OnGUI()
     {
+        if (!IsCharacterMode)
+        {
+            EnsureEmbeddedEncounterEditor();
+            EnemyEncounterEditorWindow.EditMode encounterMode = editorMode == CharacterEditorMode.Formations
+                ? EnemyEncounterEditorWindow.EditMode.Encounters
+                : EnemyEncounterEditorWindow.EditMode.Pools;
+            embeddedEncounterEditor.DrawEmbedded(encounterMode, DrawModeToolbar);
+            return;
+        }
+
         RefreshCacheIfNeeded();
         if (selectedData != null && selectedData.isEnemy != IsEnemyMode)
         {
@@ -76,6 +100,56 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
 
         FlushPendingSaveIfReady();
+    }
+
+    private void DrawModeToolbar()
+    {
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+        int characterModeIndex = editorMode == CharacterEditorMode.Player
+            ? 0
+            : editorMode == CharacterEditorMode.Enemy ? 1 : -1;
+        int nextCharacterModeIndex = GUILayout.Toolbar(characterModeIndex, new[] { "아군", "적" });
+        if (nextCharacterModeIndex >= 0 && nextCharacterModeIndex != characterModeIndex)
+            SetEditorMode(nextCharacterModeIndex == 0 ? CharacterEditorMode.Player : CharacterEditorMode.Enemy);
+
+        int encounterModeIndex = editorMode == CharacterEditorMode.Formations
+            ? 0
+            : editorMode == CharacterEditorMode.Pools ? 1 : -1;
+        int nextEncounterModeIndex = GUILayout.Toolbar(encounterModeIndex, new[] { "포메이션", "풀" });
+        if (nextEncounterModeIndex >= 0 && nextEncounterModeIndex != encounterModeIndex)
+            SetEditorMode(nextEncounterModeIndex == 0 ? CharacterEditorMode.Formations : CharacterEditorMode.Pools);
+
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.Space(4f);
+    }
+
+    private void SetEditorMode(CharacterEditorMode nextMode)
+    {
+        if (editorMode == nextMode) return;
+
+        FlushPendingSaveNow();
+        editorMode = nextMode;
+        selectedData = null;
+        iconFolderPath = "";
+        leftScroll = Vector2.zero;
+        middleScroll = Vector2.zero;
+        rightScroll = Vector2.zero;
+        GUI.FocusControl(null);
+
+        if (!IsCharacterMode)
+        {
+            EnsureEmbeddedEncounterEditor();
+            embeddedEncounterEditor.RefreshEmbedded();
+        }
+    }
+
+    private void EnsureEmbeddedEncounterEditor()
+    {
+        if (embeddedEncounterEditor != null) return;
+
+        embeddedEncounterEditor = CreateInstance<EnemyEncounterEditorWindow>();
+        embeddedEncounterEditor.hideFlags = HideFlags.HideAndDontSave;
     }
 
     private void RefreshCacheIfNeeded()
@@ -130,17 +204,9 @@ public class CharacterEditorWindow : EditorWindow
     private void DrawLeftPanel()
     {
         EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(230), GUILayout.ExpandHeight(true));
-        EditorGUILayout.LabelField("캐릭터 종류", EditorStyles.boldLabel);
-        CharacterEditorMode nextMode = (CharacterEditorMode)GUILayout.Toolbar((int)editorMode, new[] { "아군", "적" });
-        if (nextMode != editorMode)
-        {
-            editorMode = nextMode;
-            selectedData = null;
-            iconFolderPath = "";
-            GUI.FocusControl(null);
-        }
-
-        EditorGUILayout.Space(6);
+        DrawModeToolbar();
+        EditorGUILayout.Space(6f);
+        EditorGUILayout.LabelField(IsEnemyMode ? "적 캐릭터 목록" : "아군 캐릭터 목록", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("검색", EditorStyles.boldLabel);
         searchText = EditorGUILayout.TextField(searchText);
 
@@ -148,11 +214,6 @@ public class CharacterEditorWindow : EditorWindow
         {
             CreateNewCharacter(IsEnemyMode);
             isDirtyCache = true;
-        }
-
-        if (IsEnemyMode && GUILayout.Button("Enemy Formations / Pools", GUILayout.Height(26)))
-        {
-            EnemyEncounterEditorWindow.ShowWindow();
         }
 
         EditorGUILayout.Space(5);

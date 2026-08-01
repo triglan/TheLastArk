@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
+using System.Linq;
 using TheLastArk.Managers;
 using TheLastArk.Data;
 using TheLastArk.Character;
@@ -50,11 +51,13 @@ namespace TheLastArk.UI
         private Image detailStandingImage;
         private TextMeshProUGUI detailTitleText;
         private TextMeshProUGUI detailStatsText;
-        private TextMeshProUGUI detailSkillsText;
+        private Transform detailSkillsArea;
+        private Transform detailEquipmentsArea;
         private Button detailDeckButton;
         private TextMeshProUGUI detailDeckButtonText;
         private Button detailLeaderButton;
         private TextMeshProUGUI detailLeaderButtonText;
+        private GameObject equipSelectModalPanel;
 
         private CharacterData currentDetailCharacter;
 
@@ -77,6 +80,16 @@ namespace TheLastArk.UI
             if (Input.GetKeyDown(KeyCode.M) || Input.GetKeyDown(KeyCode.C))
             {
                 Toggle();
+            }
+
+            // Debug Cheats: F1 (+1000 Gold), F2 (10x Longswords)
+            if (Input.GetKeyDown(KeyCode.F1))
+            {
+                GrantDebugGold(1000);
+            }
+            if (Input.GetKeyDown(KeyCode.F2))
+            {
+                GrantDebugLongswords(10);
             }
         }
 
@@ -184,11 +197,33 @@ namespace TheLastArk.UI
             sLe.preferredHeight = 50;
             CreateTextUI(sfxObj.transform, "효과음 (SFX) 볼륨: 100%", 24, Color.white);
 
+            // Debug Cheat 1: +1000 Gold
+            GameObject goldBtnObj = new GameObject("DebugGoldBtn");
+            goldBtnObj.transform.SetParent(settingsPopupPanel.transform, false);
+            LayoutElement gLe = goldBtnObj.AddComponent<LayoutElement>();
+            gLe.preferredHeight = 50;
+            Image gImg = goldBtnObj.AddComponent<Image>();
+            gImg.color = new Color(0.2f, 0.6f, 0.3f, 1f);
+            Button gBtn = goldBtnObj.AddComponent<Button>();
+            gBtn.onClick.AddListener(() => GrantDebugGold(1000));
+            CreateTextUI(goldBtnObj.transform, "💰 [디버그] +1000 Gold 지급 (단축키: F1)", 22, Color.white);
+
+            // Debug Cheat 2: 10x Longswords
+            GameObject swordBtnObj = new GameObject("DebugSwordBtn");
+            swordBtnObj.transform.SetParent(settingsPopupPanel.transform, false);
+            LayoutElement swLe = swordBtnObj.AddComponent<LayoutElement>();
+            swLe.preferredHeight = 50;
+            Image swImg = swordBtnObj.AddComponent<Image>();
+            swImg.color = new Color(0.2f, 0.5f, 0.8f, 1f);
+            Button swBtn = swordBtnObj.AddComponent<Button>();
+            swBtn.onClick.AddListener(() => GrantDebugLongswords(10));
+            CreateTextUI(swordBtnObj.transform, "🗡️ [디버그] 롱소드 10개 지급 (단축키: F2)", 22, Color.white);
+
             // Quit Game Button
             GameObject quitBtnObj = new GameObject("QuitBtn");
             quitBtnObj.transform.SetParent(settingsPopupPanel.transform, false);
             LayoutElement qLe = quitBtnObj.AddComponent<LayoutElement>();
-            qLe.preferredHeight = 60;
+            qLe.preferredHeight = 50;
             Image qImg = quitBtnObj.AddComponent<Image>();
             qImg.color = new Color(0.7f, 0.2f, 0.2f, 1f);
             Button qBtn = quitBtnObj.AddComponent<Button>();
@@ -197,9 +232,39 @@ namespace TheLastArk.UI
                 Debug.Log("[SettingsPopup] Application.Quit()");
                 Application.Quit();
             });
-            CreateTextUI(quitBtnObj.transform, "🚪 게임 종료", 26, Color.white);
+            CreateTextUI(quitBtnObj.transform, "🚪 게임 종료", 24, Color.white);
 
             TMPFontManager.ApplyFontToAll(settingsPopupPanel.transform);
+        }
+
+        public void GrantDebugGold(int amount = 1000)
+        {
+            if (RunManager.Instance != null && RunManager.Instance.State != null)
+            {
+                RunManager.Instance.State.gold += amount;
+            }
+            if (ResourceManager.Instance != null)
+            {
+                ResourceManager.Instance.AddGold(amount);
+            }
+            NotificationManager.Instance?.ShowMessage($"💰 [디버그] {amount} Gold 지급 완료!", Color.yellow);
+        }
+
+        public void GrantDebugLongswords(int count = 10)
+        {
+            var longsword = EquipmentDatabase.GetEquipment("Longsword");
+            if (longsword != null && ResourceManager.Instance != null)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    ResourceManager.Instance.AddEquipment(longsword);
+                }
+                NotificationManager.Instance?.ShowMessage($"🗡️ [디버그] 롱소드 {count}개 지급 완료!", Color.cyan);
+            }
+            else
+            {
+                NotificationManager.Instance?.ShowMessage("[디버그] 롱소드 장비 데이터를 찾을 수 없습니다.", Color.red);
+            }
         }
 
         private void CreateUI()
@@ -277,7 +342,7 @@ namespace TheLastArk.UI
             contentContainer = contentArea.transform;
 
             // Character Detail Popup Modal Overlay
-            CreateCharDetailPopup(canvas.transform);
+            CreateCharacterDetailPopupUI();
 
             TMPFontManager.ApplyFontToAll(popupPanel.transform);
         }
@@ -505,7 +570,7 @@ namespace TheLastArk.UI
         }
 
         // ─────────────────────────────────────────────────────────────
-        // Character Card UI Widget (Picture 2 캐릭터 카드 형태)
+        // Character Card UI Widget (정사각형 초상화 + 정보 축소 형태)
         // ─────────────────────────────────────────────────────────────
         private void CreateCharacterCardUI(Transform parent, CharacterData data, int cardCount, bool inParty, bool isLeader)
         {
@@ -513,25 +578,19 @@ namespace TheLastArk.UI
             int level = ResourceManager.Instance != null ? ResourceManager.Instance.GetCharacterLevelFromCards(cardCount) : 0;
             if (level < 0) level = 0;
 
-            int nextTarget = 3;
-            if (level == 1) nextTarget = 6;
-            else if (level == 2) nextTarget = 9;
-            else if (level == 3) nextTarget = 18;
-            else if (level >= 4) nextTarget = cardCount;
-
             CharacterStatus status = new CharacterStatus(data);
 
             GameObject cardObj = new GameObject($"Card_{data.DisplayName}");
             cardObj.transform.SetParent(parent, false);
 
             LayoutElement le = cardObj.AddComponent<LayoutElement>();
-            le.preferredWidth = 200;
-            le.preferredHeight = 400;
+            le.preferredWidth = 220;
+            le.preferredHeight = 260; // 정사각형 컴팩트 카드 레이아웃
 
             Image cardBg = cardObj.AddComponent<Image>();
             cardBg.color = new Color(0.12f, 0.14f, 0.18f, 1f);
 
-            // Leader Highlight Gold Border (Picture 2 형태)
+            // Leader Highlight Gold Border
             if (isLeader)
             {
                 GameObject borderObj = new GameObject("LeaderBorder");
@@ -555,10 +614,10 @@ namespace TheLastArk.UI
 
             VerticalLayoutGroup vLayout = cardObj.AddComponent<VerticalLayoutGroup>();
             vLayout.padding = new RectOffset(10, 10, 10, 10);
-            vLayout.spacing = 8;
+            vLayout.spacing = 6;
             vLayout.childControlHeight = false;
 
-            // 1. Portrait Image
+            // 1. Portrait Image (사진 크게)
             GameObject portraitObj = new GameObject("Portrait");
             portraitObj.transform.SetParent(cardObj.transform, false);
             LayoutElement pLe = portraitObj.AddComponent<LayoutElement>();
@@ -575,141 +634,141 @@ namespace TheLastArk.UI
                 pImg.color = new Color(0.2f, 0.25f, 0.35f, 1f);
             }
 
-            // 2. Name & Level (Picture 2: [Guardian] Lv.0)
+            // 2. Name & Level (정보 작게)
             GameObject nameObj = new GameObject("NameText");
             nameObj.transform.SetParent(cardObj.transform, false);
             LayoutElement nLe = nameObj.AddComponent<LayoutElement>();
-            nLe.preferredHeight = 30;
-            CreateTextUI(nameObj.transform, $"[{data.DisplayName}] Lv.{level}", 22, Color.green);
+            nLe.preferredHeight = 28;
+            CreateTextUI(nameObj.transform, $"[{data.DisplayName}] Lv.{level}", 20, Color.green);
 
-            // 3. HP (Picture 2: HP: 400/400)
+            // 3. Compact Info (체력 / 카운트)
             GameObject hpObj = new GameObject("HpText");
             hpObj.transform.SetParent(cardObj.transform, false);
             LayoutElement hpLe = hpObj.AddComponent<LayoutElement>();
-            hpLe.preferredHeight = 25;
-            CreateTextUI(hpObj.transform, $"HP: {status.currentHp}/{status.FinalMaxHp}", 18, new Color(0.3f, 0.9f, 0.3f));
-
-            // 4. Mental (Picture 2: Mental: 300/300)
-            GameObject mentalObj = new GameObject("MentalText");
-            mentalObj.transform.SetParent(cardObj.transform, false);
-            LayoutElement mLe = mentalObj.AddComponent<LayoutElement>();
-            mLe.preferredHeight = 25;
-            CreateTextUI(mentalObj.transform, $"Mental: {status.currentMental}/{status.FinalMaxMental}", 18, new Color(0.3f, 0.7f, 1f));
-
-            // 5. Cards Progress (Picture 2: Cards: 1/3)
-            GameObject cardsObj = new GameObject("CardsText");
-            cardsObj.transform.SetParent(cardObj.transform, false);
-            LayoutElement cLe = cardsObj.AddComponent<LayoutElement>();
-            cLe.preferredHeight = 25;
-            string cardsStr = (level >= 4) ? $"Cards: {cardCount} (MAX)" : $"Cards: {cardCount}/{nextTarget}";
-            CreateTextUI(cardsObj.transform, cardsStr, 18, Color.white);
-
-            // 6. Leader Label (Picture 2: <Leader>)
-            if (isLeader)
-            {
-                GameObject leaderLabelObj = new GameObject("LeaderLabel");
-                leaderLabelObj.transform.SetParent(cardObj.transform, false);
-                LayoutElement lLe = leaderLabelObj.AddComponent<LayoutElement>();
-                lLe.preferredHeight = 25;
-                CreateTextUI(leaderLabelObj.transform, "〈Leader〉", 20, Color.yellow);
-            }
+            hpLe.preferredHeight = 22;
+            CreateTextUI(hpObj.transform, $"HP: {status.FinalMaxHp} | 정신: {status.FinalMaxMental}", 16, Color.white);
         }
 
         // ─────────────────────────────────────────────────────────────
-        // Character Detail Popup Modal (Picture 2 팝업 상세창)
+        // Character Detail Popup (7종 스탯, 4종 스킬 호버 툴팁, 장비 2슬롯)
         // ─────────────────────────────────────────────────────────────
-        private void CreateCharDetailPopup(Transform parent)
+        private void CreateCharacterDetailPopupUI()
         {
-            charDetailPopupPanel = new GameObject("CharDetailPopupPanel");
-            charDetailPopupPanel.transform.SetParent(parent, false);
+            Canvas canvas = FindObjectOfType<Canvas>();
+            charDetailPopupPanel = new GameObject("CharDetailPopup");
+            charDetailPopupPanel.transform.SetParent(canvas.transform, false);
             charDetailPopupPanel.transform.SetAsLastSibling();
 
             RectTransform rect = charDetailPopupPanel.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.15f, 0.15f);
-            rect.anchorMax = new Vector2(0.85f, 0.85f);
+            rect.anchorMin = new Vector2(0.1f, 0.05f);
+            rect.anchorMax = new Vector2(0.9f, 0.95f);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
 
             Image bg = charDetailPopupPanel.AddComponent<Image>();
-            bg.color = new Color(0.08f, 0.09f, 0.12f, 0.98f);
+            bg.color = new Color(0.08f, 0.1f, 0.15f, 0.98f);
 
-            // Red Close Button (X) (Picture 2 형태)
+            // Close Button
             GameObject closeBtnObj = new GameObject("CloseButton");
             closeBtnObj.transform.SetParent(charDetailPopupPanel.transform, false);
             RectTransform closeRect = closeBtnObj.AddComponent<RectTransform>();
             closeRect.anchorMin = new Vector2(1, 1);
             closeRect.anchorMax = new Vector2(1, 1);
             closeRect.pivot = new Vector2(1, 1);
-            closeRect.anchoredPosition = new Vector2(-15, -15);
-            closeRect.sizeDelta = new Vector2(50, 40);
+            closeRect.anchoredPosition = new Vector2(-20, -20);
+            closeRect.sizeDelta = new Vector2(40, 40);
 
             Image cImg = closeBtnObj.AddComponent<Image>();
-            cImg.color = new Color(0.9f, 0.15f, 0.15f, 1f);
-
+            cImg.color = new Color(0.8f, 0.2f, 0.2f, 1f);
             Button cBtn = closeBtnObj.AddComponent<Button>();
             cBtn.onClick.AddListener(() => charDetailPopupPanel.SetActive(false));
             CreateTextUI(closeBtnObj.transform, "X", 26, Color.white);
 
-            // Left Side: Full Standing Illustration (Picture 2)
+            // Left Side: Full Standing Illustration
             GameObject illObj = new GameObject("Illustration");
             illObj.transform.SetParent(charDetailPopupPanel.transform, false);
             RectTransform illRect = illObj.AddComponent<RectTransform>();
-            illRect.anchorMin = new Vector2(0.05f, 0.05f);
-            illRect.anchorMax = new Vector2(0.45f, 0.95f);
+            illRect.anchorMin = new Vector2(0.03f, 0.05f);
+            illRect.anchorMax = new Vector2(0.42f, 0.95f);
             illRect.offsetMin = Vector2.zero;
             illRect.offsetMax = Vector2.zero;
 
             detailStandingImage = illObj.AddComponent<Image>();
             detailStandingImage.preserveAspect = true;
 
-            // Right Side: Stats, Skills, Deck Action Buttons
+            // Right Side: Title, 7 Stats, Skills, Equipment 2 Slots, Deck Buttons
             GameObject rightArea = new GameObject("RightArea");
             rightArea.transform.SetParent(charDetailPopupPanel.transform, false);
             RectTransform rightRect = rightArea.AddComponent<RectTransform>();
-            rightRect.anchorMin = new Vector2(0.48f, 0.05f);
-            rightRect.anchorMax = new Vector2(0.95f, 0.9f);
+            rightRect.anchorMin = new Vector2(0.44f, 0.03f);
+            rightRect.anchorMax = new Vector2(0.97f, 0.95f);
             rightRect.offsetMin = Vector2.zero;
             rightRect.offsetMax = Vector2.zero;
 
             VerticalLayoutGroup rLayout = rightArea.AddComponent<VerticalLayoutGroup>();
-            rLayout.spacing = 15;
+            rLayout.spacing = 10;
             rLayout.childControlHeight = false;
 
-            // Header Title ([ Guardian ])
+            // 1. Header Title
             GameObject titleObj = new GameObject("DetailTitleText");
             titleObj.transform.SetParent(rightArea.transform, false);
             LayoutElement tLe = titleObj.AddComponent<LayoutElement>();
             tLe.preferredHeight = 40;
-            detailTitleText = CreateTextUI(titleObj.transform, "[ Guardian ]", 32, Color.yellow);
+            detailTitleText = CreateTextUI(titleObj.transform, "[ Character Name ]", 30, Color.yellow);
 
-            // Stats Text
+            // 2. 7 Stats Section (7종 스탯 출력)
             GameObject statsObj = new GameObject("DetailStatsText");
             statsObj.transform.SetParent(rightArea.transform, false);
             LayoutElement sLe = statsObj.AddComponent<LayoutElement>();
-            sLe.preferredHeight = 110;
-            detailStatsText = CreateTextUI(statsObj.transform, "HP: 400\nMental: 300\nAttack: 25", 26, Color.white);
+            sLe.preferredHeight = 150;
+            detailStatsText = CreateTextUI(statsObj.transform, "Stats Loading...", 20, Color.white);
 
-            // Skills Text
-            GameObject skillsObj = new GameObject("DetailSkillsText");
-            skillsObj.transform.SetParent(rightArea.transform, false);
-            LayoutElement skLe = skillsObj.AddComponent<LayoutElement>();
-            skLe.preferredHeight = 140;
-            detailSkillsText = CreateTextUI(skillsObj.transform, "-- Skills --", 22, new Color(0.8f, 0.8f, 0.8f));
+            // 3. Active Skills Section (4종 스킬 아이콘 + 호버 툴팁)
+            GameObject skillsHeaderObj = new GameObject("SkillsHeaderText");
+            skillsHeaderObj.transform.SetParent(rightArea.transform, false);
+            LayoutElement skhLe = skillsHeaderObj.AddComponent<LayoutElement>();
+            skhLe.preferredHeight = 25;
+            CreateTextUI(skillsHeaderObj.transform, "📜 보유 스킬 목록 (마우스 호버 시 툴팁 출력)", 20, Color.cyan);
 
-            // Action Buttons Container (Deck Toggle, Leader Assign)
+            GameObject skillsAreaObj = new GameObject("SkillsArea");
+            skillsAreaObj.transform.SetParent(rightArea.transform, false);
+            LayoutElement skLe = skillsAreaObj.AddComponent<LayoutElement>();
+            skLe.preferredHeight = 70;
+
+            HorizontalLayoutGroup skLayout = skillsAreaObj.AddComponent<HorizontalLayoutGroup>();
+            skLayout.spacing = 15;
+            detailSkillsArea = skillsAreaObj.transform;
+
+            // 4. Equipment Slots Section (장비 2칸)
+            GameObject equipHeaderObj = new GameObject("EquipHeaderText");
+            equipHeaderObj.transform.SetParent(rightArea.transform, false);
+            LayoutElement eqhLe = equipHeaderObj.AddComponent<LayoutElement>();
+            eqhLe.preferredHeight = 25;
+            CreateTextUI(equipHeaderObj.transform, "🛡️ 장착 장비 (최대 2개)", 20, new Color(1f, 0.85f, 0.2f));
+
+            GameObject equipAreaObj = new GameObject("EquipArea");
+            equipAreaObj.transform.SetParent(rightArea.transform, false);
+            LayoutElement eqLe = equipAreaObj.AddComponent<LayoutElement>();
+            eqLe.preferredHeight = 65;
+
+            HorizontalLayoutGroup eqLayout = equipAreaObj.AddComponent<HorizontalLayoutGroup>();
+            eqLayout.spacing = 20;
+            detailEquipmentsArea = equipAreaObj.transform;
+
+            // 5. Action Buttons Container
             GameObject actionsObj = new GameObject("ActionButtons");
             actionsObj.transform.SetParent(rightArea.transform, false);
             LayoutElement actLe = actionsObj.AddComponent<LayoutElement>();
             actLe.preferredHeight = 50;
 
             HorizontalLayoutGroup actLayout = actionsObj.AddComponent<HorizontalLayoutGroup>();
-            actLayout.spacing = 15;
+            actLayout.spacing = 20;
 
             // Deck Toggle Button
             GameObject deckBtnObj = new GameObject("DeckButton");
             deckBtnObj.transform.SetParent(actionsObj.transform, false);
             LayoutElement dLe = deckBtnObj.AddComponent<LayoutElement>();
-            dLe.preferredWidth = 160;
+            dLe.preferredWidth = 180;
             dLe.preferredHeight = 45;
 
             Image dImg = deckBtnObj.AddComponent<Image>();
@@ -721,7 +780,7 @@ namespace TheLastArk.UI
             GameObject leaderBtnObj = new GameObject("LeaderButton");
             leaderBtnObj.transform.SetParent(actionsObj.transform, false);
             LayoutElement lLe = leaderBtnObj.AddComponent<LayoutElement>();
-            lLe.preferredWidth = 160;
+            lLe.preferredWidth = 180;
             lLe.preferredHeight = 45;
 
             Image lImg = leaderBtnObj.AddComponent<Image>();
@@ -735,9 +794,11 @@ namespace TheLastArk.UI
         private void ShowCharacterDetailPopup(CharacterData data)
         {
             if (data == null) return;
-            currentDetailCharacter = data;
+            if (charDetailPopupPanel == null) CreateCharacterDetailPopupUI();
 
+            currentDetailCharacter = data;
             string charId = data.DataId;
+
             var partyIDs = RunManager.Instance != null ? RunManager.Instance.State.partyDataIDs : new List<string>();
             string leaderID = RunManager.Instance != null ? RunManager.Instance.State.leaderCharacterID : "";
 
@@ -749,29 +810,187 @@ namespace TheLastArk.UI
             else if (data.portraitSprite != null) detailStandingImage.sprite = data.portraitSprite;
             else detailStandingImage.sprite = null;
 
-            // 2. Title & Stats
-            CharacterStatus status = new CharacterStatus(data);
-            detailTitleText.text = $"[ {data.DisplayName} ]";
-            detailStatsText.text = $"HP: {status.FinalMaxHp}\n" +
-                                   $"Mental: {status.FinalMaxMental}\n" +
-                                   $"Attack: {status.FinalAttack}";
-
-            // 3. Skills List
-            string skillsStr = "<color=cyan>-- Skills --</color>\n";
-            if (data.passiveSkill != null && !string.IsNullOrEmpty(data.passiveSkill.skillName))
+            // 2. Character Status & 7 Stats Display
+            CharacterStatus status = null;
+            if (RunManager.Instance != null && RunManager.Instance.State != null)
             {
-                skillsStr += $"[Passive] {data.passiveSkill.skillName}\n";
+                status = RunManager.Instance.State.partyStatuses.FirstOrDefault(s => s.origin != null && s.origin.DataId == charId);
             }
-            foreach (var s in data.activeSkills)
+            if (status == null) status = new CharacterStatus(data);
+
+            detailTitleText.text = $"[ {data.DisplayName} ]  Lv.{status.charLevel} ({status.LevelTitle})";
+            
+            // 7종 스탯 (공격력, 주문력, 체력, 정신력, 방어력, 마법저항력, 치명)
+            detailStatsText.text = 
+                $"⚔️ 공격력: <color=#FF6B6B>{status.FinalAttack:F0}</color>    |    🔮 주문력: <color=#CC5DE8>{status.FinalSpellPower:F0}</color>\n" +
+                $"❤️ 체력: <color=#51CF66>{status.currentHp:F0} / {status.FinalMaxHp:F0}</color>    |    🧠 정신력: <color=#339AF0>{status.currentMental:F0} / {status.FinalMaxMental:F0}</color>\n" +
+                $"🛡️ 방어력: <color=#FCC419>{status.FinalArmor:F0}</color>    |    💠 마법저항력: <color=#20C997>{status.FinalMagicResist:F0}</color>\n" +
+                $"🎯 치명타율: <color=#FF922B>{status.FinalCritRate:F0}%</color>";
+
+            // 3. Render 4 Active Skill Icons & Hover Tooltips
+            foreach (Transform child in detailSkillsArea) Destroy(child.gameObject);
+
+            bool isLeaderChar = isLeader;
+            if (isLeaderChar)
             {
-                if (s != null && !string.IsNullOrEmpty(s.skillName))
+                status.EnsureLeaderExtraSkill();
+            }
+            int leaderSkillIdx = status.leaderExtraSkillIndex;
+
+            for (int i = 0; i < data.activeSkills.Length; i++)
+            {
+                int skillIndex = i;
+                SkillInfo skill = data.activeSkills[i];
+                if (skill == null) continue;
+
+                bool isEquipped = status.selectedActiveSkillIndices.Contains(skillIndex);
+                bool isLeaderSkill = (skillIndex == leaderSkillIdx);
+
+                GameObject sBtnObj = new GameObject($"SkillIcon_{i}");
+                sBtnObj.transform.SetParent(detailSkillsArea, false);
+
+                LayoutElement sLe = sBtnObj.AddComponent<LayoutElement>();
+                sLe.preferredWidth = 105;
+                sLe.preferredHeight = 60;
+
+                Image sImg = sBtnObj.AddComponent<Image>();
+                if (isEquipped)
                 {
-                    skillsStr += $"[Active] {s.skillName} (Cost: {s.baseCost})\n";
+                    sImg.color = new Color(0.12f, 0.52f, 0.28f, 1f); // 일반 선택 스킬 (녹색)
+                }
+                else if (isLeaderSkill)
+                {
+                    sImg.color = isLeaderChar ? new Color(0.75f, 0.55f, 0.1f, 1f) : new Color(0.45f, 0.38f, 0.15f, 0.75f); // 리더 고정 스킬 (금색/황동색)
+                }
+                else
+                {
+                    sImg.color = new Color(0.18f, 0.2f, 0.25f, 0.45f); // 미선택 (회색 실루엣)
+                }
+
+                Button sBtn = sBtnObj.AddComponent<Button>();
+                sBtn.onClick.AddListener(() =>
+                {
+                    if (isLeaderSkill && isLeaderChar)
+                    {
+                        NotificationManager.Instance?.ShowMessage("👑 리더 전용 스킬입니다 (전투 시 자동 포함)", Color.yellow);
+                    }
+                    else
+                    {
+                        NotificationManager.Instance?.ShowMessage("💡 장착 스킬은 주점(마을)에서 골드를 지불하여 랜덤 변경할 수 있습니다.", Color.cyan);
+                    }
+                });
+
+                // Mouse Hover Tooltip EventTrigger
+                var trigger = sBtnObj.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+                
+                var entryEnter = new UnityEngine.EventSystems.EventTrigger.Entry();
+                entryEnter.eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter;
+                entryEnter.callback.AddListener((_) =>
+                {
+                    if (SkillTooltipUI.Instance != null)
+                    {
+                        SkillTooltipUI.Instance.ShowTooltip(skill, status, data.DisplayName);
+                    }
+                });
+                trigger.triggers.Add(entryEnter);
+
+                var entryExit = new UnityEngine.EventSystems.EventTrigger.Entry();
+                entryExit.eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit;
+                entryExit.callback.AddListener((_) =>
+                {
+                    if (SkillTooltipUI.Instance != null)
+                    {
+                        SkillTooltipUI.Instance.HideTooltip();
+                    }
+                });
+                trigger.triggers.Add(entryExit);
+
+                string skillLabel;
+                Color labelColor;
+
+                if (isEquipped)
+                {
+                    skillLabel = $"✓ {skill.skillName}";
+                    labelColor = Color.green;
+                }
+                else if (isLeaderSkill)
+                {
+                    skillLabel = isLeaderChar ? $"👑 {skill.skillName}" : $"👑 {skill.skillName}";
+                    labelColor = isLeaderChar ? Color.yellow : new Color(0.85f, 0.7f, 0.2f);
+                }
+                else
+                {
+                    skillLabel = skill.skillName;
+                    labelColor = Color.gray;
+                }
+
+                CreateTextUI(sBtnObj.transform, skillLabel, 15, labelColor);
+            }
+
+            // 4. Render 2 Equipment Slots (장비 슬롯 2칸)
+            foreach (Transform child in detailEquipmentsArea) Destroy(child.gameObject);
+
+            for (int sIdx = 0; sIdx < 2; sIdx++)
+            {
+                int slotIndex = sIdx;
+                TheLastArk.Data.EquipmentData equipped = status.equippedItems[slotIndex];
+
+                GameObject eqBtnObj = new GameObject($"EquipSlot_{slotIndex}");
+                eqBtnObj.transform.SetParent(detailEquipmentsArea, false);
+
+                LayoutElement eqLe = eqBtnObj.AddComponent<LayoutElement>();
+                eqLe.preferredWidth = 200;
+                eqLe.preferredHeight = 55;
+
+                Image eqImg = eqBtnObj.AddComponent<Image>();
+                eqImg.color = equipped != null ? new Color(0.12f, 0.32f, 0.48f, 0.95f) : new Color(0.18f, 0.2f, 0.26f, 0.8f);
+
+                Button eqBtn = eqBtnObj.AddComponent<Button>();
+
+                if (equipped == null)
+                {
+                    // 빈 슬롯: [+] 표시
+                    CreateTextUI(eqBtnObj.transform, "[ ➕ 장비 장착 ]", 18, Color.gray);
+                    eqBtn.onClick.AddListener(() =>
+                    {
+                        ShowEquipmentSelectModal(data, status, slotIndex);
+                    });
+                }
+                else
+                {
+                    // 장착된 슬롯: 장비 이름 + 클릭 시 해제
+                    string eqLabel = $"★{equipped.starLevel} {equipped.equipmentName}\n<size=14><color=cyan>클릭 시 해제</color></size>";
+                    CreateTextUI(eqBtnObj.transform, eqLabel, 16, Color.yellow);
+
+                    var trigger = eqBtnObj.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+                    var entryEnter = new UnityEngine.EventSystems.EventTrigger.Entry();
+                    entryEnter.eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter;
+                    entryEnter.callback.AddListener((_) =>
+                    {
+                        if (EquipmentTooltipUI.Instance != null) EquipmentTooltipUI.Instance.ShowTooltip(equipped);
+                    });
+                    trigger.triggers.Add(entryEnter);
+
+                    var entryExit = new UnityEngine.EventSystems.EventTrigger.Entry();
+                    entryExit.eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit;
+                    entryExit.callback.AddListener((_) =>
+                    {
+                        if (EquipmentTooltipUI.Instance != null) EquipmentTooltipUI.Instance.HideTooltip();
+                    });
+                    trigger.triggers.Add(entryExit);
+
+                    eqBtn.onClick.AddListener(() =>
+                    {
+                        // 장비 해제
+                        if (EquipmentTooltipUI.Instance != null) EquipmentTooltipUI.Instance.HideTooltip();
+                        status.equippedItems[slotIndex] = null;
+                        NotificationManager.Instance?.ShowMessage($"[{equipped.equipmentName}] 장비를 해제했습니다.", Color.yellow);
+                        ShowCharacterDetailPopup(data);
+                    });
                 }
             }
-            detailSkillsText.text = skillsStr;
 
-            // 4. Deck Toggle Button
+            // 5. Deck Toggle Button
             detailDeckButton.onClick.RemoveAllListeners();
             detailDeckButtonText.text = inParty ? "덱에서 제외" : "⚔️ 덱에 참가";
             detailDeckButton.GetComponent<Image>().color = inParty ? new Color(0.8f, 0.3f, 0.3f, 1f) : new Color(0.2f, 0.6f, 0.3f, 1f);
@@ -797,7 +1016,7 @@ namespace TheLastArk.UI
                 }
             });
 
-            // 5. Leader Button
+            // 6. Leader Button
             detailLeaderButton.onClick.RemoveAllListeners();
             detailLeaderButtonText.text = isLeader ? "👑 현재 리더" : "👑 리더 지정";
             detailLeaderButton.GetComponent<Image>().color = isLeader ? new Color(0.5f, 0.5f, 0.5f, 1f) : new Color(0.9f, 0.65f, 0.1f, 1f);
@@ -814,6 +1033,127 @@ namespace TheLastArk.UI
 
             charDetailPopupPanel.SetActive(true);
             TMPFontManager.ApplyFontToAll(charDetailPopupPanel.transform);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Equipment Selection Inventory Modal Popup (장비 교체/장착 인벤토리 모달)
+        // ─────────────────────────────────────────────────────────────
+        private void ShowEquipmentSelectModal(CharacterData charData, CharacterStatus status, int slotIndex)
+        {
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (equipSelectModalPanel == null)
+            {
+                equipSelectModalPanel = new GameObject("EquipSelectModal");
+                equipSelectModalPanel.transform.SetParent(canvas.transform, false);
+                equipSelectModalPanel.transform.SetAsLastSibling();
+
+                RectTransform rect = equipSelectModalPanel.AddComponent<RectTransform>();
+                rect.anchorMin = new Vector2(0.2f, 0.15f);
+                rect.anchorMax = new Vector2(0.8f, 0.85f);
+                rect.offsetMin = Vector2.zero;
+                rect.offsetMax = Vector2.zero;
+
+                Image bg = equipSelectModalPanel.AddComponent<Image>();
+                bg.color = new Color(0.06f, 0.08f, 0.12f, 0.98f);
+            }
+
+            foreach (Transform child in equipSelectModalPanel.transform) Destroy(child.gameObject);
+
+            // Close Button
+            GameObject closeBtnObj = new GameObject("CloseButton");
+            closeBtnObj.transform.SetParent(equipSelectModalPanel.transform, false);
+            RectTransform closeRect = closeBtnObj.AddComponent<RectTransform>();
+            closeRect.anchorMin = new Vector2(1, 1);
+            closeRect.anchorMax = new Vector2(1, 1);
+            closeRect.pivot = new Vector2(1, 1);
+            closeRect.anchoredPosition = new Vector2(-15, -15);
+            closeRect.sizeDelta = new Vector2(36, 36);
+
+            Image cImg = closeBtnObj.AddComponent<Image>();
+            cImg.color = new Color(0.8f, 0.2f, 0.2f, 1f);
+            Button cBtn = closeBtnObj.AddComponent<Button>();
+            cBtn.onClick.AddListener(() => equipSelectModalPanel.SetActive(false));
+            CreateTextUI(closeBtnObj.transform, "X", 22, Color.white);
+
+            // Modal Title
+            GameObject titleObj = new GameObject("ModalTitle");
+            titleObj.transform.SetParent(equipSelectModalPanel.transform, false);
+            RectTransform tRect = titleObj.AddComponent<RectTransform>();
+            tRect.anchorMin = new Vector2(0.05f, 0.88f);
+            tRect.anchorMax = new Vector2(0.95f, 0.96f);
+            tRect.offsetMin = Vector2.zero;
+            tRect.offsetMax = Vector2.zero;
+
+            CreateTextUI(titleObj.transform, $"🛡️ [{charData.DisplayName}] 슬롯 {slotIndex + 1} 장비 선택", 26, Color.yellow);
+
+            // Content Grid Area
+            GameObject contentObj = new GameObject("ModalContent");
+            contentObj.transform.SetParent(equipSelectModalPanel.transform, false);
+            RectTransform cRect = contentObj.AddComponent<RectTransform>();
+            cRect.anchorMin = new Vector2(0.05f, 0.05f);
+            cRect.anchorMax = new Vector2(0.95f, 0.85f);
+            cRect.offsetMin = Vector2.zero;
+            cRect.offsetMax = Vector2.zero;
+
+            GridLayoutGroup grid = contentObj.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(240, 100);
+            grid.spacing = new Vector2(15, 15);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 3;
+
+            var inventoryEquips = ResourceManager.Instance != null ? ResourceManager.Instance.Equipments : new List<TheLastArk.Data.EquipmentData>();
+
+            if (inventoryEquips == null || inventoryEquips.Count == 0)
+            {
+                CreateTextUI(contentObj.transform, "보유 중인 미장착 장비가 없습니다.\n(대장간에서 장비를 구매해 보세요!)", 20, Color.gray);
+            }
+            else
+            {
+                foreach (var eq in inventoryEquips)
+                {
+                    if (eq == null) continue;
+                    var equipData = eq;
+
+                    GameObject cardObj = new GameObject($"EquipItem_{equipData.equipmentName}");
+                    cardObj.transform.SetParent(contentObj.transform, false);
+
+                    Image bg = cardObj.AddComponent<Image>();
+                    bg.color = new Color(0.12f, 0.16f, 0.25f, 0.95f);
+
+                    var trigger = cardObj.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+                    var entryEnter = new UnityEngine.EventSystems.EventTrigger.Entry();
+                    entryEnter.eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter;
+                    entryEnter.callback.AddListener((_) =>
+                    {
+                        if (EquipmentTooltipUI.Instance != null) EquipmentTooltipUI.Instance.ShowTooltip(equipData);
+                    });
+                    trigger.triggers.Add(entryEnter);
+
+                    var entryExit = new UnityEngine.EventSystems.EventTrigger.Entry();
+                    entryExit.eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit;
+                    entryExit.callback.AddListener((_) =>
+                    {
+                        if (EquipmentTooltipUI.Instance != null) EquipmentTooltipUI.Instance.HideTooltip();
+                    });
+                    trigger.triggers.Add(entryExit);
+
+                    Button btn = cardObj.AddComponent<Button>();
+                    btn.onClick.AddListener(() =>
+                    {
+                        if (EquipmentTooltipUI.Instance != null) EquipmentTooltipUI.Instance.HideTooltip();
+                        status.equippedItems[slotIndex] = equipData;
+                        NotificationManager.Instance?.ShowMessage($"[{charData.DisplayName}]에게 [{equipData.equipmentName}] 장착 완료!", Color.green);
+                        equipSelectModalPanel.SetActive(false);
+                        ShowCharacterDetailPopup(charData);
+                    });
+
+                    string cardLabel = $"★{equipData.starLevel} {equipData.equipmentName}\n<size=14><color=gray>{equipData.category}</color></size>";
+                    CreateTextUI(cardObj.transform, cardLabel, 18, Color.cyan);
+                }
+            }
+
+            equipSelectModalPanel.SetActive(true);
+            TMPFontManager.ApplyFontToAll(equipSelectModalPanel.transform);
         }
 
         // ─────────────────────────────────────────────────────────────

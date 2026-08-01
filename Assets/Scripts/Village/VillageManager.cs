@@ -201,8 +201,8 @@ namespace TheLastArk.Village
 
             TMPro.TMP_FontAsset mainFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Main_Fonts");
 
-            // Buttons: 상점가, 주점, 훈련실, 정비소, 휴식, 기차 관리, 탐색 계속
-            CreateMenuButton(rightObj.transform, "상점가 (소모품/유물/장비 거래)", () => TryEnterFacility("Shop", () => 
+            // 개편된 마을 선택지 (상점가, 대장간, 주점, 정비소, 휴식)
+            CreateMenuButton(rightObj.transform, "🏪 상점가 (소모품/유물 거래)", () => TryEnterFacility("Shop", () => 
             {
                 var shopUI = FindObjectOfType<ShopUI>();
                 if (shopUI == null) 
@@ -212,13 +212,36 @@ namespace TheLastArk.Village
                 }
                 shopUI.Show();
             }), mainFont);
+
+            CreateMenuButton(rightObj.transform, "🔨 대장간 (장비 구매/합성)", () => TryEnterFacility("Forge", () => 
+            {
+                var forgeUI = FindObjectOfType<ForgeUI>();
+                if (forgeUI == null) 
+                {
+                    GameObject uiObj = new GameObject("ForgeUI");
+                    forgeUI = uiObj.AddComponent<ForgeUI>();
+                }
+                forgeUI.Show();
+            }), mainFont);
             
-            CreateMenuButton(rightObj.transform, "주점 (용병 카드 구매)", () => TryEnterFacility("Tavern", () => { Debug.Log("주점 - 아직 구현되지 않았습니다."); }), mainFont);
-            CreateMenuButton(rightObj.transform, "훈련실 (용병 스킬 변경)", () => TryEnterFacility("TrainingRoom", () => { Debug.Log("훈련실 - 아직 구현되지 않았습니다."); }), mainFont);
-            CreateMenuButton(rightObj.transform, "정비소 (기차 강화)", () => TryEnterFacility("Maintenance", () => { Debug.Log("정비소 - 아직 구현되지 않았습니다."); }), mainFont);
+            CreateMenuButton(rightObj.transform, "🍺 주점 (용병 구매/스킬 변경)", () => TryEnterFacility("Tavern", () => 
+            {
+                var tavernUI = FindObjectOfType<TavernUI>();
+                if (tavernUI == null) 
+                {
+                    GameObject uiObj = new GameObject("TavernUI");
+                    tavernUI = uiObj.AddComponent<TavernUI>();
+                }
+                tavernUI.Show();
+            }), mainFont);
+
+            CreateMenuButton(rightObj.transform, "🔧 정비소 (기차 정비/강화)", () => TryEnterFacility("Maintenance", () => 
+            {
+                NotificationManager.Instance?.ShowMessage("정비소: 기차 내구도 및 모듈 정비를 수행합니다.", Color.cyan);
+            }), mainFont);
             
             // Rest Button
-            GameObject restBtnObj = CreateMenuButton(rightObj.transform, "휴식 (체력/정신력/기차 25% 회복)", () => TryEnterFacility("Rest", ApplyRestEffect), mainFont);
+            GameObject restBtnObj = CreateMenuButton(rightObj.transform, "⛺ 휴식 (체력/정신력/기차 25% 회복)", () => TryEnterFacility("Rest", ApplyRestEffect), mainFont);
             restButton = restBtnObj.GetComponent<Button>();
 
             // (기차/캐릭터/가방/환경설정 관리는 상단바 아이콘으로 이동됨)

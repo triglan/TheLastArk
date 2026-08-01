@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Pathfinder_Data
   m_EditorClassIdentifier: 
   characterId: 04
-  characterName: Pathfinder
+  characterName: "\uC138\uB808\uC2A4"
   jobName: Pathfinder
   synergies: 040000000e000000
   isEnemy: 0

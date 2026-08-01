@@ -38,6 +38,10 @@ namespace TheLastArk.Managers
         public List<RelicData> Relics = new List<RelicData>();
         public event Action OnRelicsChanged;
 
+        [Header("Equipments")]
+        public List<EquipmentData> Equipments = new List<EquipmentData>();
+        public event Action OnEquipmentsChanged;
+
         [Header("Character Cards")]
         public Dictionary<string, int> characterCards = new Dictionary<string, int>();
         public event Action<string, int> OnCharacterLevelChanged; // characterID, newLevel
@@ -101,9 +105,31 @@ namespace TheLastArk.Managers
             }
         }
 
+        public void AddRelic(string relicID)
+        {
+            if (string.IsNullOrEmpty(relicID)) return;
+            var allRelics = Resources.LoadAll<RelicData>("");
+            foreach (var r in allRelics)
+            {
+                if (r != null && r.relicID == relicID)
+                {
+                    AddRelic(r);
+                    break;
+                }
+            }
+        }
+
         public bool HasRelic(string relicID)
         {
             return Relics.Exists(r => r.relicID == relicID);
+        }
+
+        // --- Equipments ---
+        public void AddEquipment(EquipmentData data)
+        {
+            if (data == null) return;
+            Equipments.Add(data);
+            OnEquipmentsChanged?.Invoke();
         }
 
         public bool HasRelicEffect(RelicEffectType type)

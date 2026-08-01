@@ -89,30 +89,25 @@ namespace TheLastArk.UI
             tooltipRect.position = mousePos;
         }
 
-        public void ShowTooltip(SkillInfo skill, BattleCharacter actor, RectTransform slotTransform = null)
+        public void ShowTooltip(SkillInfo skill, CharacterStatus status, string charName, RectTransform slotTransform = null)
         {
             if (skill == null) return;
             EnsureUI();
 
-            int skillLevelIdx = (actor != null && actor.status != null) ? actor.status.SkillLevelIndex : 0;
+            int skillLevelIdx = status != null ? status.SkillLevelIndex : 0;
             SkillLevelData currentLevelData = (skill.levels != null && skill.levels.Length > 0) ? 
                 skill.levels[Mathf.Clamp(skillLevelIdx, 0, skill.levels.Length - 1)] : null;
 
             int cost = (currentLevelData != null && currentLevelData.overrideCost >= 0) ? currentLevelData.overrideCost : skill.baseCost;
 
-            // 1. Header Title
             titleText.text = $"[{skill.skillName}]  <color=#FFD700>({cost} AP)</color>";
-
-            // 2. Actor & Level Info
-            string charName = actor != null ? actor.characterName : "아군";
-            string levelTitle = (actor != null && actor.status != null) ? actor.status.LevelTitle : "0강";
-            int charLevel = (actor != null && actor.status != null) ? actor.status.charLevel : 0;
+            string levelTitle = status != null ? status.LevelTitle : "0강";
+            int charLevel = status != null ? status.charLevel : 0;
             actorInfoText.text = $"시전: <color=#00FFCE>{charName}</color> | 강화: <color=#79FF5B>{levelTitle} ({charLevel}강)</color>";
 
-            // 3. Dynamic Calculated Description
             StringBuilder descSb = new StringBuilder();
-            float atk = (actor != null && actor.status != null) ? actor.status.FinalAttack : 10f;
-            float spellPower = (actor != null && actor.status != null) ? actor.status.FinalSpellPower : 0f;
+            float atk = status != null ? status.FinalAttack : 10f;
+            float spellPower = status != null ? status.FinalSpellPower : 0f;
 
             if (currentLevelData != null && currentLevelData.effects != null && currentLevelData.effects.Count > 0)
             {
@@ -139,45 +134,39 @@ namespace TheLastArk.UI
                         case EffectType.Taunt:
                             descSb.AppendLine($"🛡️ <color=#845EF7>도발: {effect.fixedValue:F0}회 획득</color>");
                             break;
-                        case EffectType.Counter:
-                            descSb.AppendLine($"⚔️ <color=#FF922B>반격: {effect.fixedValue:F0}회 획득</color>");
-                            break;
                         case EffectType.Shield:
-                            descSb.AppendLine($"🛡️ <color=#4DABF7>보호막: 잃은 체력의 {effect.multiplier * 100:F0}% 생성</color>");
+                            descSb.AppendLine($"🔰 <color=#4DABF7>보호막: {val:F1} 획득</color>");
+                            break;
+                        case EffectType.Counter:
+                            descSb.AppendLine($"⚔️ <color=#FF922B>반격 태세: 피해 흡수 및 반격</color>");
                             break;
                     }
-                }
-
-                if (currentLevelData.targetType == TargetType.RightEnemy)
-                {
-                    descSb.AppendLine($"➡️ <color=#FFA8A8>추가 효과: 대상의 오른쪽 적에게도 적중</color>");
                 }
             }
             else
             {
                 descSb.AppendLine("기본 스킬 효과가 적용됩니다.");
             }
-            descriptionText.text = descSb.ToString().TrimEnd();
 
-            // 4. Skill Level Progression Preview
+            descriptionText.text = descSb.ToString();
+
             StringBuilder progSb = new StringBuilder();
-            progSb.AppendLine("<color=#A0A0A0>── 스킬 강화 단계 ──</color>");
-            if (skill.levels != null)
-            {
-                for (int i = 0; i < skill.levels.Length; i++)
-                {
-                    string tag = (i == 0) ? "[기본]" : $"[+{i}강]";
-                    bool isCurrent = (i == skillLevelIdx);
-                    string colorTag = isCurrent ? "<color=#79FF5B>" : "<color=#888888>";
-                    string endColor = "</color>";
+            progSb.AppendLine("<color=#FFD700>-- 스킬 강화 효과 --</color>");
+            progSb.AppendLine(status != null && status.charLevel >= 2 ? "✓ <color=#79FF5B>2강 달성: 스킬 효과 +1단계 강화</color>" : "  <color=gray>2강 미달성: 스킬 +1단계 프리뷰</color>");
+            progSb.AppendLine(status != null && status.charLevel >= 3 ? "✓ <color=#79FF5B>3강 달성: 스킬 효과 +2단계 최고 강화</color>" : "  <color=gray>3강 미달성: 스킬 +2단계 최고 프리뷰</color>");
 
-                    progSb.AppendLine($"{colorTag}{tag} {(isCurrent ? "◀ 적용 중" : "")}{endColor}");
-                }
-            }
-            levelProgressionText.text = progSb.ToString().TrimEnd();
+            levelProgressionText.text = progSb.ToString();
 
             tooltipPanel.SetActive(true);
             FollowMousePosition();
+        }
+
+        public void ShowTooltip(SkillInfo skill, BattleCharacter actor, RectTransform slotTransform = null)
+        {
+            if (skill == null) return;
+            CharacterStatus st = actor != null ? actor.status : null;
+            string cName = actor != null ? actor.characterName : "아군";
+            ShowTooltip(skill, st, cName, slotTransform);
         }
 
         public void HideTooltip()

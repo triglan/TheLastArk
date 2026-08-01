@@ -39,15 +39,15 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             }
         }
 
-        // 2. 리더인 경우 스킬칸 +1 보너스 (미선택된 스킬 중 1개 추가 탑재)
+        // 2. 리더인 경우 고정 추가 3번째 스킬 추가 탑재
         if (isLeader)
         {
-            for (int i = 0; i < status.origin.activeSkills.Length; i++)
+            int extraIdx = status.EnsureLeaderExtraSkill();
+            if (extraIdx >= 0 && extraIdx < status.origin.activeSkills.Length && status.origin.activeSkills[extraIdx] != null)
             {
-                if (!selectedIndices.Contains(i) && status.origin.activeSkills[i] != null)
+                if (!status.dynamicActiveSkill.Contains(status.origin.activeSkills[extraIdx]))
                 {
-                    status.dynamicActiveSkill.Add(status.origin.activeSkills[i]);
-                    break;
+                    status.dynamicActiveSkill.Add(status.origin.activeSkills[extraIdx]);
                 }
             }
         }
