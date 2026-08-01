@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c6e0c7fef8f43039138dafafdd11ec5, type: 3}
-  m_Name: "\uAC80_Formation"
+  m_Name: "1.\uB3C4\uB07C_Formation"
   m_EditorClassIdentifier: 
-  encounterId: a85c107ed61243f69d267d7f03512568
-  displayName: "\uAC80"
+  encounterId: 3a576d4f9b8d489b86e174926231ff2a
+  displayName: "1.\uB3C4\uB07C"
   enemySlots:
   - {fileID: 0}
-  - {fileID: 11400000, guid: 9c4ba19e86ac5624d935565365bcaab1, type: 2}
   - {fileID: 0}
   - {fileID: 0}
+  - {fileID: 11400000, guid: 7fd70f309bc2f8140bf8c4c1ba35c72e, type: 2}

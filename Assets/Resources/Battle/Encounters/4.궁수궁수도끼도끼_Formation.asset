@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c6e0c7fef8f43039138dafafdd11ec5, type: 3}
-  m_Name: EnemyEncounter 4
+  m_Name: "4.\uAD81\uC218\uAD81\uC218\uB3C4\uB07C\uB3C4\uB07C_Formation"
   m_EditorClassIdentifier: 
   encounterId: 1500fc124a614a57a5bed07f17160bb7
-  displayName: "4\uC778\uC870"
+  displayName: "4.\uAD81\uC218\uAD81\uC218\uB3C4\uB07C\uB3C4\uB07C"
   enemySlots:
   - {fileID: 11400000, guid: 8ea9dc9335716604ca8be6c70932cfc8, type: 2}
   - {fileID: 11400000, guid: 8ea9dc9335716604ca8be6c70932cfc8, type: 2}

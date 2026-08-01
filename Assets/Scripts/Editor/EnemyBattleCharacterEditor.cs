@@ -52,7 +52,7 @@ public class EnemyBattleCharacterEditor : Editor
 
     private void DrawStatusPreview(EnemyBattleCharacter enemy)
     {
-        CharacterStatus status = enemy.HasRuntimeStatus ? enemy.CurrentStatus : null;
+        CharacterStatus status = Application.isPlaying && enemy.HasRuntimeStatus ? enemy.CurrentStatus : null;
 
         EditorGUILayout.Space(8);
         EditorGUILayout.BeginVertical("box");
@@ -65,15 +65,19 @@ public class EnemyBattleCharacterEditor : Editor
             return;
         }
 
-        if (!enemy.HasRuntimeStatus)
+        if (status == null)
             EditorGUILayout.HelpBox("아직 전투 상태가 만들어지지 않았습니다. 전투 시작 후에는 현재 값이 표시됩니다.", MessageType.Info);
 
         DrawReadOnlyText("이름", enemy.enemyData.characterName);
-        DrawReadOnlyText("체력", $"{enemy.CurrentHp:0.##} / {enemy.MaxHp:0.##}");
-        DrawReadOnlyText("정신력", $"{enemy.CurrentMental:0.##} / {enemy.MaxMental:0.##}");
+        float currentHp = status != null ? status.currentHp : enemy.enemyData.maxHp;
+        float maxHp = status != null ? status.FinalMaxHp : enemy.enemyData.maxHp;
+        float currentMental = status != null ? status.currentMental : enemy.enemyData.maxMental;
+        float maxMental = status != null ? status.FinalMaxMental : enemy.enemyData.maxMental;
+        DrawReadOnlyText("체력", $"{currentHp:0.##} / {maxHp:0.##}");
+        DrawReadOnlyText("정신력", $"{currentMental:0.##} / {maxMental:0.##}");
         DrawReadOnlyText("기본 공격력", enemy.BaseAttack.ToString("0.##"));
-        DrawReadOnlyText("추가 공격력", enemy.BonusAttack.ToString("0.##"));
-        DrawReadOnlyText("총 공격력", enemy.TotalAttack.ToString("0.##"));
+        DrawReadOnlyText("추가 공격력", (status != null ? status.bonusAttack : 0f).ToString("0.##"));
+        DrawReadOnlyText("총 공격력", (status != null ? status.FinalAttack : enemy.BaseAttack).ToString("0.##"));
 
         if (status != null && status.activeStatusEffects != null && status.activeStatusEffects.Count > 0)
             DrawActiveEffects(status.activeStatusEffects);

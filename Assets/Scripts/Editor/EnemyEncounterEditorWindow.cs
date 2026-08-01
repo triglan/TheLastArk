@@ -183,12 +183,30 @@ public class EnemyEncounterEditorWindow : EditorWindow
             if (selectedEditor != null) DestroyImmediate(selectedEditor);
             selectedEditor = UnityEditor.Editor.CreateEditor(selectedAsset);
         }
+        SerializedObject serializedInspector = selectedEditor.serializedObject;
+        serializedInspector.Update();
         EditorGUI.BeginChangeCheck();
-        selectedEditor.OnInspectorGUI();
-        if (EditorGUI.EndChangeCheck() && selectedAsset is EnemyEncounterPool)
+        DrawVisiblePropertiesExcluding(serializedInspector, "m_Script", "displayName");
+        bool inspectorChanged = EditorGUI.EndChangeCheck();
+        serializedInspector.ApplyModifiedProperties();
+        if (inspectorChanged && selectedAsset is EnemyEncounterPool)
             SyncTableRegions();
         EditorGUILayout.EndScrollView();
         EditorGUILayout.EndVertical();
+    }
+
+    private static void DrawVisiblePropertiesExcluding(SerializedObject serializedObject, params string[] excludedPropertyPaths)
+    {
+        SerializedProperty property = serializedObject.GetIterator();
+        bool enterChildren = true;
+
+        while (property.NextVisible(enterChildren))
+        {
+            enterChildren = false;
+            if (System.Array.IndexOf(excludedPropertyPaths, property.propertyPath) >= 0) continue;
+
+            EditorGUILayout.PropertyField(property, true);
+        }
     }
 
     private void DrawNameEditor()
@@ -405,6 +423,8 @@ public class EnemyEncounterEditorWindow : EditorWindow
         if (string.IsNullOrEmpty(path)) return;
 
         string assetName = $"{SanitizeAssetName(displayName)}_{suffix}";
+        if (asset.name == assetName) return;
+
         string error = AssetDatabase.RenameAsset(path, assetName);
         if (!string.IsNullOrEmpty(error))
             Debug.LogWarning($"[EnemyEncounterEditor] Rename failed: {error}");
