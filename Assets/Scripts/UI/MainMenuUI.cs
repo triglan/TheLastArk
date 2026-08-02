@@ -245,7 +245,9 @@ namespace TheLastArk.UI
             RectTransform statsRect = statsObj.AddComponent<RectTransform>();
             statsRect.sizeDelta = new Vector2(0, 80);
             TextMeshProUGUI statsText = statsObj.AddComponent<TextMeshProUGUI>();
-            statsText.text = $"HP: {data.maxHp}\nMen: {data.maxMental}\nAtk: {data.baseAttack}";
+            statsText.text = $"HP {data.maxHp} / Men {data.maxMental}\n" +
+                             $"Atk {data.baseAttack} / Spell {data.spellPower}\n" +
+                             $"Armor {data.armor} / MR {data.magicResist}";
             statsText.fontSize = 24;
             statsText.alignment = TextAlignmentOptions.Center;
             statsText.color = new Color(0.8f, 0.8f, 0.8f);

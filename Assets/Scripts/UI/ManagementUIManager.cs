@@ -55,8 +55,6 @@ namespace TheLastArk.UI
         private Transform detailEquipmentsArea;
         private Button detailDeckButton;
         private TextMeshProUGUI detailDeckButtonText;
-        private Button detailLeaderButton;
-        private TextMeshProUGUI detailLeaderButtonText;
         private GameObject equipSelectModalPanel;
 
         private CharacterData currentDetailCharacter;
@@ -239,10 +237,6 @@ namespace TheLastArk.UI
 
         public void GrantDebugGold(int amount = 1000)
         {
-            if (RunManager.Instance != null && RunManager.Instance.State != null)
-            {
-                RunManager.Instance.State.gold += amount;
-            }
             if (ResourceManager.Instance != null)
             {
                 ResourceManager.Instance.AddGold(amount);
@@ -545,21 +539,37 @@ namespace TheLastArk.UI
             var partyDataIDs = RunManager.Instance != null ? RunManager.Instance.State.partyDataIDs : new List<string>();
             string leaderID = RunManager.Instance != null ? RunManager.Instance.State.leaderCharacterID : "";
 
+            Dictionary<string, CharacterData> characterById = allCharacters
+                .Where(data => data != null && !data.isEnemy)
+                .GroupBy(data => data.DataId)
+                .ToDictionary(group => group.Key, group => group.First());
+
+            HashSet<string> displayedCharacterIds = new HashSet<string>();
             int displayedCount = 0;
+
+            foreach (string partyId in partyDataIDs)
+            {
+                if (!characterById.TryGetValue(partyId, out CharacterData partyData)) continue;
+
+                int cardCount = ResourceManager.Instance != null ? ResourceManager.Instance.GetCardCount(partyId) : 0;
+                displayedCount++;
+                displayedCharacterIds.Add(partyId);
+                CreateCharacterCardUI(content.transform, partyData, cardCount, true, partyId == leaderID);
+            }
+
             foreach (var data in allCharacters)
             {
                 if (data == null || data.isEnemy) continue;
                 string charId = data.DataId;
+                if (displayedCharacterIds.Contains(charId)) continue;
 
                 int cardCount = ResourceManager.Instance != null ? ResourceManager.Instance.GetCardCount(charId) : 0;
-                bool inParty = partyDataIDs.Contains(charId);
 
                 // 카드 1장 이상 보유 또는 현재 덱에 포함된 경우만 보유 캐릭터로 판정
-                if (cardCount >= 1 || inParty)
+                if (cardCount >= 1)
                 {
                     displayedCount++;
-                    bool isLeader = (charId == leaderID);
-                    CreateCharacterCardUI(content.transform, data, cardCount, inParty, isLeader);
+                    CreateCharacterCardUI(content.transform, data, cardCount, false, false);
                 }
             }
 
@@ -585,7 +595,7 @@ namespace TheLastArk.UI
 
             LayoutElement le = cardObj.AddComponent<LayoutElement>();
             le.preferredWidth = 220;
-            le.preferredHeight = 260; // 정사각형 컴팩트 카드 레이아웃
+            le.preferredHeight = inParty ? 330 : 260;
 
             Image cardBg = cardObj.AddComponent<Image>();
             cardBg.color = new Color(0.12f, 0.14f, 0.18f, 1f);
@@ -647,6 +657,67 @@ namespace TheLastArk.UI
             LayoutElement hpLe = hpObj.AddComponent<LayoutElement>();
             hpLe.preferredHeight = 22;
             CreateTextUI(hpObj.transform, $"HP: {status.FinalMaxHp} | 정신: {status.FinalMaxMental}", 16, Color.white);
+
+            if (inParty)
+            {
+                CreatePartyOrderControls(cardObj.transform, charId, isLeader);
+            }
+        }
+
+        private void CreatePartyOrderControls(Transform parent, string characterId, bool isLeader)
+        {
+            int partyIndex = RunManager.Instance.State.partyDataIDs.IndexOf(characterId);
+            int partyCount = RunManager.Instance.State.partyDataIDs.Count;
+            if (partyIndex < 0) return;
+
+            GameObject slotTextObj = new GameObject("PartySlotText");
+            slotTextObj.transform.SetParent(parent, false);
+            LayoutElement slotTextLayout = slotTextObj.AddComponent<LayoutElement>();
+            slotTextLayout.preferredHeight = 26;
+            string slotLabel = isLeader ? $"👑 리더 · {partyIndex + 1}번" : $"{partyIndex + 1}번";
+            CreateTextUI(slotTextObj.transform, slotLabel, 17, isLeader ? Color.yellow : Color.cyan);
+
+            GameObject controlsObj = new GameObject("PartyOrderControls");
+            controlsObj.transform.SetParent(parent, false);
+            LayoutElement controlsLayout = controlsObj.AddComponent<LayoutElement>();
+            controlsLayout.preferredHeight = 34;
+
+            HorizontalLayoutGroup controls = controlsObj.AddComponent<HorizontalLayoutGroup>();
+            controls.spacing = 10;
+            controls.childAlignment = TextAnchor.MiddleCenter;
+            controls.childControlWidth = false;
+            controls.childControlHeight = true;
+            controls.childForceExpandWidth = false;
+
+            CreatePartyMoveButton(controlsObj.transform, "◀", partyIndex > 0, () =>
+            {
+                if (RunManager.Instance.MovePartyMember(characterId, -1)) RefreshTab();
+            });
+
+            CreatePartyMoveButton(controlsObj.transform, "▶", partyIndex < partyCount - 1, () =>
+            {
+                if (RunManager.Instance.MovePartyMember(characterId, 1)) RefreshTab();
+            });
+        }
+
+        private void CreatePartyMoveButton(Transform parent, string label, bool interactable, UnityEngine.Events.UnityAction onClick)
+        {
+            GameObject buttonObj = new GameObject(label == "◀" ? "MoveLeftButton" : "MoveRightButton");
+            buttonObj.transform.SetParent(parent, false);
+
+            LayoutElement layout = buttonObj.AddComponent<LayoutElement>();
+            layout.preferredWidth = 80;
+            layout.preferredHeight = 32;
+
+            Image image = buttonObj.AddComponent<Image>();
+            image.color = interactable
+                ? new Color(0.2f, 0.5f, 0.8f, 1f)
+                : new Color(0.25f, 0.25f, 0.25f, 0.65f);
+
+            Button button = buttonObj.AddComponent<Button>();
+            button.interactable = interactable;
+            button.onClick.AddListener(onClick);
+            CreateTextUI(buttonObj.transform, label, 22, interactable ? Color.white : Color.gray);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -776,18 +847,6 @@ namespace TheLastArk.UI
             detailDeckButton = deckBtnObj.AddComponent<Button>();
             detailDeckButtonText = CreateTextUI(deckBtnObj.transform, "⚔️ 덱에 참가", 20, Color.white);
 
-            // Leader Assign Button
-            GameObject leaderBtnObj = new GameObject("LeaderButton");
-            leaderBtnObj.transform.SetParent(actionsObj.transform, false);
-            LayoutElement lLe = leaderBtnObj.AddComponent<LayoutElement>();
-            lLe.preferredWidth = 180;
-            lLe.preferredHeight = 45;
-
-            Image lImg = leaderBtnObj.AddComponent<Image>();
-            lImg.color = new Color(0.8f, 0.6f, 0.1f, 1f);
-            detailLeaderButton = leaderBtnObj.AddComponent<Button>();
-            detailLeaderButtonText = CreateTextUI(leaderBtnObj.transform, "👑 리더 지정", 20, Color.white);
-
             charDetailPopupPanel.SetActive(false);
         }
 
@@ -831,11 +890,7 @@ namespace TheLastArk.UI
             foreach (Transform child in detailSkillsArea) Destroy(child.gameObject);
 
             bool isLeaderChar = isLeader;
-            if (isLeaderChar)
-            {
-                status.EnsureLeaderExtraSkill();
-            }
-            int leaderSkillIdx = status.leaderExtraSkillIndex;
+            int leaderSkillIdx = isLeaderChar ? status.EnsureLeaderExtraSkill() : -1;
 
             for (int i = 0; i < data.activeSkills.Length; i++)
             {
@@ -1000,32 +1055,18 @@ namespace TheLastArk.UI
                 {
                     if (inParty)
                     {
-                        RunManager.Instance.State.partyDataIDs.Remove(charId);
-                        RunManager.Instance.State.partyStatuses.RemoveAll(s => s.origin != null && s.origin.DataId == charId);
-                        if (RunManager.Instance.State.leaderCharacterID == charId)
-                        {
-                            RunManager.Instance.State.leaderCharacterID = RunManager.Instance.State.partyDataIDs.Count > 0 ? RunManager.Instance.State.partyDataIDs[0] : "";
-                        }
+                        RunManager.Instance.RemovePartyMember(charId);
                     }
                     else
                     {
+                        if (!RunManager.Instance.CanAddPartyMember(data))
+                        {
+                            NotificationManager.Instance?.ShowMessage("파티는 최대 4명까지 편성할 수 있습니다!", Color.red);
+                            return;
+                        }
+
                         RunManager.Instance.AddPartyMember(data);
                     }
-                    ShowCharacterDetailPopup(data);
-                    RefreshTab();
-                }
-            });
-
-            // 6. Leader Button
-            detailLeaderButton.onClick.RemoveAllListeners();
-            detailLeaderButtonText.text = isLeader ? "👑 현재 리더" : "👑 리더 지정";
-            detailLeaderButton.GetComponent<Image>().color = isLeader ? new Color(0.5f, 0.5f, 0.5f, 1f) : new Color(0.9f, 0.65f, 0.1f, 1f);
-            detailLeaderButton.interactable = inParty; // 덱 참가 상태일 때만 리더 지정 가능
-            detailLeaderButton.onClick.AddListener(() =>
-            {
-                if (RunManager.Instance != null && inParty)
-                {
-                    RunManager.Instance.State.leaderCharacterID = charId;
                     ShowCharacterDetailPopup(data);
                     RefreshTab();
                 }

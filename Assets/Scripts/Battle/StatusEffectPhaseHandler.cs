@@ -36,7 +36,7 @@ public static class StatusEffectPhaseHandler
                 case EffectType.Stun:   // Stun: 데미지 없이 행동 불능만 (향후 확장)
                     if (effect.damagePerTurn > 0)
                     {
-                        character.ReceiveDamage(effect.damagePerTurn, null);
+                        character.ReceiveDamage(effect.damagePerTurn, null, DamageType.True);
                         Debug.Log($"[StatusEffect] {character.characterName} {effect.effectType} {effect.damagePerTurn} 피해 (남은 턴: {effect.remainingTurns - 1})");
                     }
                     break;

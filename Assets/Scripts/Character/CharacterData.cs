@@ -98,6 +98,7 @@ public class EffectEntry
 {
     // 하나의 효과입니다. 배율은 공격력에 곱하고, 고정값은 추가 수치나 턴 수로 씁니다.
     public EffectType type;
+    public DamageType damageType = DamageType.Physical;
     public float multiplier = 1.0f;
     public float fixedValue = 0f;
     public bool useActualResult = false;
@@ -114,3 +115,4 @@ public class EnemyPatternData
 
 public enum TargetType { SingleEnemy, LeftEnemy, RightEnemy, AdjacentEnemy, AllEnemy, Friendly, AllFriendly }
 public enum EffectType { Damage, Heal, Buff, Stun, Bleed, Taunt, Counter, Shield, Resurrection }
+public enum DamageType { Physical, Magical, True }

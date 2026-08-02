@@ -193,9 +193,8 @@ namespace TheLastArk.UI
             else
             {
                 // Buy refresh with gold (50 Gold)
-                if (RunManager.Instance != null && RunManager.Instance.State != null && RunManager.Instance.State.gold >= 50)
+                if (ResourceManager.Instance.TrySpendGold(50))
                 {
-                    RunManager.Instance.State.gold -= 50;
                     GenerateShopItems();
                     RefreshUI();
                 }
@@ -277,17 +276,10 @@ namespace TheLastArk.UI
             ShopItemSlot slot = currentShopSlots[index];
             if (slot.sold) return;
 
-            int gold = RunManager.Instance != null ? RunManager.Instance.State.gold : 0;
-            if (gold < slot.price)
+            if (!ResourceManager.Instance.TrySpendGold(slot.price))
             {
                 NotificationManager.Instance?.ShowMessage("골드가 부족합니다!", Color.red);
                 return;
-            }
-
-            // Deduct Gold
-            if (RunManager.Instance != null)
-            {
-                RunManager.Instance.State.gold -= slot.price;
             }
 
             // Grant Item

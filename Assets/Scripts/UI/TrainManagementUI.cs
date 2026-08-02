@@ -14,10 +14,6 @@ namespace TheLastArk.UI
         private Transform charactersContainer;
         private TMPro.TMP_FontAsset mainFont;
 
-        private bool isLeaderAssignMode = false;
-        private Image leaderAssignBtnBg;
-        private TextMeshProUGUI leaderAssignBtnText;
-
         // Popup details
         private GameObject detailPopupPanel;
         private Image detailPortrait;
@@ -30,8 +26,6 @@ namespace TheLastArk.UI
             {
                 CreateUI();
             }
-            isLeaderAssignMode = false;
-            UpdateLeaderAssignBtnVisuals();
             UpdateUI();
             popupPanel.SetActive(true);
         }
@@ -162,7 +156,7 @@ namespace TheLastArk.UI
             carsScroll.content = cContentRect;
             carsContainer = carsContent.transform;
 
-            // Bottom area: character list header and leader assignment button
+            // Bottom area: character list header
             GameObject charHeaderArea = new GameObject("CharHeader");
             charHeaderArea.transform.SetParent(popupPanel.transform, false);
             RectTransform chRect = charHeaderArea.AddComponent<RectTransform>();
@@ -172,22 +166,6 @@ namespace TheLastArk.UI
             chRect.offsetMax = Vector2.zero;
 
             CreateTextUI(charHeaderArea.transform, "Owned Characters", 32, Color.white, new Vector2(0, 0.5f), new Vector2(0, 0), new Vector2(0.5f, 1));
-
-            // Leader assignment button
-            GameObject leaderBtnObj = new GameObject("LeaderAssignBtn");
-            leaderBtnObj.transform.SetParent(charHeaderArea.transform, false);
-            RectTransform leaderBtnRect = leaderBtnObj.AddComponent<RectTransform>();
-            leaderBtnRect.anchorMin = new Vector2(1, 0.5f);
-            leaderBtnRect.anchorMax = new Vector2(1, 0.5f);
-            leaderBtnRect.pivot = new Vector2(1, 0.5f);
-            leaderBtnRect.anchoredPosition = new Vector2(0, 0);
-            leaderBtnRect.sizeDelta = new Vector2(200, 50);
-
-            leaderAssignBtnBg = leaderBtnObj.AddComponent<Image>();
-            Button leaderBtn = leaderBtnObj.AddComponent<Button>();
-            leaderBtn.onClick.AddListener(ToggleLeaderAssignMode);
-
-            leaderAssignBtnText = CreateTextUI(leaderBtnObj.transform, "Leader Mode", 24, Color.white, Vector2.zero, Vector2.zero, Vector2.one);
 
             // Bottom area: character list
             GameObject charsArea = new GameObject("CharactersArea");
@@ -335,22 +313,6 @@ namespace TheLastArk.UI
             return tmp;
         }
 
-        private void ToggleLeaderAssignMode()
-        {
-            isLeaderAssignMode = !isLeaderAssignMode;
-            UpdateLeaderAssignBtnVisuals();
-            UpdateCharactersUI();
-        }
-
-        private void UpdateLeaderAssignBtnVisuals()
-        {
-            if (leaderAssignBtnBg != null)
-            {
-                leaderAssignBtnBg.color = isLeaderAssignMode ? new Color(0.8f, 0.6f, 0.1f, 1f) : new Color(0.3f, 0.3f, 0.3f, 1f);
-                leaderAssignBtnText.text = isLeaderAssignMode ? "Selecting Leader..." : "Assign Leader";
-            }
-        }
-
         private void UpdateUI()
         {
             UpdateCarsUI();
@@ -405,23 +367,38 @@ namespace TheLastArk.UI
             var partyDataIDs = RunManager.Instance.State.partyDataIDs;
             var leaderID = RunManager.Instance.State.leaderCharacterID;
 
-            // Load all characters from Resources (or use only owned ones if implemented)
             CharacterData[] allCharacters = Resources.LoadAll<CharacterData>("Characters");
-            
+            Dictionary<string, CharacterData> characterById = new Dictionary<string, CharacterData>();
             foreach (var data in allCharacters)
             {
                 if (data == null || data.isEnemy) continue;
+                characterById[data.DataId] = data;
+            }
+
+            HashSet<string> displayedCharacterIds = new HashSet<string>();
+            foreach (string partyId in partyDataIDs)
+            {
+                if (!characterById.TryGetValue(partyId, out CharacterData partyData)) continue;
+
+                displayedCharacterIds.Add(partyId);
+                bool isLeader = partyId == leaderID;
+                CreateCharUI(partyData, isLeader, true);
+            }
+
+            foreach (var data in allCharacters)
+            {
+                if (data == null || data.isEnemy || displayedCharacterIds.Contains(data.DataId)) continue;
+
                 string dataId = data.DataId;
                 int cards = ResourceManager.Instance.GetCardCount(dataId);
-                if (cards > 0 || partyDataIDs.Contains(dataId))
+                if (cards > 0)
                 {
-                    bool isLeader = (dataId == leaderID);
-                    CreateCharUI(data, isLeader);
+                    CreateCharUI(data, false, false);
                 }
             }
         }
 
-        private void CreateCharUI(CharacterData data, bool isLeader)
+        private void CreateCharUI(CharacterData data, bool isLeader, bool inParty)
         {
             string charId = data.DataId;
             string charName = data.DisplayName;
@@ -506,31 +483,73 @@ namespace TheLastArk.UI
             {
                 CreateTextUI(charObj.transform, "<Leader>", 20, Color.yellow, Vector2.zero, Vector2.zero, Vector2.zero).rectTransform.sizeDelta = new Vector2(200, 25);
             }
+
+            if (inParty)
+            {
+                CreatePartyOrderControls(charObj.transform, charId, isLeader);
+            }
         }
 
         private void OnCharacterClicked(CharacterData data)
         {
-            if (isLeaderAssignMode)
+            ShowDetailPopup(data);
+        }
+
+        private void CreatePartyOrderControls(Transform parent, string characterId, bool isLeader)
+        {
+            int partyIndex = RunManager.Instance.State.partyDataIDs.IndexOf(characterId);
+            int partyCount = RunManager.Instance.State.partyDataIDs.Count;
+            if (partyIndex < 0) return;
+
+            string slotLabel = isLeader ? $"👑 리더 · {partyIndex + 1}번" : $"{partyIndex + 1}번";
+            CreateTextUI(parent, slotLabel, 17, isLeader ? Color.yellow : Color.cyan,
+                Vector2.zero, Vector2.zero, Vector2.zero).rectTransform.sizeDelta = new Vector2(200, 25);
+
+            GameObject controlsObj = new GameObject("PartyOrderControls");
+            controlsObj.transform.SetParent(parent, false);
+            RectTransform controlsRect = controlsObj.AddComponent<RectTransform>();
+            controlsRect.sizeDelta = new Vector2(200, 36);
+
+            HorizontalLayoutGroup controls = controlsObj.AddComponent<HorizontalLayoutGroup>();
+            controls.spacing = 10;
+            controls.childAlignment = TextAnchor.MiddleCenter;
+            controls.childControlWidth = false;
+            controls.childControlHeight = true;
+            controls.childForceExpandWidth = false;
+
+            CreatePartyMoveButton(controlsObj.transform, "◀", partyIndex > 0, () =>
             {
-                // Set leader
-                string dataId = data.DataId;
-                if (RunManager.Instance != null && RunManager.Instance.State.partyDataIDs.Contains(dataId))
-                {
-                    RunManager.Instance.State.leaderCharacterID = dataId;
-                    isLeaderAssignMode = false;
-                    UpdateLeaderAssignBtnVisuals();
-                    UpdateCharactersUI();
-                }
-                else
-                {
-                    Debug.LogWarning("Only party members can be assigned as leader.");
-                }
-            }
-            else
+                if (RunManager.Instance.MovePartyMember(characterId, -1)) UpdateCharactersUI();
+            });
+
+            CreatePartyMoveButton(controlsObj.transform, "▶", partyIndex < partyCount - 1, () =>
             {
-                // Show Detail Popup
-                ShowDetailPopup(data);
-            }
+                if (RunManager.Instance.MovePartyMember(characterId, 1)) UpdateCharactersUI();
+            });
+        }
+
+        private void CreatePartyMoveButton(Transform parent, string label, bool interactable, UnityEngine.Events.UnityAction onClick)
+        {
+            GameObject buttonObj = new GameObject(label == "◀" ? "MoveLeftButton" : "MoveRightButton");
+            buttonObj.transform.SetParent(parent, false);
+
+            RectTransform rect = buttonObj.AddComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(80, 34);
+
+            LayoutElement layout = buttonObj.AddComponent<LayoutElement>();
+            layout.preferredWidth = 80;
+            layout.preferredHeight = 34;
+
+            Image image = buttonObj.AddComponent<Image>();
+            image.color = interactable
+                ? new Color(0.2f, 0.5f, 0.8f, 1f)
+                : new Color(0.25f, 0.25f, 0.25f, 0.65f);
+
+            Button button = buttonObj.AddComponent<Button>();
+            button.interactable = interactable;
+            button.onClick.AddListener(onClick);
+            CreateTextUI(buttonObj.transform, label, 22, interactable ? Color.white : Color.gray,
+                Vector2.zero, Vector2.zero, Vector2.one);
         }
 
         private void ShowDetailPopup(CharacterData data)
@@ -550,7 +569,10 @@ namespace TheLastArk.UI
             detailStatsText.text = $"<color=yellow>[ {data.DisplayName} ]</color>\n" +
                                    $"HP: {tempStatus.FinalMaxHp}\n" +
                                    $"Mental: {tempStatus.FinalMaxMental}\n" +
-                                   $"Attack: {tempStatus.FinalAttack}";
+                                   $"Attack: {tempStatus.FinalAttack}\n" +
+                                   $"Spell: {tempStatus.FinalSpellPower}\n" +
+                                   $"Armor: {tempStatus.FinalArmor}\n" +
+                                   $"Magic Resist: {tempStatus.FinalMagicResist}";
 
             string skillText = "<color=cyan>-- Skills --</color>\n";
             if (data.passiveSkill != null && !string.IsNullOrEmpty(data.passiveSkill.skillName))

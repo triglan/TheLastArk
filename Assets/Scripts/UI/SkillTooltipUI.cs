@@ -113,7 +113,22 @@ namespace TheLastArk.UI
             {
                 foreach (var effect in currentLevelData.effects)
                 {
-                    float val = (atk * effect.multiplier) + effect.fixedValue;
+                    float scalingStat = effect.type == EffectType.Damage && effect.damageType == DamageType.Magical
+                        ? spellPower
+                        : atk;
+                    float val = (scalingStat * effect.multiplier) + effect.fixedValue;
+                    if (effect.type == EffectType.Damage)
+                    {
+                        string damageTypeName = effect.damageType switch
+                        {
+                            DamageType.Magical => "마법 피해",
+                            DamageType.True => "고정 피해",
+                            _ => "물리 피해"
+                        };
+                        string scalingStatName = effect.damageType == DamageType.Magical ? "주문력" : "공격력";
+                        descSb.AppendLine($"<color=#FF6B6B>{damageTypeName}: {effect.multiplier * 100:F0}% {scalingStatName} (예상 피해: {val:F1})</color>");
+                        continue;
+                    }
                     switch (effect.type)
                     {
                         case EffectType.Damage:

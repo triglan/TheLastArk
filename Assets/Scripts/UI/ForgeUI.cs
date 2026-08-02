@@ -245,14 +245,12 @@ namespace TheLastArk.UI
 
                 buyBtn.onClick.AddListener(() =>
                 {
-                    int gold = RunManager.Instance != null ? RunManager.Instance.State.gold : 0;
-                    if (gold < slot.price)
+                    if (!ResourceManager.Instance.TrySpendGold(slot.price))
                     {
                         NotificationManager.Instance?.ShowMessage("골드가 부족합니다!", Color.red);
                         return;
                     }
 
-                    if (RunManager.Instance != null) RunManager.Instance.State.gold -= slot.price;
                     if (slot.equipment != null) ResourceManager.Instance?.AddEquipment(slot.equipment);
 
                     NotificationManager.Instance?.ShowMessage($"장비 [{nameText}] 구매 완료!", Color.green);
@@ -397,13 +395,6 @@ namespace TheLastArk.UI
             EquipmentData eq2 = inventoryEquips[selectedIndex2];
             if (eq1 == null || eq2 == null) return;
 
-            int gold = RunManager.Instance != null ? RunManager.Instance.State.gold : 0;
-            if (gold < 50)
-            {
-                NotificationManager.Instance?.ShowMessage("합성 비용(50 Gold)이 부족합니다!", Color.red);
-                return;
-            }
-
             // Synthesize Equipment
             EquipmentData result = EquipmentDatabase.SynthesizeEquipments(eq1, eq2);
             if (result == null)
@@ -412,7 +403,12 @@ namespace TheLastArk.UI
                 return;
             }
 
-            if (RunManager.Instance != null) RunManager.Instance.State.gold -= 50;
+            if (!ResourceManager.Instance.TrySpendGold(50))
+            {
+                NotificationManager.Instance?.ShowMessage("합성 비용(50 Gold)이 부족합니다!", Color.red);
+                return;
+            }
+
             if (ResourceManager.Instance != null)
             {
                 int firstRemove = Mathf.Max(selectedIndex1, selectedIndex2);

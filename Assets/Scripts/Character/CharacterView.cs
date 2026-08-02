@@ -10,10 +10,13 @@ public class CharacterView : MonoBehaviour
     [Header("수동 연결")]
     public Image displayImage;
     public BarUI barUI;
+    [SerializeField] private GameObject enemyTargetMarkerPrefab;
+    private GameObject enemyTargetMarker;
 
     private void Awake()
     {
         EnsureLocalDisplayImage();
+        if (enemyTargetMarker != null) enemyTargetMarker.SetActive(false);
     }
 
     private void Reset()
@@ -44,6 +47,46 @@ public class CharacterView : MonoBehaviour
             barUI.UpdateAllBars(status.currentHp, status.FinalMaxHp,
                                status.currentMental, status.FinalMaxMental);
         }
+    }
+
+    public void SetEnemyTargeted(bool targeted)
+    {
+        if (targeted && enemyTargetMarker == null)
+            CreateDefaultEnemyTargetMarker();
+
+        if (enemyTargetMarker != null)
+            enemyTargetMarker.SetActive(targeted);
+    }
+
+    [ContextMenu("Debug: Toggle Enemy Target Marker")]
+    private void DebugToggleEnemyTargetMarker()
+    {
+        SetEnemyTargeted(enemyTargetMarker == null || !enemyTargetMarker.activeSelf);
+    }
+
+    private void CreateDefaultEnemyTargetMarker()
+    {
+        Transform parent = transform.Find("TargetPoint");
+        if (parent == null) parent = transform;
+
+        if (enemyTargetMarkerPrefab != null)
+        {
+            enemyTargetMarker = Instantiate(enemyTargetMarkerPrefab, parent, false);
+            enemyTargetMarker.SetActive(false);
+            return;
+        }
+
+        enemyTargetMarker = new GameObject("Enemy Target Marker", typeof(RectTransform), typeof(Image));
+        enemyTargetMarker.transform.SetParent(parent, false);
+
+        RectTransform rect = enemyTargetMarker.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(48f, 48f);
+        rect.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
+        Image image = enemyTargetMarker.GetComponent<Image>();
+        image.color = new Color(1f, 0.1f, 0.1f, 0.9f);
+        image.raycastTarget = false;
+        enemyTargetMarker.SetActive(false);
     }
 
     private void EnsureLocalDisplayImage()

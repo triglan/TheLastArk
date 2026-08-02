@@ -78,6 +78,9 @@ public class EnemyBattleCharacterEditor : Editor
         DrawReadOnlyText("기본 공격력", enemy.BaseAttack.ToString("0.##"));
         DrawReadOnlyText("추가 공격력", (status != null ? status.bonusAttack : 0f).ToString("0.##"));
         DrawReadOnlyText("총 공격력", (status != null ? status.FinalAttack : enemy.BaseAttack).ToString("0.##"));
+        DrawReadOnlyText("주문력", (status != null ? status.FinalSpellPower : enemy.enemyData.spellPower).ToString("0.##"));
+        DrawReadOnlyText("방어력", (status != null ? status.FinalArmor : enemy.enemyData.armor).ToString("0.##"));
+        DrawReadOnlyText("마법 저항력", (status != null ? status.FinalMagicResist : enemy.enemyData.magicResist).ToString("0.##"));
 
         if (status != null && status.activeStatusEffects != null && status.activeStatusEffects.Count > 0)
             DrawActiveEffects(status.activeStatusEffects);

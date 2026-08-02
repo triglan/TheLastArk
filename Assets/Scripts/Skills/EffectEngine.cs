@@ -25,13 +25,17 @@ public static class EffectEngine
     private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target)
     {
         // 기본값은 시전자의 최종 공격력이고, 옵션에 따라 직전 결과를 다시 씁니다.
-        float baseValue = effect.useActualResult ? _lastCalculatedValue : actor.status.FinalAttack;
+        float baseValue = effect.useActualResult
+            ? _lastCalculatedValue
+            : effect.type == EffectType.Damage && effect.damageType == DamageType.Magical
+                ? actor.status.FinalSpellPower
+                : actor.status.FinalAttack;
         float calculatedValue = (baseValue * effect.multiplier) + effect.fixedValue;
 
         switch (effect.type)
         {
             case EffectType.Damage:
-                _lastCalculatedValue = target.ReceiveDamage(calculatedValue, actor);
+                _lastCalculatedValue = target.ReceiveDamage(calculatedValue, actor, effect.damageType);
                 break;
 
             case EffectType.Heal:

@@ -55,6 +55,7 @@ MonoBehaviour:
       targetType: 0
       effects:
       - type: 0
+        damageType: 0
         multiplier: 1.5
         fixedValue: 0
         useActualResult: 0
@@ -62,6 +63,7 @@ MonoBehaviour:
       targetType: 0
       effects:
       - type: 0
+        damageType: 0
         multiplier: 2.25
         fixedValue: 0
         useActualResult: 0
@@ -69,6 +71,7 @@ MonoBehaviour:
       targetType: 2
       effects:
       - type: 0
+        damageType: 0
         multiplier: 2.25
         fixedValue: 0
         useActualResult: 0
@@ -80,10 +83,12 @@ MonoBehaviour:
       targetType: 0
       effects:
       - type: 0
+        damageType: 0
         multiplier: 0.8
         fixedValue: 0
         useActualResult: 0
       - type: 3
+        damageType: 0
         multiplier: 0.5
         fixedValue: 1
         useActualResult: 0
@@ -91,10 +96,12 @@ MonoBehaviour:
       targetType: 0
       effects:
       - type: 0
+        damageType: 0
         multiplier: 1
         fixedValue: 0
         useActualResult: 0
       - type: 3
+        damageType: 0
         multiplier: 0.7
         fixedValue: 1
         useActualResult: 0
@@ -102,10 +109,12 @@ MonoBehaviour:
       targetType: 0
       effects:
       - type: 0
+        damageType: 0
         multiplier: 1.2
         fixedValue: 0
         useActualResult: 0
       - type: 3
+        damageType: 0
         multiplier: 0.8
         fixedValue: 1
         useActualResult: 0
@@ -117,21 +126,12 @@ MonoBehaviour:
       targetType: 5
       effects:
       - type: 5
+        damageType: 0
         multiplier: 1
         fixedValue: 1
         useActualResult: 0
       - type: 6
-        multiplier: 1
-        fixedValue: 1
-        useActualResult: 0
-    - overrideCost: -1
-      targetType: 5
-      effects:
-      - type: 5
-        multiplier: 2
-        fixedValue: 1
-        useActualResult: 0
-      - type: 6
+        damageType: 0
         multiplier: 1
         fixedValue: 1
         useActualResult: 0
@@ -139,10 +139,25 @@ MonoBehaviour:
       targetType: 5
       effects:
       - type: 5
+        damageType: 0
         multiplier: 2
         fixedValue: 1
         useActualResult: 0
       - type: 6
+        damageType: 0
+        multiplier: 1
+        fixedValue: 1
+        useActualResult: 0
+    - overrideCost: -1
+      targetType: 5
+      effects:
+      - type: 5
+        damageType: 0
+        multiplier: 2
+        fixedValue: 1
+        useActualResult: 0
+      - type: 6
+        damageType: 0
         multiplier: 2
         fixedValue: 1
         useActualResult: 0
@@ -154,10 +169,12 @@ MonoBehaviour:
       targetType: 5
       effects:
       - type: 7
+        damageType: 0
         multiplier: 0.2
         fixedValue: 1
         useActualResult: 0
       - type: 1
+        damageType: 0
         multiplier: 1
         fixedValue: 0
         useActualResult: 0
@@ -165,10 +182,12 @@ MonoBehaviour:
       targetType: 5
       effects:
       - type: 7
+        damageType: 0
         multiplier: 0.3
         fixedValue: 1
         useActualResult: 0
       - type: 1
+        damageType: 0
         multiplier: 1.2
         fixedValue: 0
         useActualResult: 0
@@ -176,14 +195,17 @@ MonoBehaviour:
       targetType: 5
       effects:
       - type: 7
+        damageType: 0
         multiplier: 0.3
         fixedValue: 1
         useActualResult: 0
       - type: 1
+        damageType: 0
         multiplier: 1.2
         fixedValue: 0
         useActualResult: 0
       - type: 1
+        damageType: 0
         multiplier: 0
         fixedValue: 0
         useActualResult: 0

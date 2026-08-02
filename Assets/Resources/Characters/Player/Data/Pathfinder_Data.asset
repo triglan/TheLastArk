@@ -22,7 +22,7 @@ MonoBehaviour:
   maxHp: 25
   maxMental: 35
   baseAttack: 4
-  spellPower: 0
+  spellPower: 6
   armor: 3
   magicResist: 3
   critRate: 0

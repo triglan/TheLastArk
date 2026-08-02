@@ -9,6 +9,7 @@ using UnityEngine.SceneManagement;
 public class RunManager : MonoBehaviour
 {
     private const string CurrentRegionId = EnemyEncounterPool.DefaultRegionId;
+    public const int MaxPartySize = 4;
 
     // ── 싱글톤 ────────────────────────────────────────────────────
     private static RunManager _instance;
@@ -117,22 +118,66 @@ public class RunManager : MonoBehaviour
     }
 
     // ── 파티 관리 ─────────────────────────────────────────────────
+    public bool CanAddPartyMember(CharacterData characterData)
+    {
+        if (characterData == null) return false;
+        string id = characterData.DataId;
+        return !string.IsNullOrEmpty(id)
+            && !State.partyDataIDs.Contains(id)
+            && State.partyDataIDs.Count < MaxPartySize;
+    }
+
     public void AddPartyMember(CharacterData characterData)
     {
-        if (characterData == null) return;
+        if (!CanAddPartyMember(characterData)) return;
         
         string id = characterData.DataId;
-        if (!State.partyDataIDs.Contains(id))
-        {
-            State.partyDataIDs.Add(id);
-            State.partyStatuses.Add(new CharacterStatus(characterData));
-            
-            // 첫 멤버면 리더로 자동 지정
-            if (string.IsNullOrEmpty(State.leaderCharacterID))
-            {
-                State.leaderCharacterID = id;
-            }
-        }
+        State.partyDataIDs.Add(id);
+        State.partyStatuses.Add(new CharacterStatus(characterData));
+        SynchronizeLeaderWithPartyOrder();
+    }
+
+    public bool RemovePartyMember(string characterId)
+    {
+        if (string.IsNullOrEmpty(characterId)) return false;
+        if (!State.partyDataIDs.Remove(characterId)) return false;
+
+        State.partyStatuses.RemoveAll(status =>
+            status != null && status.origin != null && status.origin.DataId == characterId);
+        SynchronizeLeaderWithPartyOrder();
+        return true;
+    }
+
+    public bool MovePartyMember(int fromIndex, int toIndex)
+    {
+        int partyCount = State.partyDataIDs.Count;
+        if (fromIndex < 0 || fromIndex >= partyCount) return false;
+        if (toIndex < 0 || toIndex >= partyCount) return false;
+        if (fromIndex == toIndex) return false;
+
+        string characterId = State.partyDataIDs[fromIndex];
+        State.partyDataIDs.RemoveAt(fromIndex);
+        State.partyDataIDs.Insert(toIndex, characterId);
+        SynchronizeLeaderWithPartyOrder();
+        return true;
+    }
+
+    public bool MovePartyMember(string characterId, int direction)
+    {
+        if (string.IsNullOrEmpty(characterId) || direction == 0) return false;
+
+        int fromIndex = State.partyDataIDs.IndexOf(characterId);
+        if (fromIndex < 0) return false;
+
+        int toIndex = fromIndex + (direction < 0 ? -1 : 1);
+        return MovePartyMember(fromIndex, toIndex);
+    }
+
+    public void SynchronizeLeaderWithPartyOrder()
+    {
+        State.leaderCharacterID = State.partyDataIDs.Count > 0
+            ? State.partyDataIDs[0]
+            : string.Empty;
     }
 
     // ── 편의 메서드 ───────────────────────────────────────────────
@@ -144,5 +189,8 @@ public class RunManager : MonoBehaviour
         CurrentTurn = 0;
         State.Reset();
         CurrentEncounter = null;
+
+        if (TheLastArk.Managers.ResourceManager.IsInitialized)
+            TheLastArk.Managers.ResourceManager.Instance.NotifyGoldChanged();
     }
 }
