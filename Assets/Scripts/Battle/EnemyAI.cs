@@ -9,63 +9,94 @@ public class EnemyAI : MonoBehaviour
 
     private BattleCharacter _self;
     private int _patternIndex;
+    private List<BattleCharacter> _preparedTargets;
+    private EnemyPatternData _preparedPattern;
+
+    public IReadOnlyList<BattleCharacter> PreparedTargets => _preparedTargets;
 
     private void Awake()
     {
         _self = GetComponent<BattleCharacter>();
     }
 
-    public void ExecuteTurn()
+    public bool PrepareTurn()
     {
+        _preparedTargets = null;
+        _preparedPattern = null;
+
         // 기절 상태면 이번 적 턴의 행동을 건너뜁니다.
-        if (_self == null || _self.status?.origin == null) return;
-        if (targetParty == null || targetParty.Count == 0) return;
+        if (_self == null || _self.status?.origin == null) return false;
+        if (targetParty == null || targetParty.Count == 0) return false;
         if (HasStatus(EffectType.Stun))
         {
             Debug.Log($"[EnemyAI] {_self.characterName} 기절로 행동하지 못함");
-            return;
+            return false;
         }
 
         // 데이터에 등록된 패턴을 순서대로 실행합니다.
         List<EnemyPatternData> patterns = _self.status.origin.enemyPatterns;
         if (patterns == null || patterns.Count == 0)
-        {
-            UseBasicAttack();
-            return;
-        }
+            return PrepareBasicAttack();
 
         EnemyPatternData pattern = patterns[Mathf.Abs(_patternIndex) % patterns.Count];
         _patternIndex = (_patternIndex + 1) % patterns.Count;
 
         if (pattern == null || pattern.effects == null || pattern.effects.Count == 0)
+            return PrepareBasicAttack();
+
+        _preparedTargets = ResolveTargets(pattern.targetType);
+        if (_preparedTargets.Count == 0) return false;
+
+        _preparedPattern = pattern;
+        return true;
+    }
+
+    public void ExecuteTurn()
+    {
+        if (_preparedTargets == null && !PrepareTurn()) return;
+        _preparedTargets.RemoveAll(target => target == null || target.status == null || target.status.currentHp <= 0f);
+        if (_preparedTargets.Count == 0)
         {
-            UseBasicAttack();
+            ClearPreparedTurn();
             return;
         }
 
-        List<BattleCharacter> targets = ResolveTargets(pattern.targetType);
-        if (targets.Count == 0) return;
+        if (_preparedPattern == null)
+        {
+            BattleCharacter target = _preparedTargets[0];
+            float rawDmg = _self.status.FinalAttack;
+            target.ReceiveDamage(rawDmg, _self, DamageType.Physical);
+            Debug.Log($"[EnemyAI] {_self.characterName} -> {target.characterName} 기본 공격 {rawDmg}");
+            ClearPreparedTurn();
+            return;
+        }
 
         SkillLevelData runtimePattern = new SkillLevelData
         {
             overrideCost = -1,
-            targetType = pattern.targetType,
-            effects = pattern.effects
+            targetType = _preparedPattern.targetType,
+            effects = _preparedPattern.effects
         };
 
-        EffectEngine.ProcessSkill(_self, targets, runtimePattern);
-        Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {pattern.patternName}");
+        EffectEngine.ProcessSkill(_self, _preparedTargets, runtimePattern);
+        Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {_preparedPattern.patternName}");
+        ClearPreparedTurn();
     }
 
-    private void UseBasicAttack()
+    private bool PrepareBasicAttack()
     {
         // 패턴이 없거나 비어 있으면 기본 공격을 사용합니다.
         BattleCharacter target = PickRandomAlive(targetParty);
-        if (target == null) return;
+        if (target == null) return false;
 
-        float rawDmg = _self.status.FinalAttack;
-        target.ReceiveDamage(rawDmg, _self);
-        Debug.Log($"[EnemyAI] {_self.characterName} -> {target.characterName} 기본 공격 {rawDmg}");
+        _preparedTargets = new List<BattleCharacter> { target };
+        return true;
+    }
+
+    private void ClearPreparedTurn()
+    {
+        _preparedTargets = null;
+        _preparedPattern = null;
     }
 
     private List<BattleCharacter> ResolveTargets(TargetType targetType)

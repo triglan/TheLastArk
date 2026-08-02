@@ -80,6 +80,7 @@ MonoBehaviour:
   isStandingIllust: 1
   displayImage: {fileID: 8561409273599116551}
   barUI: {fileID: 3692054347950391527}
+  enemyTargetMarkerPrefab: {fileID: 780000000000000001, guid: ad4d23a8c43d4e3caef9e4f39bc0d271, type: 3}
 --- !u!114 &3692054347950391527
 MonoBehaviour:
   m_ObjectHideFlags: 0

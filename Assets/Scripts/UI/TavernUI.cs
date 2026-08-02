@@ -223,7 +223,9 @@ namespace TheLastArk.UI
                 string nameText = data != null ? data.DisplayName : "용병";
                 CreateTextUI(cardObj.transform, $"👤 [{nameText}]", 24, Color.yellow);
 
-                string statText = data != null ? $"체력: {data.maxHp} | 정신력: {data.maxMental}\n공격력: {data.baseAttack} | 방어력: {data.armor}" : "기본 능력치";
+                string statText = data != null
+                    ? $"체력 {data.maxHp} | 정신 {data.maxMental}\n공격 {data.baseAttack} | 주문 {data.spellPower}\n방어 {data.armor} | 마저 {data.magicResist}"
+                    : "기본 능력치";
                 CreateTextUI(cardObj.transform, statText, 16, Color.white);
 
                 GameObject hireBtnObj = new GameObject("HireButton");
@@ -242,8 +244,13 @@ namespace TheLastArk.UI
 
                 hireBtn.onClick.AddListener(() =>
                 {
-                    int gold = RunManager.Instance != null ? RunManager.Instance.State.gold : 0;
-                    if (gold < price)
+                    if (RunManager.Instance == null || !RunManager.Instance.CanAddPartyMember(data))
+                    {
+                        NotificationManager.Instance?.ShowMessage("파티가 가득 찼거나 이미 참가 중인 캐릭터입니다!", Color.red);
+                        return;
+                    }
+
+                    if (!ResourceManager.Instance.TrySpendGold(price))
                     {
                         NotificationManager.Instance?.ShowMessage("골드가 부족합니다!", Color.red);
                         return;
@@ -251,7 +258,6 @@ namespace TheLastArk.UI
 
                     if (RunManager.Instance != null)
                     {
-                        RunManager.Instance.State.gold -= price;
                         RunManager.Instance.AddPartyMember(data);
                     }
 
@@ -345,14 +351,11 @@ namespace TheLastArk.UI
                 Button rBtn = rerollBtnObj.AddComponent<Button>();
                 rBtn.onClick.AddListener(() =>
                 {
-                    int gold = RunManager.Instance != null ? RunManager.Instance.State.gold : 0;
-                    if (gold < 50)
+                    if (!ResourceManager.Instance.TrySpendGold(50))
                     {
                         NotificationManager.Instance?.ShowMessage("스킬 변경 비용(50 Gold)이 부족합니다!", Color.red);
                         return;
                     }
-
-                    if (RunManager.Instance != null) RunManager.Instance.State.gold -= 50;
 
                     List<int> pool = new List<int> { 0, 1, 2, 3 };
                     int idx1 = pool[UnityEngine.Random.Range(0, pool.Count)];

@@ -75,10 +75,8 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        if (partyIDs.Count == 1 && RunManager.Instance != null)
-        {
-            RunManager.Instance.State.leaderCharacterID = partyIDs[0];
-        }
+        if (RunManager.Instance != null)
+            RunManager.Instance.SynchronizeLeaderWithPartyOrder();
 
         string leaderID = RunManager.Instance != null ? RunManager.Instance.State.leaderCharacterID : "";
 

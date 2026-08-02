@@ -27,7 +27,7 @@ namespace TheLastArk.Managers
             }
         }
 
-        public int Gold { get; private set; }
+        public int Gold => RunManager.Instance.State.gold;
         public event Action OnGoldChanged;
 
         [Header("Consumables (Max 3)")]
@@ -64,16 +64,26 @@ namespace TheLastArk.Managers
         public void AddGold(int amount)
         {
             if (amount <= 0) return;
-            Gold += amount;
+            RunManager.Instance.State.gold += amount;
             OnGoldChanged?.Invoke();
+        }
+
+        public bool TrySpendGold(int amount)
+        {
+            if (amount <= 0 || Gold < amount) return false;
+            RunManager.Instance.State.gold -= amount;
+            OnGoldChanged?.Invoke();
+            return true;
         }
 
         public bool SpendGold(int amount)
         {
-            if (amount <= 0 || Gold < amount) return false;
-            Gold -= amount;
+            return TrySpendGold(amount);
+        }
+
+        public void NotifyGoldChanged()
+        {
             OnGoldChanged?.Invoke();
-            return true;
         }
 
         // --- Consumables ---

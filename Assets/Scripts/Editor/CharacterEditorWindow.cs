@@ -416,6 +416,9 @@ public class CharacterEditorWindow : EditorWindow
         selectedData.maxHp = EditorGUILayout.FloatField("최대 체력", selectedData.maxHp);
         selectedData.maxMental = EditorGUILayout.FloatField("최대 정신력", selectedData.maxMental);
         selectedData.baseAttack = EditorGUILayout.FloatField("기본 공격력", selectedData.baseAttack);
+        selectedData.spellPower = Mathf.Max(0f, EditorGUILayout.FloatField("주문력", selectedData.spellPower));
+        selectedData.armor = Mathf.Max(0f, EditorGUILayout.FloatField("방어력", selectedData.armor));
+        selectedData.magicResist = Mathf.Max(0f, EditorGUILayout.FloatField("마법 저항력", selectedData.magicResist));
         EditorGUILayout.EndVertical();
     }
 
@@ -699,6 +702,8 @@ public class CharacterEditorWindow : EditorWindow
             EffectEntry effect = effects[i];
             EditorGUILayout.BeginHorizontal();
             effect.type = (EffectType)EditorGUILayout.EnumPopup(effect.type, GUILayout.Width(90));
+            if (effect.type == EffectType.Damage)
+                effect.damageType = (DamageType)EditorGUILayout.EnumPopup(effect.damageType, GUILayout.Width(80));
             GUILayout.Label("배율", GUILayout.Width(32));
             effect.multiplier = EditorGUILayout.FloatField(effect.multiplier, GUILayout.Width(45));
             GUILayout.Label("고정", GUILayout.Width(32));
@@ -831,6 +836,9 @@ public class CharacterEditorWindow : EditorWindow
         data.maxHp = Mathf.Max(1f, data.maxHp);
         data.maxMental = Mathf.Max(1f, data.maxMental);
         data.baseAttack = Mathf.Max(1f, data.baseAttack);
+        data.spellPower = Mathf.Max(0f, data.spellPower);
+        data.armor = Mathf.Max(0f, data.armor);
+        data.magicResist = Mathf.Max(0f, data.magicResist);
         data.levelStatMultipliers = new float[5] { 0f, 0.5f, 1.0f, 2.0f, 3.0f };
 
         if (isEnemy)
@@ -884,6 +892,9 @@ public class CharacterEditorWindow : EditorWindow
         if (data.maxHp <= 0f) result.errors.Add("최대 체력은 0보다 커야 합니다.");
         if (data.maxMental <= 0f) result.errors.Add("최대 정신력은 0보다 커야 합니다.");
         if (data.baseAttack <= 0f) result.errors.Add("기본 공격력은 0보다 커야 합니다.");
+        if (data.spellPower < 0f) result.errors.Add("주문력은 0 이상이어야 합니다.");
+        if (data.armor < 0f) result.errors.Add("방어력은 0 이상이어야 합니다.");
+        if (data.magicResist < 0f) result.errors.Add("마법 저항력은 0 이상이어야 합니다.");
         if (!data.isEnemy)
         {
             if (!CharacterData.IsValidCharacterId(data.characterId)) result.errors.Add("Player ID must be 00-99.");

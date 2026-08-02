@@ -57,9 +57,22 @@ public class BattleCharacter : MonoBehaviour, IDamageable
 
     public float ReceiveDamage(float amount, BattleCharacter attacker)
     {
-        if (status == null) return 0;
+        return ReceiveDamage(amount, attacker, DamageType.Physical);
+    }
 
-        float actualDamage = amount;
+    public float ReceiveDamage(float amount, BattleCharacter attacker, DamageType damageType)
+    {
+        if (status == null || amount <= 0f) return 0f;
+
+        float defense = damageType switch
+        {
+            DamageType.Physical => Mathf.Max(0f, status.FinalArmor),
+            DamageType.Magical => Mathf.Max(0f, status.FinalMagicResist),
+            _ => 0f
+        };
+        float actualDamage = damageType == DamageType.True
+            ? amount
+            : Mathf.Max(1f, amount - defense);
         status.currentHp -= actualDamage;
 
         // 특성 [회생] 발동 검사 (체력 1 이하일 때 발동)
@@ -167,10 +180,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     {
         if (status == null) return;
 
-        status.currentHp -= 50;
-        if (status.currentHp < 0) status.currentHp = 0;
-
-        if (view != null) view.UpdateVisual(status);
+        ReceiveDamage(50f, null, DamageType.True);
         Debug.Log($"{characterName}이(가) 테스트를 위해 자해했습니다. 현재 HP: {status.currentHp}");
     }
 }

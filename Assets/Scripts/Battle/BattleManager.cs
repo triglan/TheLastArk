@@ -260,7 +260,7 @@ public class BattleManager : MonoBehaviour
             if (consumable.effectType == TheLastArk.Data.ConsumableEffectType.DamageSingle ||
                 consumable.effectType == TheLastArk.Data.ConsumableEffectType.DamageAll)
             {
-                target.ReceiveDamage(consumable.effectValue, null);
+                target.ReceiveDamage(consumable.effectValue, null, DamageType.True);
             }
             else if (consumable.effectType == TheLastArk.Data.ConsumableEffectType.HealHP)
             {
@@ -317,6 +317,7 @@ public class BattleManager : MonoBehaviour
 
     private void OnEnterPlayerTurn()
     {
+        ClearEnemyTargetMarkers();
         Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");
         currentAP = MaxAP;
         UpdateAPUI();
@@ -325,6 +326,7 @@ public class BattleManager : MonoBehaviour
 
     private IEnumerator RunEnemyTurn()
     {
+        ClearEnemyTargetMarkers();
         Debug.Log($"[Battle] {_turnCount}턴: 적 턴 시작. 생존 적 수 확인 중...");
         Debug.Log($"[Battle] enemyParty 총 수: {enemyParty.Count}");
 
@@ -365,9 +367,13 @@ public class BattleManager : MonoBehaviour
             }
 
             Debug.Log($"[Battle] {enemy.characterName}이 행동합니다.");
-            ai.ExecuteTurn();
+            if (!ai.PrepareTurn()) continue;
 
+            var preparedTargets = new List<BattleCharacter>(ai.PreparedTargets);
+            SetEnemyTargetMarkers(preparedTargets, true);
             yield return new WaitForSeconds(EnemyActionDelay);
+            ai.ExecuteTurn();
+            SetEnemyTargetMarkers(preparedTargets, false);
 
             if (IsPartyWiped(playerParty))
             {
@@ -409,6 +415,7 @@ public class BattleManager : MonoBehaviour
 
     private void OnEnterBattleEnd()
     {
+        ClearEnemyTargetMarkers();
         bool playerWin = IsPartyWiped(enemyParty);
         Debug.Log($"[Battle] 전투 종료: {(playerWin ? "승리" : "패배")}");
 
@@ -449,6 +456,22 @@ public class BattleManager : MonoBehaviour
 
         TMPFontManager.ApplyFont(apText);
         apText.text = $"행동력 {currentAP} / {MaxAP}";
+    }
+
+    private void SetEnemyTargetMarkers(IEnumerable<BattleCharacter> targets, bool visible)
+    {
+        if (targets == null || playerParty == null) return;
+
+        foreach (BattleCharacter target in targets)
+        {
+            if (target == null || target.view == null || !playerParty.Contains(target)) continue;
+            target.view.SetEnemyTargeted(visible);
+        }
+    }
+
+    private void ClearEnemyTargetMarkers()
+    {
+        SetEnemyTargetMarkers(playerParty, false);
     }
 
     private void CacheTurnEndButton()
