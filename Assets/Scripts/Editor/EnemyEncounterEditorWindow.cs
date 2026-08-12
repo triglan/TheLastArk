@@ -1,23 +1,29 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using TheLastArk.Map.Events;
 
 public class EnemyEncounterEditorWindow : EditorWindow
 {
     private const string EncounterFolder = "Assets/Resources/Battle/Encounters";
     private const string PoolFolder = "Assets/Resources/Battle/EncounterPools";
     private const string TablePath = "Assets/Resources/Battle/BattleEncounterTable.asset";
+    private const string RewardTablePath = "Assets/Resources/Battle/BattleRewardTable.asset";
 
     public enum EditMode { Encounters, Pools }
 
     private readonly List<Object> assets = new List<Object>();
     private readonly Dictionary<string, bool> regionFoldouts = new Dictionary<string, bool>();
+    private readonly List<GameEventData> eventAssets = new List<GameEventData>();
     private EditMode mode;
     private Object selectedAsset;
     private UnityEditor.Editor selectedEditor;
     private Vector2 listScroll;
     private Vector2 inspectorScroll;
+    private Vector2 rewardScroll;
+    private int selectedRewardStage;
     private string newRegionId = EnemyEncounterPool.DefaultRegionId;
+    private string eventSearchText;
 
     [MenuItem("Window/Battle/Enemy Encounter Editor")]
     public static void ShowWindow()
@@ -70,6 +76,8 @@ public class EnemyEncounterEditorWindow : EditorWindow
         EditorGUILayout.BeginHorizontal();
         DrawAssetList(drawLeftHeader);
         DrawSelectedInspector();
+        if (mode == EditMode.Pools && (!(selectedAsset is EnemyEncounterPool pool) || pool.NodeType != NodeType.Event))
+            DrawRewardSettingsPanel();
         EditorGUILayout.EndHorizontal();
     }
 
@@ -159,7 +167,9 @@ public class EnemyEncounterEditorWindow : EditorWindow
     {
         bool isSelected = selectedAsset == pool;
         string label = $"{pool.DisplayName} - {pool.MinFloor}~{pool.MaxFloor}F";
-        label += $" / {pool.NodeType}";
+        label += pool.NodeType == NodeType.Event
+            ? $" / Event / {pool.Events.Count} Events"
+            : $" / {pool.NodeType}";
         if (GUILayout.Toggle(isSelected, label, "Button") && !isSelected)
             SelectAsset(pool);
     }
@@ -186,13 +196,248 @@ public class EnemyEncounterEditorWindow : EditorWindow
         SerializedObject serializedInspector = selectedEditor.serializedObject;
         serializedInspector.Update();
         EditorGUI.BeginChangeCheck();
-        DrawVisiblePropertiesExcluding(serializedInspector, "m_Script", "displayName");
+        if (selectedAsset is EnemyEncounterPool pool)
+        {
+            if (pool.NodeType == NodeType.Event) DrawPoolEventEditor(serializedInspector);
+            else DrawPoolRewardStageSelector(serializedInspector);
+            EditorGUILayout.Space(8f);
+            DrawVisiblePropertiesExcluding(serializedInspector, "m_Script", "displayName", "rewardStageId", "legacyRewardStage",
+                "events", pool.NodeType == NodeType.Event ? "encounters" : "");
+        }
+        else
+        {
+            DrawVisiblePropertiesExcluding(serializedInspector, "m_Script", "displayName");
+        }
         bool inspectorChanged = EditorGUI.EndChangeCheck();
         serializedInspector.ApplyModifiedProperties();
         if (inspectorChanged && selectedAsset is EnemyEncounterPool)
             SyncTableRegions();
         EditorGUILayout.EndScrollView();
         EditorGUILayout.EndVertical();
+    }
+
+    private void DrawPoolRewardStageSelector(SerializedObject serializedPool)
+    {
+        BattleRewardTable table = GetOrCreateRewardTable();
+        SerializedProperty stageId = serializedPool.FindProperty("rewardStageId");
+        string currentId = selectedAsset is EnemyEncounterPool pool ? pool.RewardStageId : stageId.stringValue;
+
+        EditorGUILayout.LabelField("보상 단계", EditorStyles.boldLabel);
+        const int stagesPerRow = 10;
+        for (int rowStart = 0; rowStart < table.Stages.Count; rowStart += stagesPerRow)
+        {
+            EditorGUILayout.BeginHorizontal();
+            for (int i = rowStart; i < Mathf.Min(rowStart + stagesPerRow, table.Stages.Count); i++)
+            {
+                BattleRewardStage stage = table.Stages[i];
+                if (stage == null) continue;
+                bool selected = string.Equals(currentId, stage.Id, System.StringComparison.Ordinal);
+                if (GUILayout.Toggle(selected, stage.DisplayName, EditorStyles.radioButton) && !selected)
+                {
+                    stageId.stringValue = stage.Id;
+                    currentId = stage.Id;
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+    }
+
+    private void DrawPoolEventEditor(SerializedObject serializedPool)
+    {
+        SerializedProperty events = serializedPool.FindProperty("events");
+        if (events == null) return;
+
+        EditorGUILayout.LabelField($"포함된 이벤트 ({events.arraySize})", EditorStyles.boldLabel);
+        for (int i = 0; i < events.arraySize; i++)
+        {
+            SerializedProperty item = events.GetArrayElementAtIndex(i);
+            GameEventData eventData = item.objectReferenceValue as GameEventData;
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(eventData != null ? GetEventLabel(eventData) : "(Missing Event)");
+            EditorGUI.BeginDisabledGroup(eventData == null);
+            if (GUILayout.Button("보기", GUILayout.Width(42f)))
+            {
+                Selection.activeObject = eventData;
+                EditorGUIUtility.PingObject(eventData);
+            }
+            EditorGUI.EndDisabledGroup();
+            if (GUILayout.Button("−", GUILayout.Width(24f)))
+            {
+                item.objectReferenceValue = null;
+                events.DeleteArrayElementAtIndex(i);
+                EditorGUILayout.EndHorizontal();
+                return;
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        EditorGUILayout.Space(8f);
+        EditorGUILayout.LabelField("이벤트 빠른 추가", EditorStyles.boldLabel);
+        eventSearchText = EditorGUILayout.TextField("검색", eventSearchText);
+
+        List<GameEventData> matches = new List<GameEventData>();
+        foreach (GameEventData eventData in eventAssets)
+        {
+            if (eventData == null || !MatchesEventSearch(eventData, eventSearchText)) continue;
+            matches.Add(eventData);
+
+            bool added = ContainsEvent(events, eventData);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(GetEventLabel(eventData));
+            EditorGUI.BeginDisabledGroup(added);
+            if (GUILayout.Button(added ? "추가됨" : "+", GUILayout.Width(52f))) AddEvent(events, eventData);
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        EditorGUI.BeginDisabledGroup(matches.Count == 0);
+        if (GUILayout.Button("검색 결과 모두 추가"))
+        {
+            foreach (GameEventData eventData in matches)
+                if (!ContainsEvent(events, eventData)) AddEvent(events, eventData);
+        }
+        EditorGUI.EndDisabledGroup();
+    }
+
+    private static void AddEvent(SerializedProperty events, GameEventData eventData)
+    {
+        int index = events.arraySize;
+        events.InsertArrayElementAtIndex(index);
+        events.GetArrayElementAtIndex(index).objectReferenceValue = eventData;
+    }
+
+    private static bool ContainsEvent(SerializedProperty events, GameEventData eventData)
+    {
+        for (int i = 0; i < events.arraySize; i++)
+            if (events.GetArrayElementAtIndex(i).objectReferenceValue == eventData) return true;
+        return false;
+    }
+
+    private static bool MatchesEventSearch(GameEventData eventData, string search)
+    {
+        if (string.IsNullOrWhiteSpace(search)) return true;
+        return ContainsIgnoreCase(eventData.eventTitle, search)
+            || ContainsIgnoreCase(eventData.eventID, search)
+            || ContainsIgnoreCase(eventData.name, search);
+    }
+
+    private static bool ContainsIgnoreCase(string text, string search)
+    {
+        return !string.IsNullOrEmpty(text) && text.IndexOf(search, System.StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static string GetEventLabel(GameEventData eventData)
+    {
+        string path = AssetDatabase.GetAssetPath(eventData);
+        string category = path.Contains("/Events/Common/") ? "Common"
+            : path.Contains("/Events/Stage1/") ? "Stage1"
+            : "Event";
+        string title = string.IsNullOrWhiteSpace(eventData.eventTitle) ? eventData.name : eventData.eventTitle;
+        return $"[{category}] {title}";
+    }
+
+    private void DrawRewardSettingsPanel()
+    {
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(330f), GUILayout.ExpandHeight(true));
+        EditorGUILayout.LabelField("단계별 보상 설정", EditorStyles.boldLabel);
+
+        BattleRewardTable table = GetOrCreateRewardTable();
+        SerializedObject serializedTable = new SerializedObject(table);
+        serializedTable.Update();
+        SerializedProperty stages = serializedTable.FindProperty("stages");
+        selectedRewardStage = Mathf.Clamp(selectedRewardStage, 0, Mathf.Max(0, stages.arraySize - 1));
+
+        rewardScroll = EditorGUILayout.BeginScrollView(rewardScroll);
+        for (int i = 0; i < stages.arraySize; i++)
+        {
+            SerializedProperty stage = stages.GetArrayElementAtIndex(i);
+            string stageName = stage.FindPropertyRelative("displayName").stringValue;
+            if (GUILayout.Toggle(selectedRewardStage == i, stageName, "Button")) selectedRewardStage = i;
+        }
+
+        if (GUILayout.Button("+ 보상 단계 추가"))
+        {
+            int index = stages.arraySize;
+            stages.InsertArrayElementAtIndex(index);
+            SerializedProperty added = stages.GetArrayElementAtIndex(index);
+            added.FindPropertyRelative("id").stringValue = System.Guid.NewGuid().ToString("N");
+            added.FindPropertyRelative("displayName").stringValue = $"{index + 1}단계";
+            selectedRewardStage = index;
+        }
+
+        if (stages.arraySize > 0)
+        {
+            EditorGUILayout.Space(8f);
+            SerializedProperty selected = stages.GetArrayElementAtIndex(selectedRewardStage);
+            SerializedProperty id = selected.FindPropertyRelative("id");
+            EditorGUILayout.PropertyField(selected.FindPropertyRelative("displayName"), new GUIContent("단계 이름"));
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginDisabledGroup(selectedRewardStage == 0);
+            if (GUILayout.Button("↑"))
+            {
+                stages.MoveArrayElement(selectedRewardStage, selectedRewardStage - 1);
+                selectedRewardStage--;
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUI.BeginDisabledGroup(selectedRewardStage >= stages.arraySize - 1);
+            if (GUILayout.Button("↓"))
+            {
+                stages.MoveArrayElement(selectedRewardStage, selectedRewardStage + 1);
+                selectedRewardStage++;
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+
+            DrawRewardFields(selected.FindPropertyRelative("reward"));
+
+            EditorGUI.BeginDisabledGroup(stages.arraySize <= 1);
+            GUI.color = new Color(1f, 0.6f, 0.6f);
+            if (GUILayout.Button("선택 단계 삭제")) TryDeleteRewardStage(stages, selectedRewardStage, id.stringValue);
+            GUI.color = Color.white;
+            EditorGUI.EndDisabledGroup();
+        }
+
+        EditorGUILayout.EndScrollView();
+        if (serializedTable.ApplyModifiedProperties()) EditorUtility.SetDirty(table);
+        EditorGUILayout.EndVertical();
+    }
+
+    private static void DrawRewardFields(SerializedProperty reward)
+    {
+        if (reward == null) return;
+        EditorGUILayout.Space(6f);
+        EditorGUILayout.BeginVertical("box");
+        SerializedProperty giveGold = reward.FindPropertyRelative("giveGold");
+        EditorGUILayout.PropertyField(giveGold, new GUIContent("골드 지급"));
+        if (giveGold.boolValue)
+            EditorGUILayout.PropertyField(reward.FindPropertyRelative("goldAmount"), new GUIContent("골드 수량"));
+
+        SerializedProperty giveCard = reward.FindPropertyRelative("giveCharacterCard");
+        EditorGUILayout.PropertyField(giveCard, new GUIContent("캐릭터 카드 지급"));
+        if (giveCard.boolValue)
+        {
+            EditorGUILayout.PropertyField(reward.FindPropertyRelative("cardAmount"), new GUIContent("선택 카드 지급 수량"));
+            EditorGUILayout.LabelField("카드 후보 규칙", EditorStyles.miniBoldLabel);
+            EditorGUILayout.PropertyField(reward.FindPropertyRelative("card1Rule"), new GUIContent("후보 1"));
+            EditorGUILayout.PropertyField(reward.FindPropertyRelative("card2Rule"), new GUIContent("후보 2"));
+            EditorGUILayout.PropertyField(reward.FindPropertyRelative("card3Rule"), new GUIContent("후보 3"));
+        }
+        EditorGUILayout.EndVertical();
+    }
+
+    private static void TryDeleteRewardStage(SerializedProperty stages, int index, string stageId)
+    {
+        foreach (string guid in AssetDatabase.FindAssets("t:EnemyEncounterPool"))
+        {
+            EnemyEncounterPool pool = AssetDatabase.LoadAssetAtPath<EnemyEncounterPool>(AssetDatabase.GUIDToAssetPath(guid));
+            if (pool == null || pool.RewardStageId != stageId) continue;
+            EditorUtility.DisplayDialog("보상 단계 삭제 불가", $"'{pool.DisplayName}' Pool이 이 단계를 사용 중입니다.", "확인");
+            return;
+        }
+
+        if (EditorUtility.DisplayDialog("보상 단계 삭제", "선택한 보상 단계를 삭제할까요?", "삭제", "취소"))
+            stages.DeleteArrayElementAtIndex(index);
     }
 
     private static void DrawVisiblePropertiesExcluding(SerializedObject serializedObject, params string[] excludedPropertyPaths)
@@ -243,9 +488,21 @@ public class EnemyEncounterEditorWindow : EditorWindow
             else
                 EditorGUILayout.HelpBox("Slots are ordered from left to right. Empty slots stay disabled.", MessageType.Info);
         }
-        else if (selectedAsset is EnemyEncounterPool pool && pool.Encounters.Count == 0)
+        else if (selectedAsset is EnemyEncounterPool pool)
         {
-            EditorGUILayout.HelpBox("Add at least one formation to this pool.", MessageType.Error);
+            if (pool.NodeType == NodeType.Event && pool.Events.Count == 0)
+                EditorGUILayout.HelpBox("이 Event Pool에 이벤트를 하나 이상 추가하세요.", MessageType.Error);
+            else if (pool.NodeType != NodeType.Event && pool.Encounters.Count == 0)
+                EditorGUILayout.HelpBox("Add at least one formation to this pool.", MessageType.Error);
+
+            if (pool.NodeType != NodeType.Event)
+            {
+                BattleRewardSettings reward = pool.ActiveReward;
+                if (reward != null && reward.giveGold && reward.goldAmount == 0)
+                    EditorGUILayout.HelpBox("이 Pool의 적용 보상 단계 골드가 0입니다.", MessageType.Warning);
+                if (reward != null && reward.giveCharacterCard && reward.cardAmount < 1)
+                    EditorGUILayout.HelpBox("캐릭터 카드 지급 수량은 1 이상이어야 합니다.", MessageType.Error);
+            }
         }
     }
 
@@ -320,6 +577,23 @@ public class EnemyEncounterEditorWindow : EditorWindow
         return table;
     }
 
+    private BattleRewardTable GetOrCreateRewardTable()
+    {
+        BattleRewardTable table = AssetDatabase.LoadAssetAtPath<BattleRewardTable>(RewardTablePath);
+        if (table != null)
+        {
+            table.EnsureDefaults();
+            return table;
+        }
+
+        EnsureAssetFolder("Assets/Resources/Battle");
+        table = CreateInstance<BattleRewardTable>();
+        table.EnsureDefaults();
+        AssetDatabase.CreateAsset(table, RewardTablePath);
+        AssetDatabase.SaveAssets();
+        return table;
+    }
+
     private static void RegisterPool(BattleEncounterTable table, EnemyEncounterPool pool)
     {
         table.RegisterPool(pool);
@@ -368,6 +642,7 @@ public class EnemyEncounterEditorWindow : EditorWindow
     private void RefreshAssets()
     {
         assets.Clear();
+        eventAssets.Clear();
         string filter = mode == EditMode.Encounters ? "t:EnemyEncounterData" : "t:EnemyEncounterPool";
         foreach (string guid in AssetDatabase.FindAssets(filter))
         {
@@ -375,6 +650,12 @@ public class EnemyEncounterEditorWindow : EditorWindow
             if (asset != null) assets.Add(asset);
         }
         assets.Sort((a, b) => string.CompareOrdinal(GetDisplayLabel(a), GetDisplayLabel(b)));
+        foreach (string guid in AssetDatabase.FindAssets("t:GameEventData"))
+        {
+            GameEventData eventData = AssetDatabase.LoadAssetAtPath<GameEventData>(AssetDatabase.GUIDToAssetPath(guid));
+            if (eventData != null) eventAssets.Add(eventData);
+        }
+        eventAssets.Sort((a, b) => string.Compare(GetEventLabel(a), GetEventLabel(b), System.StringComparison.OrdinalIgnoreCase));
         Repaint();
     }
 

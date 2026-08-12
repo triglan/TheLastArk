@@ -145,19 +145,21 @@ namespace TheLastArk.Map.Events
             return selectedEvent;
         }
 
+        private Dictionary<int, List<GameEventData>> stageEventMap = new Dictionary<int, List<GameEventData>>();
+
         /// <summary>
         /// 스테이지 번호에 맞는 이벤트 풀을 반환합니다.
-        /// 새 스테이지 추가 시 여기에 리스트를 추가하세요.
+        /// Resources/Events/Stage{stage} 폴더에서 자동으로 이벤트를 로드합니다.
         /// </summary>
         private List<GameEventData> GetStageEvents(int stage)
         {
-            switch (stage)
+            if (!stageEventMap.ContainsKey(stage))
             {
-                case 1: return stage1Events;
-                // case 2: return stage2Events;
-                // case 3: return stage3Events;
-                default: return null;
+                GameEventData[] loaded = Resources.LoadAll<GameEventData>($"Events/Stage{stage}");
+                stageEventMap[stage] = new List<GameEventData>(loaded);
+                Debug.Log($"[EventManager] Stage {stage} 전용 이벤트 {loaded.Length}개 로드 완료");
             }
+            return stageEventMap[stage];
         }
 
         // ─────────────────────────────────────────────

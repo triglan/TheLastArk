@@ -47,6 +47,7 @@ public class RunManager : MonoBehaviour
     public MapNode CurrentNode { get; set; }
     public int CurrentTurn { get; set; }
     public EnemyEncounterData CurrentEncounter { get; private set; }
+    public EnemyEncounterPool CurrentEncounterPool { get; private set; }
 
     [Header("Battle Encounter")]
     [SerializeField] private BattleEncounterTable encounterTable;
@@ -104,11 +105,13 @@ public class RunManager : MonoBehaviour
             node.nodeType,
             node.floor,
             State.combatCount,
-            State.appearedEncounterIDs);
+            State.appearedEncounterIDs,
+            out EnemyEncounterPool pool);
 
         if (encounter == null) return false;
 
         CurrentEncounter = encounter;
+        CurrentEncounterPool = pool;
         if (!State.appearedEncounterIDs.Contains(encounter.EncounterId))
             State.appearedEncounterIDs.Add(encounter.EncounterId);
         State.combatCount++;
@@ -189,6 +192,7 @@ public class RunManager : MonoBehaviour
         CurrentTurn = 0;
         State.Reset();
         CurrentEncounter = null;
+        CurrentEncounterPool = null;
 
         if (TheLastArk.Managers.ResourceManager.IsInitialized)
             TheLastArk.Managers.ResourceManager.Instance.NotifyGoldChanged();

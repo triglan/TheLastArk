@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7be2352431c4803b64f370729afee39, type: 3}
+  m_Name: temp_NewPool_Pool 3
+  m_EditorClassIdentifier: 
+  poolId: df975bce2d3540d2823b2e2514ee3365
+  displayName: New Pool
+  regionId: temp
+  nodeType: 2
+  minFloor: 1
+  maxFloor: 15
+  minCombatCount: 0
+  maxCombatCount: 99
+  priority: 0
+  encounters:
+  - {fileID: 0}
+  difficulty: 1
+  easyReward:
+    giveGold: 1
+    goldAmount: 50
+    giveCharacterCard: 1
+    cardAmount: 1
+    card1Rule: 0
+    card2Rule: 1
+    card3Rule: 2
+  normalReward:
+    giveGold: 1
+    goldAmount: 100
+    giveCharacterCard: 1
+    cardAmount: 1
+    card1Rule: 0
+    card2Rule: 1
+    card3Rule: 2
+  hardReward:
+    giveGold: 1
+    goldAmount: 150
+    giveCharacterCard: 1
+    cardAmount: 2
+    card1Rule: 0
+    card2Rule: 1
+    card3Rule: 2
+  veryHardReward:
+    giveGold: 1
+    goldAmount: 300
+    giveCharacterCard: 1
+    cardAmount: 3
+    card1Rule: 0
+    card2Rule: 1
+    card3Rule: 2

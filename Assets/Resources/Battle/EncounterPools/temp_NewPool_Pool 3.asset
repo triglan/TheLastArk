@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7be2352431c4803b64f370729afee39, type: 3}
+  m_Name: temp_NewPool_Pool 3
+  m_EditorClassIdentifier: 
+  poolId: d3d1bc0b9fb648cdb8a88e869362ff23
+  displayName: New Pool
+  regionId: temp
+  nodeType: 2
+  minFloor: 1
+  maxFloor: 15
+  minCombatCount: 0
+  maxCombatCount: 99
+  priority: 0
+  encounters: []
+  events:
+  - {fileID: 11400000, guid: 7e2d008d2d5f99f44852600ca1753aa9, type: 2}
+  - {fileID: 11400000, guid: 2901a83f85900c643831064b0ba3f08e, type: 2}
+  - {fileID: 11400000, guid: 5593731c7936f2c41ae867132fcde61f, type: 2}
+  - {fileID: 11400000, guid: f1d80520023abc14f9bb49acab4a47c4, type: 2}
+  rewardStageId: normal
+  legacyRewardStage: 1

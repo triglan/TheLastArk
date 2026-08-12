@@ -106,6 +106,7 @@ namespace UI
                 var bm = FindObjectOfType<BattleManager>();
                 if (bm != null)
                 {
+                    if (BattleManager.SkillFirstTargeting && button != null) button.Select();
                     bm.SelectSkill(currentSkill, currentActor);
                 }
             }

@@ -1,5 +1,47 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
+using TheLastArk.Map.Events;
+
+public enum CharacterCardCandidateRule
+{
+    SameFactionAsOwnedCharacters,
+    SameRegionAsOwnedCharacters,
+    CompletelyRandom
+}
+
+[System.Serializable]
+public class BattleRewardSettings
+{
+    public bool giveGold = true;
+    [Min(0)] public int goldAmount = BattleConfig.DefaultVictoryGold;
+    public bool giveCharacterCard = true;
+    [Min(1)] public int cardAmount = 1;
+    public CharacterCardCandidateRule card1Rule = CharacterCardCandidateRule.SameFactionAsOwnedCharacters;
+    public CharacterCardCandidateRule card2Rule = CharacterCardCandidateRule.SameRegionAsOwnedCharacters;
+    public CharacterCardCandidateRule card3Rule = CharacterCardCandidateRule.CompletelyRandom;
+
+    public BattleRewardSettings() { }
+
+    public BattleRewardSettings(int gold, int cards)
+    {
+        goldAmount = gold;
+        cardAmount = cards;
+    }
+
+    public CharacterCardCandidateRule GetCardRule(int index)
+    {
+        if (index == 0) return card1Rule;
+        if (index == 1) return card2Rule;
+        return card3Rule;
+    }
+
+    public void Normalize()
+    {
+        goldAmount = Mathf.Max(0, goldAmount);
+        cardAmount = Mathf.Max(1, cardAmount);
+    }
+}
 
 [CreateAssetMenu(fileName = "EnemyEncounterPool", menuName = "TheLastArk/Battle/Enemy Encounter Pool")]
 public class EnemyEncounterPool : ScriptableObject
@@ -16,6 +58,9 @@ public class EnemyEncounterPool : ScriptableObject
     [SerializeField, Min(0)] private int maxCombatCount = 99;
     [SerializeField] private int priority;
     [SerializeField] private List<EnemyEncounterData> encounters = new List<EnemyEncounterData>();
+    [SerializeField] private List<GameEventData> events = new List<GameEventData>();
+    [SerializeField] private string rewardStageId;
+    [SerializeField, HideInInspector, FormerlySerializedAs("difficulty")] private int legacyRewardStage = 1;
 
     public string PoolId => poolId;
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
@@ -28,6 +73,21 @@ public class EnemyEncounterPool : ScriptableObject
     public int Priority => priority;
     public IReadOnlyList<EnemyEncounterData> Encounters => encounters;
     public IReadOnlyList<EnemyEncounterData> Formations => encounters;
+    public IReadOnlyList<GameEventData> Events => events;
+    public string RewardStageId => string.IsNullOrWhiteSpace(rewardStageId) ? LegacyStageId : rewardStageId;
+    public BattleRewardSettings ActiveReward
+    {
+        get
+        {
+            BattleRewardSettings reward = BattleRewardTable.LoadDefault()?.GetReward(RewardStageId);
+            return reward ?? new BattleRewardSettings(BattleConfig.DefaultVictoryGold, 1);
+        }
+    }
+
+    private string LegacyStageId => legacyRewardStage == 0 ? "easy"
+        : legacyRewardStage == 2 ? "hard"
+        : legacyRewardStage == 3 ? "very-hard"
+        : "normal";
 
     public bool MatchesRegion(string targetRegionId)
     {
@@ -57,5 +117,7 @@ public class EnemyEncounterPool : ScriptableObject
         minCombatCount = Mathf.Max(0, minCombatCount);
         maxCombatCount = Mathf.Max(minCombatCount, maxCombatCount);
         if (encounters == null) encounters = new List<EnemyEncounterData>();
+        if (events == null) events = new List<GameEventData>();
+        if (string.IsNullOrWhiteSpace(rewardStageId)) rewardStageId = LegacyStageId;
     }
 }

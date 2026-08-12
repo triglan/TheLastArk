@@ -10,6 +10,8 @@ public class CharacterData : ScriptableObject
     public string jobName;
     public List<TheLastArk.Data.SynergyType> synergies = new List<TheLastArk.Data.SynergyType>();
     public bool isEnemy = false;
+    [Tooltip("캐릭터 카드의 같은 지역 보상 후보를 판정할 때 사용합니다.")]
+    public string regionId = EnemyEncounterPool.DefaultRegionId;
 
     public string DataId => isEnemy ? characterName : GetFirstValidText(characterId, jobName, characterName);
     public string DisplayName => GetFirstValidText(characterName, jobName, characterId);
@@ -69,6 +71,8 @@ public class CharacterData : ScriptableObject
         if (isEnemy) return;
 
         characterId = NormalizeCharacterId(characterId);
+        if (string.IsNullOrWhiteSpace(regionId)) regionId = EnemyEncounterPool.DefaultRegionId;
+        else regionId = regionId.Trim();
         if (string.IsNullOrWhiteSpace(jobName))
             jobName = characterName;
     }

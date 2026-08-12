@@ -23,3 +23,5 @@ MonoBehaviour:
   priority: 0
   encounters:
   - {fileID: 11400000, guid: d48056aa95fb60b42bd9cad39894fc7c, type: 2}
+  rewardStageId: easy
+  legacyRewardStage: 1

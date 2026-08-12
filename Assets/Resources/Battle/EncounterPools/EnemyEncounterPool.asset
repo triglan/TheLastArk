@@ -23,3 +23,36 @@ MonoBehaviour:
   priority: 0
   encounters:
   - {fileID: 11400000, guid: 58fa9c7bca0bd3c43b4dd304b3939f9b, type: 2}
+  difficulty: 1
+  easyReward:
+    giveGold: 1
+    goldAmount: 50
+    giveCharacterCard: 1
+    cardAmount: 1
+    card1Rule: 0
+    card2Rule: 1
+    card3Rule: 2
+  normalReward:
+    giveGold: 1
+    goldAmount: 100
+    giveCharacterCard: 1
+    cardAmount: 1
+    card1Rule: 0
+    card2Rule: 1
+    card3Rule: 2
+  hardReward:
+    giveGold: 1
+    goldAmount: 150
+    giveCharacterCard: 1
+    cardAmount: 2
+    card1Rule: 0
+    card2Rule: 1
+    card3Rule: 2
+  veryHardReward:
+    giveGold: 1
+    goldAmount: 300
+    giveCharacterCard: 1
+    cardAmount: 3
+    card1Rule: 0
+    card2Rule: 1
+    card3Rule: 2

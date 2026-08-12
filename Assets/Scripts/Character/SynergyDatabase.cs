@@ -147,25 +147,25 @@ namespace TheLastArk.Character
             // 6. 신기루 (2/4/6/8)
             infoDict[SynergyType.Mirage] = new SynergyInfo(
                 SynergyType.Mirage, "신기루", "🏜️", true,
-                "직업별 추가 효과 (수호자/전사: 체력 3% 회복, 암살자/사수/마술사: 공격력 10% 증가, 지원가: 행동력 +1, 치유량 +20%).",
+                "아군이 직업에 따라 추가 효과를 얻습니다 (수호자/전사: 매 턴 최대 체력의 3%만큼 보호막, 암살자/사수/마술사: 공격력, 주문력 10% 증가, 지원가: 행동력 +1, 치유량 +20%).",
                 new List<SynergyTierInfo>
                 {
                     new SynergyTierInfo(2, "(2) 100%의 효과"),
                     new SynergyTierInfo(4, "(4) 150%의 효과"),
-                    new SynergyTierInfo(6, "(6) 200%의 효과, 신기루 영웅 100% 추가 효과"),
-                    new SynergyTierInfo(8, "(8) 300%의 효과, 신기루 영웅 100% 추가 효과, 지도 정보 모두 개방")
+                    new SynergyTierInfo(6, "(6) 200%의 효과, 신기루 소속 영웅은 100%의 추가 효과"),
+                    new SynergyTierInfo(8, "(8) 300%의 효과, 신기루 소속 영웅은 100%의 추가 효과, 전투 보상 +100%")
                 }
             );
 
             // 7. 속삭임 교단 (3/5/7)
             infoDict[SynergyType.WhisperCult] = new SynergyInfo(
                 SynergyType.WhisperCult, "속삭임 교단", "👁️", true,
-                "'리더 스킬'이 턴당 1회 사용할 수 있는 특수 강화 스킬로 변환됩니다.",
+                "스킬칸에 전용 스킬이 생성됩니다. 매 턴 한 번만 사용할 수 있습니다.",
                 new List<SynergyTierInfo>
                 {
-                    new SynergyTierInfo(3, "(3) 1코스트, 적 1명에게 130% 공격력 체력/정신력 피해"),
-                    new SynergyTierInfo(5, "(5) 피해량 +30%, 관통 효과 추가"),
-                    new SynergyTierInfo(7, "(7) 피해량 +30%, 모든 적 대상으로 변경")
+                    new SynergyTierInfo(3, "(3) 2코스트, 적 하나에게 10의 고정 정신력 피해"),
+                    new SynergyTierInfo(5, "(5) 피해량 +5, 코스트 -1"),
+                    new SynergyTierInfo(7, "(7) 피해량 +10, 모든 적 대상으로 변경")
                 }
             );
 
@@ -201,8 +201,8 @@ namespace TheLastArk.Character
                 "모든 아군이 받는 체력 피해가 감소합니다.",
                 new List<SynergyTierInfo>
                 {
-                    new SynergyTierInfo(2, "(2) 받는 피해 -10% (수호자는 -20%)"),
-                    new SynergyTierInfo(4, "(4) 받는 피해 -15% (수호자는 -30%)")
+                    new SynergyTierInfo(2, "(2) 받는 체력 피해 -10%, 수호자는 -20%"),
+                    new SynergyTierInfo(4, "(4) 받는 체력 피해 -15%, 수호자는 -30%")
                 }
             );
 
@@ -212,19 +212,19 @@ namespace TheLastArk.Character
                 "전사 아군이 잃은 체력에 비례해 스탯이 증가합니다.",
                 new List<SynergyTierInfo>
                 {
-                    new SynergyTierInfo(2, "(2) 잃은 체력 비례 공격력 최대 +40% (체력 25%에서 최대)"),
-                    new SynergyTierInfo(4, "(4) 잃은 체력 비례 공격력 최대 +60% (체력 25%에서 최대)")
+                    new SynergyTierInfo(2, "(2) 잃은 체력에 비례해 공격력, 주문력 최대 40% 증가, 체력 25%에서 최대치"),
+                    new SynergyTierInfo(4, "(4) 잃은 체력에 비례해 공격력, 주문력 최대 60% 증가, 체력 25%에서 최대치")
                 }
             );
 
             // 12. 암살자 (2/4)
             infoDict[SynergyType.Assassin] = new SynergyInfo(
                 SynergyType.Assassin, "암살자", "🗡️", false,
-                "암살자 아군의 공격력이 증가하고 매 턴 첫 스킬 소모 행동력이 감소합니다.",
+                "암살자 아군의 스탯이 증가하고 매 턴 첫 스킬로 소모하는 행동력이 감소합니다.",
                 new List<SynergyTierInfo>
                 {
-                    new SynergyTierInfo(2, "(2) 공격력 +10%, 첫 스킬 소모 행동력 -1"),
-                    new SynergyTierInfo(4, "(4) 공격력 +20%, 첫 스킬 소모 행동력 -2")
+                    new SynergyTierInfo(2, "(2) 공격력, 주문력 +10%, 소모 행동력 -1"),
+                    new SynergyTierInfo(4, "(4) 공격력, 주문력 +20%, 소모 행동력 -2")
                 }
             );
 
@@ -245,8 +245,8 @@ namespace TheLastArk.Character
                 "모든 아군의 상태이상 배율이 증가합니다.",
                 new List<SynergyTierInfo>
                 {
-                    new SynergyTierInfo(2, "(2) 적에게 적용하는 상태이상 개수 +50%"),
-                    new SynergyTierInfo(4, "(4) 적에게 적용하는 상태이상 개수 +100%")
+                    new SynergyTierInfo(2, "(2) 적에게 적용하는 상태이상 갯수 +50%"),
+                    new SynergyTierInfo(4, "(4) 적에게 적용하는 상태이상 갯수 +100%")
                 }
             );
 
@@ -256,9 +256,9 @@ namespace TheLastArk.Character
                 "모든 아군이 전투 시 매 턴 이로운 효과를 얻습니다.",
                 new List<SynergyTierInfo>
                 {
-                    new SynergyTierInfo(1, "(1) 매 턴 공격력 +1"),
-                    new SynergyTierInfo(2, "(2) 매 턴 공격력 +1, 체력 1 회복 추가"),
-                    new SynergyTierInfo(3, "(3) 매 턴 공격력 +1, 체력 1 회복, 정신력 1 회복 추가")
+                    new SynergyTierInfo(1, "(1) 매 턴 공격력, 주문력 1 증가"),
+                    new SynergyTierInfo(2, "(2) 추가로 체력 1 회복"),
+                    new SynergyTierInfo(3, "(3) 추가로 정신력 1 회복")
                 }
             );
         }

@@ -8,6 +8,20 @@ using TheLastArk.Managers;
 
 public class BattleManager : MonoBehaviour
 {
+    private const string SkillFirstTargetingKey = "Battle.SkillFirstTargeting";
+
+    public static bool SkillFirstTargeting
+    {
+        get => PlayerPrefs.GetInt(SkillFirstTargetingKey, 0) == 1;
+        set
+        {
+            PlayerPrefs.SetInt(SkillFirstTargetingKey, value ? 1 : 0);
+            PlayerPrefs.Save();
+            BattleManager manager = FindObjectOfType<BattleManager>();
+            if (manager != null) manager.CancelPendingSelection();
+        }
+    }
+
     [Header("Config")]
     [SerializeField] private BattleConfig battleConfig;
 
@@ -76,7 +90,21 @@ public class BattleManager : MonoBehaviour
         }
 
         EnsureTopResourceUI();
+        if (targetHandler != null)
+        {
+            targetHandler.TargetSelected -= OnTargetSelected;
+            targetHandler.TargetSelected += OnTargetSelected;
+            targetHandler.TargetCanceled -= CancelPendingSelection;
+            targetHandler.TargetCanceled += CancelPendingSelection;
+        }
         EnterPhase(BattlePhase.PlayerTurn);
+    }
+
+    private void OnDestroy()
+    {
+        if (targetHandler == null) return;
+        targetHandler.TargetSelected -= OnTargetSelected;
+        targetHandler.TargetCanceled -= CancelPendingSelection;
     }
 
     private void EnsureTopResourceUI()
@@ -98,13 +126,53 @@ public class BattleManager : MonoBehaviour
         }
 
         Transform existingResourcePanel = topBarCanvasObj.transform.Find("ResourcePanel");
-        if (existingResourcePanel != null) return;
+        if (existingResourcePanel == null)
+        {
+            var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
+            if (resourceUI == null)
+                resourceUI = gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();
 
-        var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
-        if (resourceUI == null)
-            resourceUI = gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();
+            resourceUI.Initialize(topBarCanvasObj.transform);
+        }
 
-        resourceUI.Initialize(topBarCanvasObj.transform);
+        EnsureTurnCountUI(topBarCanvasObj.transform);
+    }
+
+    private void EnsureTurnCountUI(Transform topBarCanvasTransform)
+    {
+        if (turnCountText == null)
+        {
+            GameObject existingTurnObj = GameObject.Find("TurnCountText");
+            if (existingTurnObj != null)
+            {
+                turnCountText = existingTurnObj.GetComponent<TextMeshProUGUI>();
+            }
+            else
+            {
+                GameObject turnObj = new GameObject("TurnCountText");
+                turnCountText = turnObj.AddComponent<TextMeshProUGUI>();
+            }
+        }
+
+        if (turnCountText != null)
+        {
+            turnCountText.transform.SetParent(topBarCanvasTransform, false);
+            turnCountText.transform.SetAsLastSibling();
+
+            RectTransform rect = turnCountText.rectTransform;
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -20f); // 화면 최상단 중앙 위치
+            rect.sizeDelta = new Vector2(250f, 50f);
+
+            turnCountText.fontSize = 32;
+            turnCountText.alignment = TextAlignmentOptions.Center;
+            turnCountText.color = Color.white;
+            turnCountText.fontStyle = FontStyles.Bold;
+
+            TMPFontManager.ApplyFont(turnCountText);
+        }
     }
 
     private void EnterPhase(BattlePhase next)
@@ -142,8 +210,21 @@ public class BattleManager : MonoBehaviour
     {
         if (!IsPlayerTurn) return;
 
+        if (SkillFirstTargeting && _selection.Skill == skill && _selection.Actor == actor)
+        {
+            CancelPendingSelection();
+            return;
+        }
+
         _selection.Clear();
         _selection.Set(skill, actor);
+
+        if (SkillFirstTargeting)
+        {
+            if (targetHandler != null) targetHandler.Deselect(false);
+            NotificationManager.Instance.ShowMessage("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
+            return;
+        }
 
         if (targetHandler != null && targetHandler.target != null)
             PerformSkill();
@@ -165,6 +246,13 @@ public class BattleManager : MonoBehaviour
         if (consumable.effectType == TheLastArk.Data.ConsumableEffectType.DamageAll)
         {
             PerformConsumable();
+            return;
+        }
+
+        if (SkillFirstTargeting)
+        {
+            if (targetHandler != null) targetHandler.Deselect(false);
+            NotificationManager.Instance.ShowMessage("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
             return;
         }
 
@@ -190,7 +278,7 @@ public class BattleManager : MonoBehaviour
         if (!TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty))
         {
             NotificationManager.Instance.ShowMessage($"{skill.skillName}에 맞는 대상이 아닙니다.", Color.red);
-            _selection.Clear();
+            if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
 
@@ -208,6 +296,7 @@ public class BattleManager : MonoBehaviour
         EffectEngine.ProcessSkill(actor, targets, levelData);
 
         _selection.Clear();
+        if (SkillFirstTargeting && targetHandler != null) targetHandler.Deselect(false);
         if (TryEndBattleIfPartyWiped()) return;
 
         if (currentAP <= 0) EndPlayerTurn();
@@ -231,7 +320,7 @@ public class BattleManager : MonoBehaviour
                 if (primaryTarget == null || playerParty.Contains(primaryTarget))
                 {
                     NotificationManager.Instance.ShowMessage("적을 선택하세요.", Color.red);
-                    _selection.Clear();
+                    if (!SkillFirstTargeting) _selection.Clear();
                     return;
                 }
                 targets.Add(primaryTarget);
@@ -242,7 +331,7 @@ public class BattleManager : MonoBehaviour
                 if (primaryTarget == null || enemyParty.Contains(primaryTarget))
                 {
                     NotificationManager.Instance.ShowMessage("아군을 선택하세요.", Color.red);
-                    _selection.Clear();
+                    if (!SkillFirstTargeting) _selection.Clear();
                     return;
                 }
                 targets.Add(primaryTarget);
@@ -278,6 +367,20 @@ public class BattleManager : MonoBehaviour
         if (resMgr != null) resMgr.RemoveConsumable(_selection.ConsumableIndex);
 
         _selection.Clear();
+        if (SkillFirstTargeting && targetHandler != null) targetHandler.Deselect(false);
+    }
+
+    private void OnTargetSelected(GameObject selectedTarget)
+    {
+        if (!SkillFirstTargeting || !_selection.IsReady || selectedTarget == null) return;
+        if (_selection.Skill != null) PerformSkill();
+        else if (_selection.Consumable != null) PerformConsumable();
+    }
+
+    public void CancelPendingSelection()
+    {
+        _selection.Clear();
+        if (targetHandler != null) targetHandler.Deselect(false);
     }
 
     public void EndPlayerTurn()
@@ -293,6 +396,7 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        CancelPendingSelection();
         Debug.Log($"[Battle] 적 턴으로 전환합니다. EnemyParty 수: {enemyParty.Count}");
         EnterPhase(BattlePhase.EnemyTurn);
     }
@@ -321,7 +425,7 @@ public class BattleManager : MonoBehaviour
         Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");
         currentAP = MaxAP;
         UpdateAPUI();
-        _selection.Clear();
+        CancelPendingSelection();
     }
 
     private IEnumerator RunEnemyTurn()
@@ -415,6 +519,7 @@ public class BattleManager : MonoBehaviour
 
     private void OnEnterBattleEnd()
     {
+        CancelPendingSelection();
         ClearEnemyTargetMarkers();
         bool playerWin = IsPartyWiped(enemyParty);
         Debug.Log($"[Battle] 전투 종료: {(playerWin ? "승리" : "패배")}");
@@ -423,8 +528,10 @@ public class BattleManager : MonoBehaviour
         {
             if (playerWin)
             {
-                GiveVictoryRewards();
-                BattleResultUIManager.Instance.ShowVictoryScreen(VictoryGold, LoadMapScene);
+                BattleResultUIManager.Instance.ShowVictoryScreen(
+                    RunManager.Instance.CurrentEncounterPool,
+                    VictoryGold,
+                    LoadMapScene);
             }
             else
                 BattleResultUIManager.Instance.ShowDefeatScreen(LoadMapScene);
