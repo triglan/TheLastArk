@@ -23,9 +23,9 @@ public class MapManager : MonoBehaviour
     [SerializeField] private RectTransform mapContainer;
 
     [Header("UI Settings")]
-    [SerializeField] private float nodeSize = 150f;
+    [SerializeField] private float nodeSize = 185f;
     [SerializeField] private float mapSpacingX = 250f;   // 층(Floor) 간 X 간격
-    [SerializeField] private float mapSpacingY = 200f;   // 노드 간 Y 간격
+    [SerializeField] private float mapSpacingY = 150f;   // 노드 간 Y 간격
 
     [Header("Info Panel")]
     [SerializeField] private TMPro.TextMeshProUGUI turnInfoText;
@@ -47,6 +47,9 @@ public class MapManager : MonoBehaviour
 
     private RectTransform trainIndicator;
 
+    [HideInInspector] public bool isReadOnly = false;
+    [HideInInspector] public Transform customCanvasTransform = null;
+
     // ─────────────────────────────────────────────
     // 공개 접근자 (MapNodeUI에서 사용)
     // ─────────────────────────────────────────────
@@ -65,6 +68,8 @@ public class MapManager : MonoBehaviour
 
     void OnGUI()
     {
+        if (isReadOnly) return;
+
         // 디버깅용 이벤트 강제 트리거 버튼 (화면 좌측 하단)
         if (GUI.Button(new Rect(10, Screen.height - 45, 110, 30), "Debug: Event"))
         {
@@ -164,25 +169,29 @@ private void InitializeMap()
         DrawConnections();
         UpdateAllVisuals();
         UpdateInfoPanel();
+        ScrollToCurrentNode();
 
-        // 자원 UI 생성
-        Canvas canvas = FindObjectOfType<Canvas>();
-        if (canvas != null)
+        // 자원 UI 및 디버그 버튼 생성 (읽기 전용 모드에서는 생략)
+        if (!isReadOnly)
         {
-            Transform existingRes = canvas.transform.Find("ResourcePanel");
-            if (existingRes == null)
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (canvas != null)
             {
-                var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
-                if (resourceUI == null) resourceUI = gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();
-                resourceUI.Initialize(canvas.transform);
-            }
-            
-            // 디버그 버튼 생성
-            Transform existingDebugBtn = canvas.transform.Find("DebugConsumableButton");
-            if (existingDebugBtn == null)
-            {
-                CreateDebugConsumableButton(canvas.transform);
-                CreateDebugRelicButton(canvas.transform);
+                Transform existingRes = canvas.transform.Find("ResourcePanel");
+                if (existingRes == null)
+                {
+                    var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
+                    if (resourceUI == null) resourceUI = gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();
+                    resourceUI.Initialize(canvas.transform);
+                }
+                
+                // 디버그 버튼 생성
+                Transform existingDebugBtn = canvas.transform.Find("DebugConsumableButton");
+                if (existingDebugBtn == null)
+                {
+                    CreateDebugConsumableButton(canvas.transform);
+                    CreateDebugRelicButton(canvas.transform);
+                }
             }
         }
     }
@@ -367,9 +376,11 @@ private void InitializeMap()
             scaler.matchWidthOrHeight = 0.5f;
         }
 
+        Transform parentTransform = customCanvasTransform != null ? customCanvasTransform : canvas.transform;
+
         // Scroll View (가로 스크롤)
         GameObject scrollObj = new GameObject("MapScrollView");
-        scrollObj.transform.SetParent(canvas.transform, false);
+        scrollObj.transform.SetParent(parentTransform, false);
         ScrollRect scrollRect = scrollObj.AddComponent<ScrollRect>();
         Image scrollBg = scrollObj.AddComponent<Image>();
         scrollBg.color = new Color(0, 0, 0, 0); // 배경 완전 투명하게 처리 (뒤에 Canvas 배경 보임)
@@ -378,7 +389,7 @@ private void InitializeMap()
         scrollRectTransform.anchorMin = Vector2.zero;
         scrollRectTransform.anchorMax = Vector2.one;
         scrollRectTransform.offsetMin = new Vector2(0, 60);
-        scrollRectTransform.offsetMax = Vector2.zero;
+        scrollRectTransform.offsetMax = new Vector2(0, -90); // 상단바(높이 80) 아래 영역으로 제한하여 노드 잘림 방지
 
         // Viewport
         GameObject viewportObj = new GameObject("Viewport");
@@ -407,7 +418,7 @@ private void InitializeMap()
         {
             GameObject bgObj = new GameObject("StaticBackground");
             // Canvas 직속 자식으로 넣어서 ScrollRect와 분리하여 스크롤되지 않도록 설정
-            bgObj.transform.SetParent(canvas.transform, false);
+            bgObj.transform.SetParent(parentTransform, false);
             bgObj.transform.SetAsFirstSibling(); // 모든 UI(스크롤, 패널 등) 뒤에 그려지게
 
             Image bgImage = bgObj.AddComponent<Image>();
@@ -431,11 +442,11 @@ private void InitializeMap()
         scrollRect.content = mapContainer;
         scrollRect.viewport = viewportRect;
         scrollRect.horizontal = true;
-        scrollRect.vertical = true;
+        scrollRect.vertical = false; // 상하 드래그 완전히 금지 (좌우로만 스크롤 가능)
         scrollRect.movementType = ScrollRect.MovementType.Clamped;
 
         // Info Panel (하단)
-        CreateInfoPanel(canvas.transform);
+        CreateInfoPanel(parentTransform);
     }
 
     /// <summary>
@@ -522,11 +533,11 @@ tmp.color = Color.white;
                 MapNode node = floorNodes[i];
                 float y = startY + i * mapSpacingY;
 
-                // 랜덤 오프셋 크게 추가 (1층과 15층 제외)
+                // 랜덤 오프셋 추가 (1층과 15층 제외) - 상하 잘림 방지를 위해 Y 범위를 조절
                 if (floor > 1 && floor < mapData.totalFloors)
                 {
                     x += Random.Range(-30f, 30f);
-                    y += Random.Range(-50f, 50f);
+                    y += Random.Range(-25f, 25f);
                 }
 
                 Vector2 position = new Vector2(x, y);
@@ -687,7 +698,7 @@ label.color = Color.white;
     /// </summary>
     public void OnNodeSelected(MapNode targetNode)
     {
-        if (targetNode == null) return;
+        if (isReadOnly || targetNode == null) return;
 
         // 이동 가능 여부 확인
         if (!targetNode.IsAccessibleFrom(mapData.currentNode))
@@ -885,7 +896,7 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
         trainIndicator.anchorMax = new Vector2(0f, 0.5f);
         trainIndicator.pivot = new Vector2(0.5f, 0.5f);
         
-        trainIndicator.sizeDelta = new Vector2(100f, 100f);
+        trainIndicator.sizeDelta = new Vector2(130f, 130f);
         Image trainImg = trainObj.AddComponent<Image>();
         trainImg.sprite = Resources.Load<Sprite>("UI/Train");
         
@@ -941,20 +952,23 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
     // ScrollView를 현재 노드에 포커스
     // ─────────────────────────────────────────────
 
-    private void ScrollToCurrentNode()
+    public void ScrollToCurrentNode()
     {
-        if (mapData.currentNode == null || !nodePositions.ContainsKey(mapData.currentNode.id))
+        if (mapData == null || mapData.currentNode == null || !nodePositions.ContainsKey(mapData.currentNode.id) || mapContainer == null)
             return;
 
-        // 현재 노드의 Y 위치를 기반으로 스크롤
+        // 현재 노드의 X 위치를 기반으로 가로 스크롤 정렬
         Vector2 pos = nodePositions[mapData.currentNode.id];
-        float totalHeight = mapContainer.sizeDelta.y;
-
         ScrollRect scrollRect = mapContainer.GetComponentInParent<ScrollRect>();
-        if (scrollRect != null && totalHeight > 0)
+        if (scrollRect != null && mapContainer.sizeDelta.x > 0)
         {
-            float normalizedY = pos.y / totalHeight;
-            scrollRect.verticalNormalizedPosition = Mathf.Clamp01(normalizedY);
+            float viewportWidth = scrollRect.viewport != null ? scrollRect.viewport.rect.width : 1920f;
+            float scrollableWidth = mapContainer.sizeDelta.x - viewportWidth;
+            if (scrollableWidth > 0)
+            {
+                float targetScrollX = pos.x - (viewportWidth / 2f);
+                scrollRect.horizontalNormalizedPosition = Mathf.Clamp01(targetScrollX / scrollableWidth);
+            }
         }
     }
 }

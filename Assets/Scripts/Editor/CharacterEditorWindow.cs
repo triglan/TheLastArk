@@ -2,10 +2,11 @@ using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using System.IO;
+using TheLastArk.Map.Events;
 
 public class CharacterEditorWindow : EditorWindow
 {
-    private enum CharacterEditorMode { Player, Enemy, Formations, Pools }
+    private enum CharacterEditorMode { Player, Enemy, Formations, Pools, Events }
 
     private const string PLAYER_DATA_FOLDER = "Assets/Resources/Characters/Player/Data";
     private const string PLAYER_ILLUST_FOLDER = "Assets/Resources/Characters/Player/Illust";
@@ -27,6 +28,15 @@ public class CharacterEditorWindow : EditorWindow
     private bool hasPendingSave;
     private double nextSaveTime;
     private EnemyEncounterEditorWindow embeddedEncounterEditor;
+
+    private readonly List<GameEventData> cachedEventList = new List<GameEventData>();
+    private GameEventData selectedEventData;
+    private Vector2 eventLeftScroll;
+    private Vector2 eventMiddleScroll;
+    private Vector2 eventRightScroll;
+    private string eventSearchText = "";
+    private int eventCategoryFilter = 0; // 0: 전체, 1: Common, 2: Stage1
+    private bool isDirtyEventCache = true;
 
     private bool IsEnemyMode => editorMode == CharacterEditorMode.Enemy;
     private bool IsCharacterMode => editorMode == CharacterEditorMode.Player || editorMode == CharacterEditorMode.Enemy;
@@ -67,12 +77,14 @@ public class CharacterEditorWindow : EditorWindow
     private void OnFocus()
     {
         isDirtyCache = true;
+        isDirtyEventCache = true;
         if (embeddedEncounterEditor != null) embeddedEncounterEditor.RefreshEmbedded();
     }
 
     private void OnProjectChange()
     {
         isDirtyCache = true;
+        isDirtyEventCache = true;
         Repaint();
     }
 
@@ -92,6 +104,19 @@ public class CharacterEditorWindow : EditorWindow
 
     private void OnGUI()
     {
+        if (editorMode == CharacterEditorMode.Events)
+        {
+            RefreshEventCacheIfNeeded();
+            EditorGUILayout.BeginHorizontal();
+            DrawEventLeftPanel();
+            DrawEventMiddlePanel();
+            DrawEventRightOverviewPanel();
+            EditorGUILayout.EndHorizontal();
+
+            FlushPendingSaveIfReady();
+            return;
+        }
+
         if (!IsCharacterMode)
         {
             EnsureEmbeddedEncounterEditor();
@@ -129,12 +154,18 @@ public class CharacterEditorWindow : EditorWindow
         if (nextCharacterModeIndex >= 0 && nextCharacterModeIndex != characterModeIndex)
             SetEditorMode(nextCharacterModeIndex == 0 ? CharacterEditorMode.Player : CharacterEditorMode.Enemy);
 
-        int encounterModeIndex = editorMode == CharacterEditorMode.Formations
+        int otherModeIndex = editorMode == CharacterEditorMode.Formations
             ? 0
-            : editorMode == CharacterEditorMode.Pools ? 1 : -1;
-        int nextEncounterModeIndex = GUILayout.Toolbar(encounterModeIndex, new[] { "포메이션", "풀" });
-        if (nextEncounterModeIndex >= 0 && nextEncounterModeIndex != encounterModeIndex)
-            SetEditorMode(nextEncounterModeIndex == 0 ? CharacterEditorMode.Formations : CharacterEditorMode.Pools);
+            : editorMode == CharacterEditorMode.Pools
+            ? 1
+            : editorMode == CharacterEditorMode.Events ? 2 : -1;
+        int nextOtherModeIndex = GUILayout.Toolbar(otherModeIndex, new[] { "포메이션", "풀", "이벤트" });
+        if (nextOtherModeIndex >= 0 && nextOtherModeIndex != otherModeIndex)
+        {
+            if (nextOtherModeIndex == 0) SetEditorMode(CharacterEditorMode.Formations);
+            else if (nextOtherModeIndex == 1) SetEditorMode(CharacterEditorMode.Pools);
+            else if (nextOtherModeIndex == 2) SetEditorMode(CharacterEditorMode.Events);
+        }
 
         EditorGUILayout.EndVertical();
         EditorGUILayout.Space(4f);
@@ -147,6 +178,7 @@ public class CharacterEditorWindow : EditorWindow
         FlushPendingSaveNow();
         editorMode = nextMode;
         selectedData = null;
+        selectedEventData = null;
         iconFolderPath = "";
         leftScroll = Vector2.zero;
         middleScroll = Vector2.zero;
@@ -380,6 +412,8 @@ public class CharacterEditorWindow : EditorWindow
                 iconFolderPath = "";
                 isDirtyCache = true;
             }
+
+            selectedData.regionId = EditorGUILayout.TextField("Region", selectedData.regionId);
 
             EditorGUILayout.EndVertical();
             return;
@@ -1041,5 +1075,427 @@ public class CharacterEditorWindow : EditorWindow
             if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(current, parts[i]);
             current = next;
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 이벤트 편집기 (Events Tab) 구현
+    // ─────────────────────────────────────────────────────────────
+
+    private void RefreshEventCacheIfNeeded()
+    {
+        if (!isDirtyEventCache) return;
+        cachedEventList.Clear();
+        string[] guids = AssetDatabase.FindAssets("t:GameEventData");
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            GameEventData data = AssetDatabase.LoadAssetAtPath<GameEventData>(path);
+            if (data != null) cachedEventList.Add(data);
+        }
+        cachedEventList.Sort((a, b) => string.Compare(a.name, b.name, System.StringComparison.OrdinalIgnoreCase));
+        isDirtyEventCache = false;
+    }
+
+    private void CreateNewEvent()
+    {
+        EnsureAssetFolder("Assets/Resources/Events/Common");
+        EnsureAssetFolder("Assets/Resources/Events/Stage1");
+        EnsureAssetFolder("Assets/Resources/Events/Stage2");
+        EnsureAssetFolder("Assets/Resources/Events/Stage3");
+
+        string subFolder = eventCategoryFilter == 2 ? "Stage1" : eventCategoryFilter == 3 ? "Stage2" : eventCategoryFilter == 4 ? "Stage3" : "Common";
+        string folderPath = $"Assets/Resources/Events/{subFolder}";
+        int count = 1;
+        string assetPath = $"{folderPath}/NewEvent_{count}.asset";
+        while (AssetDatabase.LoadAssetAtPath<GameEventData>(assetPath) != null)
+        {
+            count++;
+            assetPath = $"{folderPath}/NewEvent_{count}.asset";
+        }
+
+        GameEventData newEvent = ScriptableObject.CreateInstance<GameEventData>();
+        newEvent.eventID = $"evt_new_{count}_{System.DateTime.Now:HHmmss}";
+        newEvent.eventTitle = $"새 이벤트 {count}";
+        newEvent.eventDescription = "이벤트에 대한 설명문을 입력하세요.";
+
+        EventOption defaultOption = new EventOption
+        {
+            optionText = "첫 번째 선택지",
+            requirementType = EventRequirementType.None,
+            outcomes = new List<EventOutcome>
+            {
+                new EventOutcome
+                {
+                    outcomeText = "결과 텍스트를 입력하세요.",
+                    probability = 100,
+                    rewards = new List<EventReward>()
+                }
+            }
+        };
+        newEvent.options = new List<EventOption> { defaultOption };
+
+        AssetDatabase.CreateAsset(newEvent, assetPath);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        selectedEventData = newEvent;
+        isDirtyEventCache = true;
+        Debug.Log($"[CharacterEditor] 새 이벤트 생성 완료: {assetPath}");
+    }
+
+    private void DuplicateEvent(GameEventData target)
+    {
+        if (target == null) return;
+
+        string sourcePath = AssetDatabase.GetAssetPath(target);
+        string directory = Path.GetDirectoryName(sourcePath);
+        string filename = Path.GetFileNameWithoutExtension(sourcePath);
+        string newPath = AssetDatabase.GenerateUniqueAssetPath($"{directory}/{filename}_Copy.asset");
+
+        if (AssetDatabase.CopyAsset(sourcePath, newPath))
+        {
+            AssetDatabase.Refresh();
+            GameEventData copy = AssetDatabase.LoadAssetAtPath<GameEventData>(newPath);
+            if (copy != null)
+            {
+                copy.eventID = $"{copy.eventID}_copy";
+                copy.eventTitle = $"{copy.eventTitle} (복사본)";
+                EditorUtility.SetDirty(copy);
+                AssetDatabase.SaveAssets();
+                selectedEventData = copy;
+                isDirtyEventCache = true;
+            }
+        }
+    }
+
+    private void DeleteEvent(GameEventData target)
+    {
+        if (target == null) return;
+        string path = AssetDatabase.GetAssetPath(target);
+        if (EditorUtility.DisplayDialog("이벤트 삭제", $"정말로 '{target.eventTitle}' 이벤트를 삭제하시겠습니까?\n\n경로: {path}", "삭제", "취소"))
+        {
+            if (selectedEventData == target) selectedEventData = null;
+            AssetDatabase.DeleteAsset(path);
+            AssetDatabase.Refresh();
+            isDirtyEventCache = true;
+        }
+    }
+
+    private void DrawEventLeftPanel()
+    {
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(250), GUILayout.ExpandHeight(true));
+        DrawModeToolbar();
+        EditorGUILayout.Space(6f);
+        EditorGUILayout.LabelField("이벤트 목록", EditorStyles.boldLabel);
+
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("카테고리:", GUILayout.Width(65));
+        eventCategoryFilter = EditorGUILayout.Popup(eventCategoryFilter, new[] { "전체", "Common", "Stage1" });
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.LabelField("검색", EditorStyles.boldLabel);
+        eventSearchText = EditorGUILayout.TextField(eventSearchText);
+
+        if (GUILayout.Button("+ 새 이벤트 생성", GUILayout.Height(30)))
+        {
+            CreateNewEvent();
+        }
+
+        EditorGUILayout.Space(5);
+        eventLeftScroll = EditorGUILayout.BeginScrollView(eventLeftScroll);
+
+        foreach (GameEventData data in cachedEventList)
+        {
+            if (data == null) continue;
+            string assetPath = AssetDatabase.GetAssetPath(data);
+
+            if (eventCategoryFilter == 1 && !assetPath.Contains("/Events/Common/")) continue;
+            if (eventCategoryFilter == 2 && !assetPath.Contains("/Events/Stage1/")) continue;
+
+            string title = string.IsNullOrWhiteSpace(data.eventTitle) ? data.name : data.eventTitle;
+            if (!string.IsNullOrEmpty(eventSearchText) && !title.ToLower().Contains(eventSearchText.ToLower()) && !data.name.ToLower().Contains(eventSearchText.ToLower())) continue;
+
+            EditorGUILayout.BeginHorizontal();
+            bool isSelected = selectedEventData == data;
+            string displayLabel = assetPath.Contains("/Events/Common/") ? $"[Common] {title}" : assetPath.Contains("/Events/Stage1/") ? $"[Stage1] {title}" : title;
+            if (GUILayout.Toggle(isSelected, displayLabel, "Button", GUILayout.Height(25), GUILayout.ExpandWidth(true)) && !isSelected)
+            {
+                selectedEventData = data;
+                GUI.FocusControl(null);
+            }
+            if (GUILayout.Button("C", GUILayout.Width(22), GUILayout.Height(25)))
+            {
+                DuplicateEvent(data);
+            }
+            if (GUILayout.Button("X", GUILayout.Width(22), GUILayout.Height(25)))
+            {
+                DeleteEvent(data);
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        EditorGUILayout.EndScrollView();
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawEventMiddlePanel()
+    {
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+        EditorGUILayout.LabelField("이벤트 상세 편집", EditorStyles.boldLabel);
+
+        if (selectedEventData == null)
+        {
+            EditorGUILayout.HelpBox("좌측 목록에서 편집할 이벤트를 선택하거나 새 이벤트를 생성하세요.", MessageType.Info);
+            EditorGUILayout.EndVertical();
+            return;
+        }
+
+        eventMiddleScroll = EditorGUILayout.BeginScrollView(eventMiddleScroll);
+
+        EditorGUI.BeginChangeCheck();
+
+        // 1. 기본 정보
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.LabelField("📌 기본 정보", EditorStyles.boldLabel);
+
+        string currentAssetPath = AssetDatabase.GetAssetPath(selectedEventData);
+        int currentStageCategory = currentAssetPath.Contains("/Events/Stage1/") ? 1 : currentAssetPath.Contains("/Events/Stage2/") ? 2 : currentAssetPath.Contains("/Events/Stage3/") ? 3 : 0;
+        int nextStageCategory = EditorGUILayout.Popup("등장 스테이지 (Category)", currentStageCategory, new[] { "Common (모든 스테이지 공용)", "Stage 1 전용", "Stage 2 전용", "Stage 3 전용" });
+        if (nextStageCategory != currentStageCategory)
+        {
+            string targetFolder = nextStageCategory == 1 ? "Assets/Resources/Events/Stage1" : nextStageCategory == 2 ? "Assets/Resources/Events/Stage2" : nextStageCategory == 3 ? "Assets/Resources/Events/Stage3" : "Assets/Resources/Events/Common";
+            EnsureAssetFolder(targetFolder);
+            string fileName = Path.GetFileName(currentAssetPath);
+            string targetPath = $"{targetFolder}/{fileName}";
+            if (currentAssetPath != targetPath)
+            {
+                AssetDatabase.MoveAsset(currentAssetPath, targetPath);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+                isDirtyEventCache = true;
+            }
+        }
+
+        selectedEventData.eventID = EditorGUILayout.TextField("이벤트 고유 ID (eventID)", selectedEventData.eventID);
+        selectedEventData.eventTitle = EditorGUILayout.TextField("이벤트 제목 (eventTitle)", selectedEventData.eventTitle);
+
+        EditorGUILayout.LabelField("이벤트 내용 설명문 (eventDescription)");
+        selectedEventData.eventDescription = EditorGUILayout.TextArea(selectedEventData.eventDescription, GUILayout.Height(70));
+
+        EditorGUILayout.Space(5);
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("이벤트 이미지 (eventImage)", GUILayout.Width(170));
+        selectedEventData.eventImage = (Sprite)EditorGUILayout.ObjectField(selectedEventData.eventImage, typeof(Sprite), false);
+        EditorGUILayout.EndHorizontal();
+
+        // 이미지 미리보기
+        if (selectedEventData.eventImage != null && selectedEventData.eventImage.texture != null)
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.Space(175, false);
+            Rect previewRect = GUILayoutUtility.GetRect(100, 100, GUILayout.ExpandWidth(false));
+            GUI.DrawTexture(previewRect, selectedEventData.eventImage.texture, ScaleMode.ScaleToFit);
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space(5);
+        }
+
+        selectedEventData.imageOffset = EditorGUILayout.Vector2Field("이미지 오프셋 (imageOffset)", selectedEventData.imageOffset);
+        selectedEventData.imageScale = EditorGUILayout.FloatField("이미지 스케일 (imageScale)", selectedEventData.imageScale);
+
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.Space(10);
+
+        // 2. 선택지 목록 (확정 실행 방식)
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("💡 선택지 목록 (Options)", EditorStyles.boldLabel);
+        if (GUILayout.Button("+ 선택지 추가", GUILayout.Width(110)))
+        {
+            if (selectedEventData.options == null) selectedEventData.options = new List<EventOption>();
+            selectedEventData.options.Add(new EventOption
+            {
+                optionText = "새 선택지",
+                requirementType = EventRequirementType.None,
+                outcomes = new List<EventOutcome>
+                {
+                    new EventOutcome { outcomeText = "결과 텍스트를 입력하세요.", probability = 100, rewards = new List<EventReward>() }
+                }
+            });
+        }
+        EditorGUILayout.EndHorizontal();
+
+        if (selectedEventData.options != null)
+        {
+            for (int i = 0; i < selectedEventData.options.Count; i++)
+            {
+                EventOption option = selectedEventData.options[i];
+                EditorGUILayout.BeginVertical(GUI.skin.box);
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField($"선택지 #{i + 1}", EditorStyles.boldLabel);
+                if (GUILayout.Button("선택지 삭제", GUILayout.Width(90)))
+                {
+                    selectedEventData.options.RemoveAt(i);
+                    i--;
+                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.EndVertical();
+                    continue;
+                }
+                EditorGUILayout.EndHorizontal();
+
+                option.optionText = EditorGUILayout.TextField("선택지 텍스트", option.optionText);
+                option.requirementType = (EventRequirementType)EditorGUILayout.EnumPopup("요구 조건 타입", option.requirementType);
+
+                if (option.requirementType != EventRequirementType.None)
+                {
+                    option.requirementValue = EditorGUILayout.IntField("요구 조건 값", option.requirementValue);
+                    if (option.requirementType == EventRequirementType.RequireRelic)
+                    {
+                        option.requirementDataID = EditorGUILayout.TextField("요구 유물 ID", option.requirementDataID);
+                    }
+                }
+
+                // Outcomes for this Option (Deterministic)
+                if (option.outcomes == null || option.outcomes.Count == 0)
+                {
+                    option.outcomes = new List<EventOutcome>
+                    {
+                        new EventOutcome { outcomeText = "결과 텍스트를 입력하세요.", probability = 100, rewards = new List<EventReward>() }
+                    };
+                }
+
+                for (int j = 0; j < option.outcomes.Count; j++)
+                {
+                    EventOutcome outcome = option.outcomes[j];
+                    outcome.probability = 100; // 확정 발생 100% 고정
+
+                    EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                    EditorGUILayout.LabelField("결과 내용 (Outcome Text)", EditorStyles.miniBoldLabel);
+                    outcome.outcomeText = EditorGUILayout.TextArea(outcome.outcomeText, GUILayout.Height(50));
+
+                    // Rewards for this Outcome
+                    EditorGUILayout.Space(5);
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("└ 보상/페널티 목록", EditorStyles.miniBoldLabel);
+                    if (GUILayout.Button("+ 보상 추가", GUILayout.Width(80)))
+                    {
+                        if (outcome.rewards == null) outcome.rewards = new List<EventReward>();
+                        outcome.rewards.Add(new EventReward { rewardType = EventRewardType.GainGold, rewardValue = 50 });
+                    }
+                    EditorGUILayout.EndHorizontal();
+
+                    if (outcome.rewards != null)
+                    {
+                        for (int k = 0; k < outcome.rewards.Count; k++)
+                        {
+                            EventReward reward = outcome.rewards[k];
+                            EditorGUILayout.BeginHorizontal();
+                            reward.rewardType = (EventRewardType)EditorGUILayout.EnumPopup(reward.rewardType, GUILayout.Width(140));
+                            reward.rewardValue = EditorGUILayout.IntField(reward.rewardValue, GUILayout.Width(60));
+                            reward.rewardDataID = EditorGUILayout.TextField(reward.rewardDataID);
+                            if (GUILayout.Button("X", GUILayout.Width(22)))
+                            {
+                                outcome.rewards.RemoveAt(k);
+                                k--;
+                                EditorGUILayout.EndHorizontal();
+                                continue;
+                            }
+                            outcome.rewards[k] = reward;
+                            EditorGUILayout.EndHorizontal();
+                        }
+                    }
+
+                    option.outcomes[j] = outcome;
+                    EditorGUILayout.EndVertical();
+                }
+
+                selectedEventData.options[i] = option;
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.Space(5);
+            }
+        }
+
+        EditorGUILayout.EndVertical();
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            EditorUtility.SetDirty(selectedEventData);
+            hasPendingSave = true;
+            nextSaveTime = EditorApplication.timeSinceStartup + SAVE_DELAY_SECONDS;
+        }
+
+        EditorGUILayout.EndScrollView();
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawEventRightOverviewPanel()
+    {
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(230), GUILayout.ExpandHeight(true));
+        EditorGUILayout.LabelField("이벤트 정보 & 도구", EditorStyles.boldLabel);
+
+        if (selectedEventData == null)
+        {
+            EditorGUILayout.HelpBox("선택된 이벤트가 없습니다.", MessageType.Info);
+            EditorGUILayout.EndVertical();
+            return;
+        }
+
+        eventRightScroll = EditorGUILayout.BeginScrollView(eventRightScroll);
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.LabelField("에셋명", EditorStyles.miniBoldLabel);
+        EditorGUILayout.LabelField(selectedEventData.name, EditorStyles.wordWrappedLabel);
+
+        EditorGUILayout.LabelField("에셋 경로", EditorStyles.miniBoldLabel);
+        EditorGUILayout.LabelField(AssetDatabase.GetAssetPath(selectedEventData), EditorStyles.wordWrappedMiniLabel);
+
+        EditorGUILayout.Space(5);
+        EditorGUILayout.LabelField($"선택지 수: {selectedEventData.options?.Count ?? 0}개");
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.Space(10);
+        EditorGUILayout.LabelField("💡 선택지 개요", EditorStyles.boldLabel);
+
+        if (selectedEventData.options != null)
+        {
+            for (int i = 0; i < selectedEventData.options.Count; i++)
+            {
+                var opt = selectedEventData.options[i];
+                string reqStr = opt.requirementType != EventRequirementType.None ? $" ({opt.requirementType})" : "";
+                int rewardCount = 0;
+                if (opt.outcomes != null)
+                {
+                    foreach (var outc in opt.outcomes)
+                    {
+                        if (outc.rewards != null) rewardCount += outc.rewards.Count;
+                    }
+                }
+                EditorGUILayout.HelpBox($"선택지 #{i + 1}: {opt.optionText}{reqStr}\n보상 항목: {rewardCount}개 (확정 실행)", MessageType.None);
+            }
+        }
+
+        EditorGUILayout.Space(15);
+        EditorGUILayout.LabelField("🛠️ 테스트 도구", EditorStyles.boldLabel);
+
+        if (GUILayout.Button("🎮 이벤트 UI 미리보기 (Game 뷰)", GUILayout.Height(35)))
+        {
+            EventPopupUI.PreviewInEditor(selectedEventData);
+            EditorApplication.ExecuteMenuItem("Window/General/Game");
+        }
+
+        if (GUILayout.Button("✕ 미리보기 닫기", GUILayout.Height(25)))
+        {
+            var existing = GameObject.Find("EventPopup_Preview");
+            if (existing != null) DestroyImmediate(existing);
+        }
+
+        EditorGUILayout.Space(5);
+        if (GUILayout.Button("📁 에셋 위치 열기", GUILayout.Height(25)))
+        {
+            EditorGUIUtility.PingObject(selectedEventData);
+        }
+
+        EditorGUILayout.EndScrollView();
+        EditorGUILayout.EndVertical();
     }
 }

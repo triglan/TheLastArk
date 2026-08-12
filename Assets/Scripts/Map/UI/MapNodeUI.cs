@@ -125,7 +125,7 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         else if (isAccessible)
         {
             targetColor = GetNodeColor(nodeData.nodeType);
-            button.interactable = true;
+            button.interactable = mapManager != null && !mapManager.isReadOnly;
         }
         else
         {
@@ -222,7 +222,7 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
     private void OnNodeClicked()
     {
-        if (nodeData == null || mapManager == null) return;
+        if (nodeData == null || mapManager == null || mapManager.isReadOnly) return;
 
         mapManager.OnNodeSelected(nodeData);
     }

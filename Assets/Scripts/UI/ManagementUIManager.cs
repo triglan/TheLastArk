@@ -195,6 +195,32 @@ namespace TheLastArk.UI
             sLe.preferredHeight = 50;
             CreateTextUI(sfxObj.transform, "효과음 (SFX) 볼륨: 100%", 24, Color.white);
 
+            GameObject targetingObj = new GameObject("SkillFirstTargetingToggle");
+            targetingObj.transform.SetParent(settingsPopupPanel.transform, false);
+            LayoutElement targetingLayout = targetingObj.AddComponent<LayoutElement>();
+            targetingLayout.preferredHeight = 50;
+            Image targetingBackground = targetingObj.AddComponent<Image>();
+            targetingBackground.color = new Color(0.14f, 0.18f, 0.24f, 1f);
+            Toggle targetingToggle = targetingObj.AddComponent<Toggle>();
+            targetingToggle.targetGraphic = targetingBackground;
+
+            GameObject checkmarkObj = new GameObject("Checkmark");
+            checkmarkObj.transform.SetParent(targetingObj.transform, false);
+            RectTransform checkmarkRect = checkmarkObj.AddComponent<RectTransform>();
+            checkmarkRect.anchorMin = new Vector2(0f, 0.5f);
+            checkmarkRect.anchorMax = new Vector2(0f, 0.5f);
+            checkmarkRect.pivot = new Vector2(0f, 0.5f);
+            checkmarkRect.anchoredPosition = new Vector2(15f, 0f);
+            checkmarkRect.sizeDelta = new Vector2(30f, 30f);
+            Image checkmark = checkmarkObj.AddComponent<Image>();
+            checkmark.color = new Color(0.25f, 0.85f, 0.45f, 1f);
+            targetingToggle.graphic = checkmark;
+
+            TextMeshProUGUI targetingLabel = CreateTextUI(targetingObj.transform, "스킬을 먼저 선택한 후 대상을 클릭", 21, Color.white);
+            targetingLabel.raycastTarget = false;
+            targetingToggle.SetIsOnWithoutNotify(BattleManager.SkillFirstTargeting);
+            targetingToggle.onValueChanged.AddListener(value => BattleManager.SkillFirstTargeting = value);
+
             // Debug Cheat 1: +1000 Gold
             GameObject goldBtnObj = new GameObject("DebugGoldBtn");
             goldBtnObj.transform.SetParent(settingsPopupPanel.transform, false);

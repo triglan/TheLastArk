@@ -9,8 +9,10 @@ public static class BattleEncounterResolver
         NodeType nodeType,
         int floor,
         int combatCount,
-        IReadOnlyCollection<string> appearedEncounterIds)
+        IReadOnlyCollection<string> appearedEncounterIds,
+        out EnemyEncounterPool resolvedPool)
     {
+        resolvedPool = null;
         if (table == null) table = BattleEncounterTable.LoadDefault();
 
         List<EnemyEncounterPool> matchedPools = new List<EnemyEncounterPool>();
@@ -43,21 +45,33 @@ public static class BattleEncounterResolver
                 valid = CollectValidEncounters(selectedPool, appearedEncounterIds, true);
 
             if (valid.Count > 0)
+            {
+                resolvedPool = selectedPool;
                 return valid[Random.Range(0, valid.Count)];
+            }
         }
 
         // 2. Fallback 1: regionId, floor 무시하고 nodeType에 맞는 임의의 풀 검색
         if (table != null)
         {
             List<EnemyEncounterData> fallbackEncounters = new List<EnemyEncounterData>();
+            List<EnemyEncounterPool> fallbackPools = new List<EnemyEncounterPool>();
             foreach (EnemyEncounterPool pool in table.GetAllPools())
             {
                 if (pool == null || pool.NodeType != nodeType) continue;
                 var list = CollectValidEncounters(pool, appearedEncounterIds, true);
-                fallbackEncounters.AddRange(list);
+                foreach (EnemyEncounterData encounter in list)
+                {
+                    fallbackEncounters.Add(encounter);
+                    fallbackPools.Add(pool);
+                }
             }
             if (fallbackEncounters.Count > 0)
-                return fallbackEncounters[Random.Range(0, fallbackEncounters.Count)];
+            {
+                int index = Random.Range(0, fallbackEncounters.Count);
+                resolvedPool = fallbackPools[index];
+                return fallbackEncounters[index];
+            }
         }
 
         // 3. Fallback 2: Resources에 존재하는 모든 EnemyEncounterData 에셋 검색

@@ -10,19 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b7be2352431c4803b64f370729afee39, type: 3}
-  m_Name: EnemyEncounterPool
+  m_Name: temp_NewPool_Pool 3
   m_EditorClassIdentifier: 
-  poolId: 63d02b996a324fd997820e1a6ffdf564
+  poolId: df975bce2d3540d2823b2e2514ee3365
   displayName: New Pool
   regionId: temp
-  nodeType: 1
+  nodeType: 2
   minFloor: 1
-  maxFloor: 3
+  maxFloor: 15
   minCombatCount: 0
   maxCombatCount: 99
   priority: 0
   encounters:
-  - {fileID: 11400000, guid: 58fa9c7bca0bd3c43b4dd304b3939f9b, type: 2}
+  - {fileID: 0}
   difficulty: 1
   easyReward:
     giveGold: 1

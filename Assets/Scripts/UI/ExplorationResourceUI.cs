@@ -149,16 +149,18 @@ namespace TheLastArk.UI
             relicsLayout.spacing = 5;
             relicsLayout.childControlWidth = true;
 
-            // ── 상단바 우측 끝 고정: 관리 아이콘 4개 (기차, 캐릭터, 가방, 환경설정) ──
+            // ── 상단바 우측 끝 고정: 관리 아이콘 (기차, 캐릭터, 가방, 환경설정 / 배틀 씬: 지도 추가) ──
             GameObject mgmtIconsContainer = new GameObject("ManagementIcons", typeof(RectTransform));
             mgmtIconsContainer.transform.SetParent(panelObj.transform, false);
+
+            bool isBattleScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "BattleScene" || FindObjectOfType<BattleManager>() != null;
 
             RectTransform mgmtRect = mgmtIconsContainer.GetComponent<RectTransform>();
             mgmtRect.anchorMin = new Vector2(1, 0.5f);
             mgmtRect.anchorMax = new Vector2(1, 0.5f);
             mgmtRect.pivot = new Vector2(1, 0.5f);
             mgmtRect.anchoredPosition = new Vector2(-15, 0); // 화면 우측 끝에서 15px 띄움
-            mgmtRect.sizeDelta = new Vector2(270, 60);
+            mgmtRect.sizeDelta = new Vector2(isBattleScene ? 340 : 270, 60);
 
             // 상단바 HorizontalLayoutGroup이 수동 앵커 위치를 무시하지 못하도록 ignoreLayout = true 설정
             LayoutElement mgmtLe = mgmtIconsContainer.AddComponent<LayoutElement>();
@@ -171,6 +173,16 @@ namespace TheLastArk.UI
             mgmtLayout.childForceExpandWidth = false;
             mgmtLayout.childForceExpandHeight = false;
             mgmtLayout.childAlignment = TextAnchor.MiddleRight;
+
+            if (isBattleScene)
+            {
+                // 0) 지도 아이콘 (배틀 씬 전용, 기차 버튼 왼쪽)
+                CreateTopBarIconButton(mgmtIconsContainer.transform, "🗺️", "지도",
+                    new Color(0.35f, 0.3f, 0.5f, 1f), mainFont, () =>
+                    {
+                        BattleMapPopupUI.Show();
+                    });
+            }
 
             // 1) 기차 아이콘
             CreateTopBarIconButton(mgmtIconsContainer.transform, "🚆", "기차",

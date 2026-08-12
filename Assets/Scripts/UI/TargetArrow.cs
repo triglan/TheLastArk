@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class TargetArrow : MonoBehaviour
 {
+    public System.Action<GameObject> TargetSelected;
+    public System.Action TargetCanceled;
     public RectTransform arrowUI;
     public GameObject target;
 
@@ -19,8 +21,15 @@ public class TargetArrow : MonoBehaviour
 
     private void HandleMouseClick()// 마우스 클릭 시 타겟 변경
     {
+        if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
+        {
+            Deselect();
+            return;
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
+            if (Camera.main == null) return;
             Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
 
@@ -33,6 +42,7 @@ public class TargetArrow : MonoBehaviour
                     }
 
                 _cachedTargetPoint = target.transform.Find("TargetPoint");
+                TargetSelected?.Invoke(target);
             }
         }
     }
@@ -52,14 +62,16 @@ public class TargetArrow : MonoBehaviour
         float newY = Mathf.Sin(Time.time * floatSpeed) * floatAmplitude;
         arrowUI.anchoredPosition += new Vector2(0, newY);
     }
-    public void Deselect()
+    public void Deselect(bool notify = true)
     {
         // 1. 현재 선택된 타겟 정보를 비웁니다.
         target = null;
 
         // 2. 화살표 시각적 요소를 숨깁니다. 
         // (만약 이미지를 끄는 변수명이 다르다면 그에 맞춰 수정하세요)
-        gameObject.SetActive(false);
+        if (arrowUI != null) arrowUI.gameObject.SetActive(false);
+        _cachedTargetPoint = null;
+        if (notify) TargetCanceled?.Invoke();
 
         Debug.Log("타겟 선택이 해제되었습니다.");
     }
