@@ -28,12 +28,7 @@ namespace TheLastArk.Map.Events
             }
         }
 
-        [Header("이벤트 풀 설정")]
-        [Tooltip("모든 스테이지에서 공통으로 발생할 수 있는 이벤트 목록")]
-        public List<GameEventData> commonEvents = new List<GameEventData>();
-        
-        [Tooltip("1스테이지 전용 이벤트 목록")]
-        public List<GameEventData> stage1Events = new List<GameEventData>();
+        private List<GameEventData> commonEvents = new List<GameEventData>();
 
         // 이번 게임(런) 동안 한 번 발생한 이벤트 기록 (중복 발생 방지)
         private HashSet<string> seenEventIDs = new HashSet<string>();
@@ -58,32 +53,13 @@ namespace TheLastArk.Map.Events
         /// <summary>
         /// Resources/Events/ 폴더에서 이벤트 에셋을 자동으로 로드합니다.
         /// - Resources/Events/Common/ → 공용 이벤트
-        /// - Resources/Events/Stage1/ → 1스테이지 전용 이벤트
-        /// 이미 Inspector에서 할당된 경우엔 중복 추가하지 않습니다.
+        /// - Resources/Events/Stage{N}/ → 해당 스테이지 전용 이벤트
         /// </summary>
         private void LoadEventsFromResources()
         {
-            // 공용 이벤트 로드
-            GameEventData[] loadedCommon = Resources.LoadAll<GameEventData>("Events/Common");
-            foreach (var ev in loadedCommon)
-            {
-                if (!commonEvents.Contains(ev))
-                {
-                    commonEvents.Add(ev);
-                }
-            }
-            Debug.Log($"[EventManager] 공용 이벤트 {loadedCommon.Length}개 로드 (총 {commonEvents.Count}개)");
-
-            // 1스테이지 이벤트 로드
-            GameEventData[] loadedStage1 = Resources.LoadAll<GameEventData>("Events/Stage1");
-            foreach (var ev in loadedStage1)
-            {
-                if (!stage1Events.Contains(ev))
-                {
-                    stage1Events.Add(ev);
-                }
-            }
-            Debug.Log($"[EventManager] 1스테이지 이벤트 {loadedStage1.Length}개 로드 (총 {stage1Events.Count}개)");
+            commonEvents = new List<GameEventData>(Resources.LoadAll<GameEventData>("Events/Common"));
+            stageEventMap.Clear();
+            Debug.Log($"[EventManager] 공용 이벤트 {commonEvents.Count}개 로드 완료");
         }
 
         /// <summary>

@@ -99,7 +99,7 @@ namespace TheLastArk.UI
             titleRect.offsetMin = Vector2.zero;
             titleRect.offsetMax = Vector2.zero;
 
-            CreateTextUI(titleObj.transform, "🏪 상점가 (소모품 & 유물 거래)", 36, Color.yellow);
+            CreateTextUI(titleObj.transform, "상점가 (소모품 & 유물 거래)", 36, Color.yellow);
 
             // Refresh Items Button
             GameObject refreshBtnObj = new GameObject("RefreshButton");
@@ -116,7 +116,7 @@ namespace TheLastArk.UI
             refreshBtn = refreshBtnObj.AddComponent<Button>();
             refreshBtn.onClick.AddListener(OnClickRefresh);
 
-            refreshBtnText = CreateTextUI(refreshBtnObj.transform, "🔄 상품 새로고침", 20, Color.white);
+            refreshBtnText = CreateTextUI(refreshBtnObj.transform, "상품 새로고침", 20, Color.white);
 
             // 6-Item Grid Content Container
             GameObject gridObj = new GameObject("ShopGridArea");
@@ -148,15 +148,22 @@ namespace TheLastArk.UI
                 allConsumables = Resources.LoadAll<ConsumableData>("").ToList();
             }
 
+            float shopDiscount = 0f;
+            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.ShopDiscount))
+            {
+                shopDiscount = ResourceManager.Instance.GetRelicBonus(RelicEffectType.ShopDiscount);
+            }
+
             allConsumables = allConsumables.OrderBy(x => Random.value).ToList();
             int cCount = Mathf.Min(3, allConsumables.Count);
             for (int i = 0; i < cCount; i++)
             {
+                int basePrice = 50 + (i * 10);
                 currentShopSlots.Add(new ShopItemSlot
                 {
                     isRelic = false,
                     consumable = allConsumables[i],
-                    price = 50 + (i * 10),
+                    price = Mathf.RoundToInt(basePrice * (1f - shopDiscount)),
                     sold = false
                 });
             }
@@ -168,15 +175,67 @@ namespace TheLastArk.UI
                 allRelics = Resources.LoadAll<RelicData>("").ToList();
             }
 
-            allRelics = allRelics.OrderBy(x => Random.value).ToList();
-            int rCount = Mathf.Min(3, allRelics.Count);
-            for (int i = 0; i < rCount; i++)
+            bool hasFirstLegendaryRelic = ResourceManager.Instance != null &&
+                                          ResourceManager.Instance.HasRelicEffect(RelicEffectType.ShopFirstLegendary);
+
+            List<RelicData> unownedLegendary = allRelics
+                .Where(r => r != null && r.rarity == RelicRarity.Legendary && (ResourceManager.Instance == null || !ResourceManager.Instance.HasRelic(r.relicID)))
+                .OrderBy(x => Random.value)
+                .ToList();
+
+            List<RelicData> unownedCommon = allRelics
+                .Where(r => r != null && r.rarity == RelicRarity.Common && (ResourceManager.Instance == null || !ResourceManager.Instance.HasRelic(r.relicID)))
+                .OrderBy(x => Random.value)
+                .ToList();
+
+            List<RelicData> chosenRelics = new List<RelicData>();
+
+            for (int i = 0; i < 3; i++)
             {
+                RelicData picked = null;
+                if (i == 0 && hasFirstLegendaryRelic)
+                {
+                    // [고고학 투자 증서]: 1번째 유물은 항상 전설 유물 (남은 전설 유물이 없으면 일반 유물)
+                    if (unownedLegendary.Count > 0)
+                    {
+                        picked = unownedLegendary[0];
+                        unownedLegendary.RemoveAt(0);
+                    }
+                    else if (unownedCommon.Count > 0)
+                    {
+                        picked = unownedCommon[0];
+                        unownedCommon.RemoveAt(0);
+                    }
+                }
+                else
+                {
+                    if (unownedCommon.Count > 0)
+                    {
+                        picked = unownedCommon[0];
+                        unownedCommon.RemoveAt(0);
+                    }
+                    else if (unownedLegendary.Count > 0)
+                    {
+                        picked = unownedLegendary[0];
+                        unownedLegendary.RemoveAt(0);
+                    }
+                }
+
+                if (picked != null)
+                {
+                    chosenRelics.Add(picked);
+                }
+            }
+
+            for (int i = 0; i < chosenRelics.Count; i++)
+            {
+                var r = chosenRelics[i];
+                int basePrice = r.rarity == RelicRarity.Legendary ? 200 + (i * 30) : 100 + (i * 25);
                 currentShopSlots.Add(new ShopItemSlot
                 {
                     isRelic = true,
-                    relic = allRelics[i],
-                    price = 100 + (i * 25),
+                    relic = r,
+                    price = Mathf.RoundToInt(basePrice * (1f - shopDiscount)),
                     sold = false
                 });
             }
@@ -218,7 +277,7 @@ namespace TheLastArk.UI
             // Update refresh button text
             if (refreshBtnText != null)
             {
-                refreshBtnText.text = remainingRefreshes > 0 ? $"🔄 무료 리롤 ({remainingRefreshes})" : "🔄 리롤 (50 Gold)";
+                refreshBtnText.text = remainingRefreshes > 0 ? $"무료 리롤 ({remainingRefreshes})" : "리롤 (50 Gold)";
             }
 
             // Render 6 Shop Item Cards
@@ -239,7 +298,7 @@ namespace TheLastArk.UI
                 layout.childControlHeight = false;
 
                 // Category Tag (소모품 or 유물)
-                string catTag = slot.isRelic ? "🏆 유물" : "🧪 소모품";
+                string catTag = slot.isRelic ? "[유물]" : "[소모품]";
                 Color catColor = slot.isRelic ? new Color(1f, 0.85f, 0.3f) : new Color(0.3f, 0.85f, 1f);
                 CreateTextUI(cardObj.transform, catTag, 18, catColor);
 
@@ -263,7 +322,7 @@ namespace TheLastArk.UI
                 Button buyBtn = buyBtnObj.AddComponent<Button>();
                 buyBtn.interactable = !slot.sold;
 
-                string btnLabel = slot.sold ? "품절" : $"💰 {slot.price} G 구매";
+                string btnLabel = slot.sold ? "품절" : $"{slot.price} G 구매";
                 CreateTextUI(buyBtnObj.transform, btnLabel, 20, Color.white);
 
                 buyBtn.onClick.AddListener(() => OnClickBuyItem(index));

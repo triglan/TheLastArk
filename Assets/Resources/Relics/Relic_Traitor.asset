@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f5e5d16f9a6ba43b8ff1eb6795be15, type: 3}
+  m_Name: Relic_Traitor
+  m_EditorClassIdentifier: 
+  relicID: Relic_Traitor
+  relicName: "\uBC30\uBC18\uC790"
+  description: "\uC54C\uB809\uC2A4 \uBC14\uC2A4\uD2F0\uC628 \uC804\uC6A9 \uC720\uBB3C.
+    \uD68C\uC0DD \uD2B9\uC131\uC774 \uBC30\uBC18\uC790 \uD2B9\uC131\uC73C\uB85C \uBCC0\uACBD\uB429\uB2C8\uB2E4.
+    \uC2A4\uD14C\uC774\uC9C0\uB2F9 1\uBC88, \uCCB4\uB825 1\uC774 \uB418\uC5C8\uC744
+    \uB54C \uC544\uAD70\uB4E4\uC758 \uC815\uC2E0\uB825\uC744 \uD761\uC218\uD574 \uBD80\uD65C\uD558\uBA70
+    \uACF5\uACA9\uB825\uC774 50% \uC99D\uAC00\uD569\uB2C8\uB2E4. (\uAC1C\uD654: \uBD80\uD65C
+    \uC2DC \uBB34\uC791\uC704 \uC801\uC5D0\uAC8C \uAC00\uB974\uAE30\uB97C 2\uBC88
+    \uC2DC\uC804)"
+  icon: {fileID: 0}
+  rarity: 1
+  effectType: 56
+  effectValue: 0.5
+  targetSynergy: 0

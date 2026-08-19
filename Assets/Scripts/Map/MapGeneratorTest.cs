@@ -32,9 +32,9 @@ void Start()
         CollapseManager collapse = new CollapseManager();
 
         // 이벤트 구독
-        collapse.OnCollapseWarning += (floor) => Debug.Log($"  [Event] ⚠️ 경고: {floor}층 붕괴 예정!");
-        collapse.OnFloorCollapsed += (floor) => Debug.Log($"  [Event] 💥 붕괴: {floor}층 붕괴 완료!");
-        collapse.OnGameOver += () => Debug.Log("  [Event] 💀 게임 오버!");
+        collapse.OnCollapseWarning += (floor) => Debug.Log($"  [Event] [경고] {floor}층 붕괴 예정!");
+        collapse.OnFloorCollapsed += (floor) => Debug.Log($"  [Event] [붕괴] {floor}층 붕괴 완료!");
+        collapse.OnGameOver += () => Debug.Log("  [Event] [게임 오버]");
         collapse.OnTurnChanged += (turn, remaining) => Debug.Log($"  [Event] 턴 변경: {turn}턴 (붕괴까지 {remaining}턴)");
 
         // 9턴 시뮬레이션 (3번의 붕괴 발생 예상)
@@ -73,7 +73,7 @@ void Start()
 
             if (result == CollapseResult.GameOver)
             {
-                Debug.Log("  💀 시뮬레이션 중단 (게임 오버)");
+                Debug.Log("  [게임 오버] 시뮬레이션 중단");
                 break;
             }
         }

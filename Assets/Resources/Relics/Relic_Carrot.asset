@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_Carrot
   relicName: "\uBE5B\uB098\uB294 \uB2F9\uADFC"
-  description: "\uD734\uC2DD\uC774 \uB354\uC774\uC0C1 \uC120\uD0DD\uC9C0\uB97C \uC18C\uBAA8\uD558\uC9C0
+  description: "\uD734\uC2DD\uC774 \uB9C8\uC744 \uC120\uD0DD\uC9C0\uB97C \uC18C\uBAA8\uD558\uC9C0
     \uC54A\uC2B5\uB2C8\uB2E4."
   icon: {fileID: 0}
   rarity: 0
   effectType: 5
   effectValue: 0
+  targetSynergy: 0

@@ -16,11 +16,13 @@ public static class TargetResolver
         List<BattleCharacter> playerParty,
         List<BattleCharacter> enemyParty)
     {
-        bool isAlly  = playerParty.Contains(clicked);
+        bool isAlly = playerParty.Contains(clicked);
+        bool hasCorruption = TheLastArk.Managers.TrainManager.IsInitialized && 
+                             TheLastArk.Managers.TrainManager.Instance.HasPartEffectInAnyCar(TheLastArk.Data.TrainPartEffectType.CorruptionModule);
 
         return skillType switch
         {
-            TargetType.Friendly    => isAlly,
+            TargetType.Friendly    => isAlly || hasCorruption,
             TargetType.AllFriendly => isAlly,
             _                      => enemyParty.Contains(clicked)
         };

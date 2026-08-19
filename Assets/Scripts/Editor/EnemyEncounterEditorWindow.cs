@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using TheLastArk.Map.Events;
 
 public class EnemyEncounterEditorWindow : EditorWindow
 {
@@ -14,7 +13,6 @@ public class EnemyEncounterEditorWindow : EditorWindow
 
     private readonly List<Object> assets = new List<Object>();
     private readonly Dictionary<string, bool> regionFoldouts = new Dictionary<string, bool>();
-    private readonly List<GameEventData> eventAssets = new List<GameEventData>();
     private EditMode mode;
     private Object selectedAsset;
     private UnityEditor.Editor selectedEditor;
@@ -23,7 +21,6 @@ public class EnemyEncounterEditorWindow : EditorWindow
     private Vector2 rewardScroll;
     private int selectedRewardStage;
     private string newRegionId = EnemyEncounterPool.DefaultRegionId;
-    private string eventSearchText;
 
     [MenuItem("Window/Battle/Enemy Encounter Editor")]
     public static void ShowWindow()
@@ -76,7 +73,7 @@ public class EnemyEncounterEditorWindow : EditorWindow
         EditorGUILayout.BeginHorizontal();
         DrawAssetList(drawLeftHeader);
         DrawSelectedInspector();
-        if (mode == EditMode.Pools && (!(selectedAsset is EnemyEncounterPool pool) || pool.NodeType != NodeType.Event))
+        if (mode == EditMode.Pools)
             DrawRewardSettingsPanel();
         EditorGUILayout.EndHorizontal();
     }
@@ -148,7 +145,7 @@ public class EnemyEncounterEditorWindow : EditorWindow
             {
                 foreach (EnemyEncounterPool pool in region.Pools)
                 {
-                    if (pool == null) continue;
+                    if (pool == null || pool.NodeType == NodeType.Event) continue;
                     DrawPoolRow(pool);
                 }
             }
@@ -167,9 +164,7 @@ public class EnemyEncounterEditorWindow : EditorWindow
     {
         bool isSelected = selectedAsset == pool;
         string label = $"{pool.DisplayName} - {pool.MinFloor}~{pool.MaxFloor}F";
-        label += pool.NodeType == NodeType.Event
-            ? $" / Event / {pool.Events.Count} Events"
-            : $" / {pool.NodeType}";
+        label += $" / {pool.NodeType}";
         if (GUILayout.Toggle(isSelected, label, "Button") && !isSelected)
             SelectAsset(pool);
     }
@@ -198,11 +193,11 @@ public class EnemyEncounterEditorWindow : EditorWindow
         EditorGUI.BeginChangeCheck();
         if (selectedAsset is EnemyEncounterPool pool)
         {
-            if (pool.NodeType == NodeType.Event) DrawPoolEventEditor(serializedInspector);
-            else DrawPoolRewardStageSelector(serializedInspector);
+            DrawPoolRewardStageSelector(serializedInspector);
             EditorGUILayout.Space(8f);
             DrawVisiblePropertiesExcluding(serializedInspector, "m_Script", "displayName", "rewardStageId", "legacyRewardStage",
-                "events", pool.NodeType == NodeType.Event ? "encounters" : "");
+                "nodeType");
+            DrawPoolNodeType(serializedInspector);
         }
         else
         {
@@ -242,98 +237,15 @@ public class EnemyEncounterEditorWindow : EditorWindow
         }
     }
 
-    private void DrawPoolEventEditor(SerializedObject serializedPool)
+    private static void DrawPoolNodeType(SerializedObject serializedPool)
     {
-        SerializedProperty events = serializedPool.FindProperty("events");
-        if (events == null) return;
-
-        EditorGUILayout.LabelField($"포함된 이벤트 ({events.arraySize})", EditorStyles.boldLabel);
-        for (int i = 0; i < events.arraySize; i++)
-        {
-            SerializedProperty item = events.GetArrayElementAtIndex(i);
-            GameEventData eventData = item.objectReferenceValue as GameEventData;
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(eventData != null ? GetEventLabel(eventData) : "(Missing Event)");
-            EditorGUI.BeginDisabledGroup(eventData == null);
-            if (GUILayout.Button("보기", GUILayout.Width(42f)))
-            {
-                Selection.activeObject = eventData;
-                EditorGUIUtility.PingObject(eventData);
-            }
-            EditorGUI.EndDisabledGroup();
-            if (GUILayout.Button("−", GUILayout.Width(24f)))
-            {
-                item.objectReferenceValue = null;
-                events.DeleteArrayElementAtIndex(i);
-                EditorGUILayout.EndHorizontal();
-                return;
-            }
-            EditorGUILayout.EndHorizontal();
-        }
-
-        EditorGUILayout.Space(8f);
-        EditorGUILayout.LabelField("이벤트 빠른 추가", EditorStyles.boldLabel);
-        eventSearchText = EditorGUILayout.TextField("검색", eventSearchText);
-
-        List<GameEventData> matches = new List<GameEventData>();
-        foreach (GameEventData eventData in eventAssets)
-        {
-            if (eventData == null || !MatchesEventSearch(eventData, eventSearchText)) continue;
-            matches.Add(eventData);
-
-            bool added = ContainsEvent(events, eventData);
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(GetEventLabel(eventData));
-            EditorGUI.BeginDisabledGroup(added);
-            if (GUILayout.Button(added ? "추가됨" : "+", GUILayout.Width(52f))) AddEvent(events, eventData);
-            EditorGUI.EndDisabledGroup();
-            EditorGUILayout.EndHorizontal();
-        }
-
-        EditorGUI.BeginDisabledGroup(matches.Count == 0);
-        if (GUILayout.Button("검색 결과 모두 추가"))
-        {
-            foreach (GameEventData eventData in matches)
-                if (!ContainsEvent(events, eventData)) AddEvent(events, eventData);
-        }
-        EditorGUI.EndDisabledGroup();
-    }
-
-    private static void AddEvent(SerializedProperty events, GameEventData eventData)
-    {
-        int index = events.arraySize;
-        events.InsertArrayElementAtIndex(index);
-        events.GetArrayElementAtIndex(index).objectReferenceValue = eventData;
-    }
-
-    private static bool ContainsEvent(SerializedProperty events, GameEventData eventData)
-    {
-        for (int i = 0; i < events.arraySize; i++)
-            if (events.GetArrayElementAtIndex(i).objectReferenceValue == eventData) return true;
-        return false;
-    }
-
-    private static bool MatchesEventSearch(GameEventData eventData, string search)
-    {
-        if (string.IsNullOrWhiteSpace(search)) return true;
-        return ContainsIgnoreCase(eventData.eventTitle, search)
-            || ContainsIgnoreCase(eventData.eventID, search)
-            || ContainsIgnoreCase(eventData.name, search);
-    }
-
-    private static bool ContainsIgnoreCase(string text, string search)
-    {
-        return !string.IsNullOrEmpty(text) && text.IndexOf(search, System.StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static string GetEventLabel(GameEventData eventData)
-    {
-        string path = AssetDatabase.GetAssetPath(eventData);
-        string category = path.Contains("/Events/Common/") ? "Common"
-            : path.Contains("/Events/Stage1/") ? "Stage1"
-            : "Event";
-        string title = string.IsNullOrWhiteSpace(eventData.eventTitle) ? eventData.name : eventData.eventTitle;
-        return $"[{category}] {title}";
+        SerializedProperty nodeType = serializedPool.FindProperty("nodeType");
+        NodeType current = (NodeType)nodeType.enumValueIndex;
+        NodeType[] choices = { NodeType.Combat, NodeType.Elite, NodeType.Boss };
+        string[] labels = { "Combat", "Elite", "Boss" };
+        int selected = System.Array.IndexOf(choices, current);
+        int next = EditorGUILayout.Popup("Node Type", Mathf.Max(0, selected), labels);
+        nodeType.enumValueIndex = (int)choices[next];
     }
 
     private void DrawRewardSettingsPanel()
@@ -490,12 +402,12 @@ public class EnemyEncounterEditorWindow : EditorWindow
         }
         else if (selectedAsset is EnemyEncounterPool pool)
         {
-            if (pool.NodeType == NodeType.Event && pool.Events.Count == 0)
-                EditorGUILayout.HelpBox("이 Event Pool에 이벤트를 하나 이상 추가하세요.", MessageType.Error);
-            else if (pool.NodeType != NodeType.Event && pool.Encounters.Count == 0)
+            if (pool.Encounters.Count == 0)
                 EditorGUILayout.HelpBox("Add at least one formation to this pool.", MessageType.Error);
 
-            if (pool.NodeType != NodeType.Event)
+            if (pool.NodeType == NodeType.Event)
+                EditorGUILayout.HelpBox("Event pools are no longer supported. Choose Combat, Elite, or Boss.", MessageType.Error);
+            else
             {
                 BattleRewardSettings reward = pool.ActiveReward;
                 if (reward != null && reward.giveGold && reward.goldAmount == 0)
@@ -642,7 +554,6 @@ public class EnemyEncounterEditorWindow : EditorWindow
     private void RefreshAssets()
     {
         assets.Clear();
-        eventAssets.Clear();
         string filter = mode == EditMode.Encounters ? "t:EnemyEncounterData" : "t:EnemyEncounterPool";
         foreach (string guid in AssetDatabase.FindAssets(filter))
         {
@@ -650,12 +561,6 @@ public class EnemyEncounterEditorWindow : EditorWindow
             if (asset != null) assets.Add(asset);
         }
         assets.Sort((a, b) => string.CompareOrdinal(GetDisplayLabel(a), GetDisplayLabel(b)));
-        foreach (string guid in AssetDatabase.FindAssets("t:GameEventData"))
-        {
-            GameEventData eventData = AssetDatabase.LoadAssetAtPath<GameEventData>(AssetDatabase.GUIDToAssetPath(guid));
-            if (eventData != null) eventAssets.Add(eventData);
-        }
-        eventAssets.Sort((a, b) => string.Compare(GetEventLabel(a), GetEventLabel(b), System.StringComparison.OrdinalIgnoreCase));
         Repaint();
     }
 

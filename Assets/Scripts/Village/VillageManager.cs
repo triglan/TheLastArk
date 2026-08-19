@@ -202,7 +202,7 @@ namespace TheLastArk.Village
             TMPro.TMP_FontAsset mainFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Main_Fonts");
 
             // 개편된 마을 선택지 (상점가, 대장간, 주점, 정비소, 휴식)
-            CreateMenuButton(rightObj.transform, "🏪 상점가 (소모품/유물 거래)", () => TryEnterFacility("Shop", () => 
+            CreateMenuButton(rightObj.transform, "상점가 (소모품/유물 거래)", () => TryEnterFacility("Shop", () => 
             {
                 var shopUI = FindObjectOfType<ShopUI>();
                 if (shopUI == null) 
@@ -213,7 +213,7 @@ namespace TheLastArk.Village
                 shopUI.Show();
             }), mainFont);
 
-            CreateMenuButton(rightObj.transform, "🔨 대장간 (장비 구매/합성)", () => TryEnterFacility("Forge", () => 
+            CreateMenuButton(rightObj.transform, "대장간 (장비 구매/합성)", () => TryEnterFacility("Forge", () => 
             {
                 var forgeUI = FindObjectOfType<ForgeUI>();
                 if (forgeUI == null) 
@@ -224,7 +224,7 @@ namespace TheLastArk.Village
                 forgeUI.Show();
             }), mainFont);
             
-            CreateMenuButton(rightObj.transform, "🍺 주점 (용병 구매/스킬 변경)", () => TryEnterFacility("Tavern", () => 
+            CreateMenuButton(rightObj.transform, "주점 (용병 구매/스킬 변경)", () => TryEnterFacility("Tavern", () => 
             {
                 var tavernUI = FindObjectOfType<TavernUI>();
                 if (tavernUI == null) 
@@ -235,13 +235,19 @@ namespace TheLastArk.Village
                 tavernUI.Show();
             }), mainFont);
 
-            CreateMenuButton(rightObj.transform, "🔧 정비소 (기차 정비/강화)", () => TryEnterFacility("Maintenance", () => 
+            CreateMenuButton(rightObj.transform, "정비소 (기차 정비/강화)", () => TryEnterFacility("Maintenance", () => 
             {
-                NotificationManager.Instance?.ShowMessage("정비소: 기차 내구도 및 모듈 정비를 수행합니다.", Color.cyan);
+                var trainUI = FindObjectOfType<TrainManagementUI>();
+                if (trainUI == null)
+                {
+                    GameObject uiObj = new GameObject("TrainManagementUI");
+                    trainUI = uiObj.AddComponent<TrainManagementUI>();
+                }
+                trainUI.Show();
             }), mainFont);
             
             // Rest Button
-            GameObject restBtnObj = CreateMenuButton(rightObj.transform, "⛺ 휴식 (체력/정신력/기차 25% 회복)", () => TryEnterFacility("Rest", ApplyRestEffect), mainFont);
+            GameObject restBtnObj = CreateMenuButton(rightObj.transform, "휴식 (체력/정신력/기차 25% 회복)", () => TryEnterFacility("Rest", ApplyRestEffect), mainFont);
             restButton = restBtnObj.GetComponent<Button>();
 
             // (기차/캐릭터/가방/환경설정 관리는 상단바 아이콘으로 이동됨)

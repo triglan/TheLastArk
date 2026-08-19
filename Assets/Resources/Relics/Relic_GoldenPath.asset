@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f5e5d16f9a6ba43b8ff1eb6795be15, type: 3}
+  m_Name: Relic_GoldenPath
+  m_EditorClassIdentifier: 
+  relicID: Relic_GoldenPath
+  relicName: "\uD669\uAE08\uC758 \uAE38"
+  description: "\uC804\uD22C \uC885\uB8CC \uD6C4, \uBCF4\uC720\uD55C \uACE8\uB4DC\uC758
+    10%\uB9CC\uD07C \uCD94\uAC00 \uACE8\uB4DC\uB97C \uD68D\uB4DD\uD569\uB2C8\uB2E4.
+    (\uBCF4\uC720 \uACE8\uB4DC\uAC00 500\uC77C \uB54C \uCD5C\uB300)"
+  icon: {fileID: 0}
+  rarity: 1
+  effectType: 41
+  effectValue: 0.1
+  targetSynergy: 0

@@ -89,7 +89,7 @@ namespace TheLastArk.UI
             titleRect.offsetMin = Vector2.zero;
             titleRect.offsetMax = Vector2.zero;
 
-            CreateTextUI(titleObj.transform, "🍺 주점 (용병 구매 및 스킬 변경)", 36, Color.yellow);
+            CreateTextUI(titleObj.transform, "주점 (용병 구매 및 스킬 변경)", 36, Color.yellow);
 
             // Tabs Container
             GameObject tabsObj = new GameObject("TavernTabsArea");
@@ -103,8 +103,8 @@ namespace TheLastArk.UI
             HorizontalLayoutGroup tabLayout = tabsObj.AddComponent<HorizontalLayoutGroup>();
             tabLayout.spacing = 20;
 
-            CreateTabButton(tabsObj.transform, "⚔️ 용병 고용", () => SwitchTab(TabType.HireMercenary));
-            CreateTabButton(tabsObj.transform, "📜 스킬 변경", () => SwitchTab(TabType.SkillChange));
+            CreateTabButton(tabsObj.transform, "용병 고용", () => SwitchTab(TabType.HireMercenary));
+            CreateTabButton(tabsObj.transform, "스킬 변경", () => SwitchTab(TabType.SkillChange));
 
             // Content Area Container
             GameObject contentObj = new GameObject("TavernContentArea");
@@ -151,13 +151,25 @@ namespace TheLastArk.UI
                 if (c != null && !c.isEnemy) candidates.Add(c);
             }
 
-            candidates = candidates.OrderBy(x => Random.value).ToList();
-            int count = Mathf.Min(3, candidates.Count);
+            int extraMerc = 0;
+            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.TavernExtraMerc))
+            {
+                extraMerc = Mathf.RoundToInt(ResourceManager.Instance.GetRelicBonus(RelicEffectType.TavernExtraMerc));
+            }
+            int count = Mathf.Min(3 + extraMerc, candidates.Count);
+
+            float discount = 0f;
+            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.TavernDiscount))
+            {
+                discount = ResourceManager.Instance.GetRelicBonus(RelicEffectType.TavernDiscount);
+            }
 
             for (int i = 0; i < count; i++)
             {
                 availableMercenaries.Add(candidates[i]);
-                mercenaryPrices.Add(150 + (i * 50));
+                int basePrice = 150 + (i * 50);
+                int finalPrice = Mathf.RoundToInt(basePrice * (1f - discount));
+                mercenaryPrices.Add(finalPrice);
                 mercenaryHired.Add(false);
             }
         }
@@ -221,7 +233,7 @@ namespace TheLastArk.UI
                 layout.spacing = 10;
 
                 string nameText = data != null ? data.DisplayName : "용병";
-                CreateTextUI(cardObj.transform, $"👤 [{nameText}]", 24, Color.yellow);
+                CreateTextUI(cardObj.transform, $"[{nameText}]", 24, Color.yellow);
 
                 string statText = data != null
                     ? $"체력 {data.maxHp} | 정신 {data.maxMental}\n공격 {data.baseAttack} | 주문 {data.spellPower}\n방어 {data.armor} | 마저 {data.magicResist}"
@@ -239,11 +251,17 @@ namespace TheLastArk.UI
                 Button hireBtn = hireBtnObj.AddComponent<Button>();
                 hireBtn.interactable = !hired;
 
-                string btnLabel = hired ? "고용 완료" : $"💰 {price} G 영입";
+                string btnLabel = hired ? "고용 완료" : $"{price} G 영입";
                 CreateTextUI(hireBtnObj.transform, btnLabel, 20, Color.white);
 
                 hireBtn.onClick.AddListener(() =>
                 {
+                    if (TrainManager.IsInitialized && TrainManager.Instance.IsCrewAtMaxCapacity())
+                    {
+                        NotificationManager.Instance?.ShowMessage($"승무원실 수용 인원({TrainManager.Instance.GetMaxCrewCapacity()}명)이 가득 찼습니다!", Color.red);
+                        return;
+                    }
+
                     if (RunManager.Instance == null || !RunManager.Instance.CanAddPartyMember(data))
                     {
                         NotificationManager.Instance?.ShowMessage("파티가 가득 찼거나 이미 참가 중인 캐릭터입니다!", Color.red);
@@ -279,7 +297,7 @@ namespace TheLastArk.UI
             vLayout.padding = new RectOffset(30, 30, 20, 20);
             vLayout.spacing = 15;
 
-            CreateTextUI(contentArea, "📜 캐릭터를 선택하여 전투에 가져갈 2개의 액티브 스킬을 변경합니다.", 22, Color.yellow);
+            CreateTextUI(contentArea, "캐릭터를 선택하여 전투에 가져갈 2개의 액티브 스킬을 변경합니다.", 22, Color.yellow);
 
             var partyIDs = RunManager.Instance != null ? RunManager.Instance.State.partyDataIDs : new List<string>();
             var allChars = Resources.LoadAll<CharacterData>("Characters").ToList();
@@ -363,11 +381,11 @@ namespace TheLastArk.UI
                     int idx2 = pool[UnityEngine.Random.Range(0, pool.Count)];
                     status.selectedActiveSkillIndices = new List<int> { idx1, idx2 };
 
-                    NotificationManager.Instance?.ShowMessage($"🎲 [{selectedCharacter.DisplayName}]의 장착 스킬 2종이 무작위 변경되었습니다!", Color.green);
+                    NotificationManager.Instance?.ShowMessage($"[{selectedCharacter.DisplayName}]의 장착 스킬 2종이 무작위 변경되었습니다!", Color.green);
                     RefreshUI();
                 });
 
-                CreateTextUI(rerollBtnObj.transform, "🎲 스킬 2종 무작위 변경 (50 Gold)", 22, Color.white);
+                CreateTextUI(rerollBtnObj.transform, "스킬 2종 무작위 변경 (50 Gold)", 22, Color.white);
 
                 GameObject skillsObj = new GameObject("SkillTogglesArea");
                 skillsObj.transform.SetParent(contentArea, false);
@@ -391,7 +409,7 @@ namespace TheLastArk.UI
                     Image sBg = sCard.AddComponent<Image>();
                     sBg.color = isSelected ? new Color(0.15f, 0.45f, 0.3f, 0.95f) : new Color(0.15f, 0.18f, 0.25f, 0.85f);
 
-                    string skillLabel = $"{(isSelected ? "✓ [현재 장착]" : "  [미장착]")} {skill.skillName} (Cost: {skill.baseCost})";
+                    string skillLabel = $"{(isSelected ? "[장착중]" : "[미장착]")} {skill.skillName} (Cost: {skill.baseCost})";
                     CreateTextUI(sCard.transform, skillLabel, 18, isSelected ? Color.green : Color.gray);
                 }
             }

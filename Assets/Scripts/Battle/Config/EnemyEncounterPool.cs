@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
-using TheLastArk.Map.Events;
 
 public enum CharacterCardCandidateRule
 {
@@ -58,7 +57,6 @@ public class EnemyEncounterPool : ScriptableObject
     [SerializeField, Min(0)] private int maxCombatCount = 99;
     [SerializeField] private int priority;
     [SerializeField] private List<EnemyEncounterData> encounters = new List<EnemyEncounterData>();
-    [SerializeField] private List<GameEventData> events = new List<GameEventData>();
     [SerializeField] private string rewardStageId;
     [SerializeField, HideInInspector, FormerlySerializedAs("difficulty")] private int legacyRewardStage = 1;
 
@@ -73,7 +71,6 @@ public class EnemyEncounterPool : ScriptableObject
     public int Priority => priority;
     public IReadOnlyList<EnemyEncounterData> Encounters => encounters;
     public IReadOnlyList<EnemyEncounterData> Formations => encounters;
-    public IReadOnlyList<GameEventData> Events => events;
     public string RewardStageId => string.IsNullOrWhiteSpace(rewardStageId) ? LegacyStageId : rewardStageId;
     public BattleRewardSettings ActiveReward
     {
@@ -117,7 +114,6 @@ public class EnemyEncounterPool : ScriptableObject
         minCombatCount = Mathf.Max(0, minCombatCount);
         maxCombatCount = Mathf.Max(minCombatCount, maxCombatCount);
         if (encounters == null) encounters = new List<EnemyEncounterData>();
-        if (events == null) events = new List<GameEventData>();
         if (string.IsNullOrWhiteSpace(rewardStageId)) rewardStageId = LegacyStageId;
     }
 }

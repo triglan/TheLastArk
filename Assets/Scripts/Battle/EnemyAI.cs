@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class EnemyAI : MonoBehaviour
@@ -44,7 +44,7 @@ public class EnemyAI : MonoBehaviour
         if (pattern == null || pattern.effects == null || pattern.effects.Count == 0)
             return PrepareBasicAttack();
 
-        _preparedTargets = ResolveTargets(pattern.targetType);
+        _preparedTargets = ResolveTargets(pattern.targetType, pattern.targetSelection);
         if (_preparedTargets.Count == 0) return false;
 
         _preparedPattern = pattern;
@@ -65,8 +65,10 @@ public class EnemyAI : MonoBehaviour
         {
             BattleCharacter target = _preparedTargets[0];
             float rawDmg = _self.status.FinalAttack;
+            VFXManager.Instance?.PlayDefaultEffect(EffectType.Damage, DamageType.Physical, target);
             target.ReceiveDamage(rawDmg, _self, DamageType.Physical);
             Debug.Log($"[EnemyAI] {_self.characterName} -> {target.characterName} 기본 공격 {rawDmg}");
+            _self.ResolveActionStatusEffects();
             ClearPreparedTurn();
             return;
         }
@@ -75,10 +77,12 @@ public class EnemyAI : MonoBehaviour
         {
             overrideCost = -1,
             targetType = _preparedPattern.targetType,
+            customVfxName = _preparedPattern.customVfxName,
             effects = _preparedPattern.effects
         };
 
-        EffectEngine.ProcessSkill(_self, _preparedTargets, runtimePattern);
+        EffectEngine.ProcessSkill(_self, _preparedTargets, runtimePattern, _preparedPattern.patternName);
+        _self.ResolveActionStatusEffects();
         Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {_preparedPattern.patternName}");
         ClearPreparedTurn();
     }
@@ -99,46 +103,94 @@ public class EnemyAI : MonoBehaviour
         _preparedPattern = null;
     }
 
-    private List<BattleCharacter> ResolveTargets(TargetType targetType)
+    private List<BattleCharacter> ResolveTargets(TargetType targetType, EnemyTargetSelection selection)
     {
-        // 패턴의 대상 타입을 실제 살아있는 전투 캐릭터 목록으로 바꿉니다.
         var result = new List<BattleCharacter>();
-        var enemies = GetAlive(targetParty);
-        var allies = GetAlive(allyParty);
-        if (_self != null && _self.status != null && _self.status.currentHp > 0 && !allies.Contains(_self))
-            allies.Add(_self);
+        List<BattleCharacter> party = IsFriendlyTarget(targetType) ? allyParty : targetParty;
 
-        BattleCharacter mainEnemy = PickRandomAlive(enemies);
-        BattleCharacter mainAlly = PickRandomAlive(allies);
+        if (targetType == TargetType.Self)
+        {
+            AddIfAlive(result, _self);
+            return result;
+        }
+
+        BattleCharacter main = PickTarget(party, selection);
 
         switch (targetType)
         {
             case TargetType.SingleEnemy:
-                AddIfAlive(result, mainEnemy);
+            case TargetType.Friendly:
+                AddIfAlive(result, main);
                 break;
             case TargetType.LeftEnemy:
-                AddNeighbor(result, enemies, mainEnemy, -1);
+            case TargetType.FriendlyLeft:
+                AddIfAlive(result, main);
+                AddNeighbor(result, party, main, -1);
                 break;
             case TargetType.RightEnemy:
-                AddNeighbor(result, enemies, mainEnemy, 1);
+            case TargetType.FriendlyRight:
+                AddIfAlive(result, main);
+                AddNeighbor(result, party, main, 1);
                 break;
             case TargetType.AdjacentEnemy:
-                AddNeighbor(result, enemies, mainEnemy, -1);
-                AddIfAlive(result, mainEnemy);
-                AddNeighbor(result, enemies, mainEnemy, 1);
+            case TargetType.FriendlyAdjacent:
+                AddNeighbor(result, party, main, -1);
+                AddIfAlive(result, main);
+                AddNeighbor(result, party, main, 1);
                 break;
             case TargetType.AllEnemy:
-                result.AddRange(enemies);
-                break;
-            case TargetType.Friendly:
-                AddIfAlive(result, mainAlly);
-                break;
             case TargetType.AllFriendly:
-                result.AddRange(allies);
+                AddAllAlive(result, party);
                 break;
         }
 
         return result;
+    }
+
+    private bool IsFriendlyTarget(TargetType targetType)
+    {
+        return targetType == TargetType.Friendly
+            || targetType == TargetType.AllFriendly
+            || targetType == TargetType.FriendlyLeft
+            || targetType == TargetType.FriendlyRight
+            || targetType == TargetType.FriendlyAdjacent
+            || targetType == TargetType.Self;
+    }
+
+    private BattleCharacter PickTarget(List<BattleCharacter> party, EnemyTargetSelection selection)
+    {
+        List<BattleCharacter> alive = GetAlive(party);
+        if (alive.Count == 0) return null;
+
+        if (selection == EnemyTargetSelection.Leader)
+        {
+            BattleCharacter leader = alive.Find(character => character.isLeader);
+            return leader != null ? leader : alive[Random.Range(0, alive.Count)];
+        }
+
+        if (selection == EnemyTargetSelection.LowestHp || selection == EnemyTargetSelection.HighestHp)
+        {
+            BattleCharacter selected = alive[0];
+            float selectedRatio = GetHpRatio(selected);
+            for (int i = 1; i < alive.Count; i++)
+            {
+                float ratio = GetHpRatio(alive[i]);
+                if ((selection == EnemyTargetSelection.LowestHp && ratio < selectedRatio)
+                    || (selection == EnemyTargetSelection.HighestHp && ratio > selectedRatio))
+                {
+                    selected = alive[i];
+                    selectedRatio = ratio;
+                }
+            }
+            return selected;
+        }
+
+        return alive[Random.Range(0, alive.Count)];
+    }
+
+    private float GetHpRatio(BattleCharacter character)
+    {
+        return character.status.currentHp / Mathf.Max(1f, character.status.FinalMaxHp);
     }
 
     private List<BattleCharacter> GetAlive(List<BattleCharacter> party)
@@ -162,6 +214,12 @@ public class EnemyAI : MonoBehaviour
         List<BattleCharacter> alive = GetAlive(party);
         if (alive.Count == 0) return null;
         return alive[Random.Range(0, alive.Count)];
+    }
+
+    private void AddAllAlive(List<BattleCharacter> result, List<BattleCharacter> party)
+    {
+        if (party == null) return;
+        foreach (BattleCharacter character in party) AddIfAlive(result, character);
     }
 
     private void AddNeighbor(List<BattleCharacter> result, List<BattleCharacter> party, BattleCharacter main, int offset)

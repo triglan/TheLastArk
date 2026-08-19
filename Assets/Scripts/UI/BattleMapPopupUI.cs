@@ -118,7 +118,7 @@ namespace TheLastArk.UI
             titleRect.offsetMax = new Vector2(-80, 0);
 
             TextMeshProUGUI titleTmp = titleObj.AddComponent<TextMeshProUGUI>();
-            titleTmp.text = "🗺️ 탐사 지도 현황 (전투 진행 중 - 이동 불가)";
+            titleTmp.text = "탐사 지도 현황 (전투 진행 중 - 이동 불가)";
             titleTmp.fontSize = 22;
             titleTmp.color = new Color(1f, 0.85f, 0.3f);
             titleTmp.alignment = TextAlignmentOptions.Left;
@@ -149,7 +149,7 @@ namespace TheLastArk.UI
             closeTextRect.offsetMax = Vector2.zero;
 
             TextMeshProUGUI closeTmp = closeTextObj.AddComponent<TextMeshProUGUI>();
-            closeTmp.text = "✕";
+            closeTmp.text = "X";
             closeTmp.fontSize = 22;
             closeTmp.color = Color.white;
             closeTmp.alignment = TextAlignmentOptions.Center;

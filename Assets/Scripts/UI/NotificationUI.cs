@@ -2,16 +2,16 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 
-namespace UI // Æú´õ ÀÌ¸§¿¡ ¸Â°Ô ³×ÀÓ½ºÆäÀÌ½º ÁöÁ¤ (¼±ÅÃ »çÇ×)
+namespace UI // í´ë” ì´ë¦„ì— ë§ê²Œ ë„¤ì„ìŠ¤í˜ì´ìŠ¤ ì§€ì • (ì„ íƒ ì‚¬í•­)
 {
     public class NotificationUI : MonoBehaviour
     {
         public TextMeshProUGUI messageText;
 
         [Header("Animation Settings")]
-        public float duration = 3.0f;     // À¯Áö ½Ã°£
-        public float moveSpeed = 200.0f;   // À§·Î ¿Ã¶ó°¡´Â ¼Óµµ
-        public float fadeSpeed = 3.0f;    // Åõ¸íÇØÁö´Â ¼Óµµ
+        public float duration = 3.0f;     // ìœ ì§€ ì‹œê°„
+        public float moveSpeed = 200.0f;   // ìœ„ë¡œ ì˜¬ë¼ê°€ëŠ” ì†ë„
+        public float fadeSpeed = 3.0f;    // íˆ¬ëª…í•´ì§€ëŠ” ì†ë„
 
         public void Show(string message, Color color)
         {
@@ -34,20 +34,20 @@ namespace UI // Æú´õ ÀÌ¸§¿¡ ¸Â°Ô ³×ÀÓ½ºÆäÀÌ½º ÁöÁ¤ (¼±ÅÃ »çÇ×)
                 elapsed += Time.deltaTime;
                 float progress = elapsed / duration;
 
-                // 1. À§·Î ÀÌµ¿
+                // 1. ìœ„ë¡œ ì´ë™
                 transform.position = startPos + (Vector3.up * moveSpeed * progress);
 
-                // 2. Á¡Á¡ ÀÛ¾ÆÁü (Slerp³ª Lerp·Î ºÎµå·´°Ô)
+                // 2. ì ì  ì‘ì•„ì§ (Slerpë‚˜ Lerpë¡œ ë¶€ë“œëŸ½ê²Œ)
                 transform.localScale = Vector3.Lerp(startScale, startScale * 0.5f, progress);
 
-                // 3. Åõ¸íÇØÁü (Fade Out)
+                // 3. íˆ¬ëª…í•´ì§ (Fade Out)
                 startColor.a = Mathf.Lerp(1, 0, progress * fadeSpeed);
                 messageText.color = startColor;
 
                 yield return null;
             }
 
-            Destroy(gameObject); // ¿¬Ãâ Á¾·á ÈÄ ÆÄ±«
+            Destroy(gameObject); // ì—°ì¶œ ì¢…ë£Œ í›„ íŒŒê´´
         }
     }
 }

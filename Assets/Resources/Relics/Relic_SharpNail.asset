@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f5e5d16f9a6ba43b8ff1eb6795be15, type: 3}
+  m_Name: Relic_SharpNail
+  m_EditorClassIdentifier: 
+  relicID: Relic_SharpNail
+  relicName: "\uB0A0\uCE74\uB85C\uC6B4 \uBABB"
+  description: "\uBB3C\uB9AC \uD53C\uD574\uB97C \uC785\uD790 \uB54C \uCD94\uAC00\uB85C
+    1\uC758 \uACE0\uC815 \uD53C\uD574\uB97C \uB354 \uC785\uD799\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  rarity: 0
+  effectType: 21
+  effectValue: 1
+  targetSynergy: 0

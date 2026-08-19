@@ -96,7 +96,7 @@ namespace TheLastArk.UI
             SynergyInfo info = SynergyDatabase.GetInfo(type);
 
             // 1. Title & Count
-            titleText.text = $"{info.iconEmoji} {info.displayName}  <color=#FFD700>({count}명)</color>";
+            titleText.text = $"{info.displayName}  <color=#FFD700>({count}명)</color>";
 
             // 2. Category Tag
             string catType = info.isFaction ? "세력 시너지" : "직업 시너지";
@@ -120,11 +120,11 @@ namespace TheLastArk.UI
 
                     if (isHighestActive)
                     {
-                        tiersSb.AppendLine($"<color=#79FF5B>▶ {tier.description} <color=#FFD700>[★ 적용 중]</color></color>");
+                        tiersSb.AppendLine($"<color=#79FF5B>> {tier.description} <color=#FFD700>[적용 중]</color></color>");
                     }
                     else if (isActive)
                     {
-                        tiersSb.AppendLine($"<color=#51CF66>✓ {tier.description}</color>");
+                        tiersSb.AppendLine($"<color=#51CF66>[활성] {tier.description}</color>");
                     }
                     else
                     {

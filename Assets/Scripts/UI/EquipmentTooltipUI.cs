@@ -94,7 +94,7 @@ namespace TheLastArk.UI
             layout.childForceExpandHeight = false;
 
             // Text elements placed directly under tooltipPanel VerticalLayoutGroup
-            titleText = CreateText(tooltipPanel.transform, "★1 장비 이름", 22, Color.cyan);
+            titleText = CreateText(tooltipPanel.transform, "[1성] 장비 이름", 22, Color.cyan);
             categoryText = CreateText(tooltipPanel.transform, "계열: [공격력]", 16, Color.yellow);
             statsText = CreateText(tooltipPanel.transform, "공격력 +10", 18, Color.white);
             passiveText = CreateText(tooltipPanel.transform, "", 16, new Color(1f, 0.85f, 0.3f));
@@ -109,18 +109,18 @@ namespace TheLastArk.UI
             EnsureUI();
 
             // Header Title
-            titleText.text = $"★{eq.starLevel} {eq.equipmentName}";
+            titleText.text = $"[{eq.starLevel}성] {eq.equipmentName}";
             categoryText.text = $"계열: <color=#FFD700>{eq.category}</color>";
 
             // Stats Listing
             StringBuilder sb = new StringBuilder();
-            if (eq.bonusAttack > 0) sb.AppendLine($"⚔️ 공격력 +{eq.bonusAttack:F0}");
-            if (eq.bonusSpellPower > 0) sb.AppendLine($"🔮 주문력 +{eq.bonusSpellPower:F0}");
-            if (eq.bonusHp > 0) sb.AppendLine($"❤️ 체력 +{eq.bonusHp:F0}");
-            if (eq.bonusMental > 0) sb.AppendLine($"🧠 정신력 +{eq.bonusMental:F0}");
-            if (eq.bonusArmor > 0) sb.AppendLine($"🛡️ 방어력 +{eq.bonusArmor:F0}");
-            if (eq.bonusMagicResist > 0) sb.AppendLine($"💠 마법저항력 +{eq.bonusMagicResist:F0}");
-            if (eq.bonusCritRate > 0) sb.AppendLine($"🎯 치명타율 +{eq.bonusCritRate:F0}%");
+            if (eq.bonusAttack > 0) sb.AppendLine($"공격력 +{eq.bonusAttack:F0}");
+            if (eq.bonusSpellPower > 0) sb.AppendLine($"주문력 +{eq.bonusSpellPower:F0}");
+            if (eq.bonusHp > 0) sb.AppendLine($"체력 +{eq.bonusHp:F0}");
+            if (eq.bonusMental > 0) sb.AppendLine($"정신력 +{eq.bonusMental:F0}");
+            if (eq.bonusArmor > 0) sb.AppendLine($"방어력 +{eq.bonusArmor:F0}");
+            if (eq.bonusMagicResist > 0) sb.AppendLine($"마법저항력 +{eq.bonusMagicResist:F0}");
+            if (eq.bonusCritRate > 0) sb.AppendLine($"치명타율 +{eq.bonusCritRate:F0}%");
 
             statsText.text = sb.ToString().TrimEnd();
 
@@ -128,7 +128,7 @@ namespace TheLastArk.UI
             if (!string.IsNullOrEmpty(eq.passiveSkillName))
             {
                 passiveText.gameObject.SetActive(true);
-                passiveText.text = $"<color=#FFD700>✨ [{eq.passiveSkillName}]</color>\n{eq.passiveDescription}";
+                passiveText.text = $"<color=#FFD700>[고유효과] {eq.passiveSkillName}</color>\n{eq.passiveDescription}";
             }
             else
             {

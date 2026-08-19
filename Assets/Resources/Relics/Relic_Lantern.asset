@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f5e5d16f9a6ba43b8ff1eb6795be15, type: 3}
+  m_Name: Relic_Lantern
+  m_EditorClassIdentifier: 
+  relicID: Relic_Lantern
+  relicName: "\uD638\uB871\uBD88"
+  description: "\uC801\uC774 \uD654\uC0C1 \uD53C\uD574\uB97C \uC785\uC744 \uB54C
+    \uD53C\uD574\uB7C9\uC774 25% \uC99D\uAC00\uD558\uACE0, \uC544\uAD70\uC774 \uD654\uC0C1
+    \uD53C\uD574\uB97C \uC785\uC744 \uB54C \uD53C\uD574\uB7C9\uC774 25% \uAC10\uC18C\uD569\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  rarity: 0
+  effectType: 32
+  effectValue: 0.25
+  targetSynergy: 0

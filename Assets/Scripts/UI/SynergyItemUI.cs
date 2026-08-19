@@ -29,7 +29,9 @@ namespace TheLastArk.UI
             {
                 iconText.text = info.iconEmoji;
                 iconText.font = TMPFontManager.MainKoreanFont;
-                iconText.fontSize = 22;
+                iconText.enableAutoSizing = true;
+                iconText.fontSizeMin = 9;
+                iconText.fontSizeMax = 14;
                 iconText.alignment = TextAlignmentOptions.Center;
             }
 

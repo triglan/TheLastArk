@@ -177,7 +177,7 @@ public class EnemyBattleCharacterEditor : Editor
         {
             EffectType.Damage => "피해",
             EffectType.Heal => "회복",
-            EffectType.Buff => "버프",
+            EffectType.Strength => "힘",
             EffectType.Stun => "기절",
             EffectType.Bleed => "출혈",
             _ => effectType.ToString()
