@@ -18,6 +18,9 @@ public class MapManager : MonoBehaviour
     [Tooltip("랜덤 시드 (-1이면 매번 다름)")]
     [SerializeField] private int mapSeed = -1;
 
+    [Tooltip("이 맵에서 등장할 Stage 전용 이벤트 카테고리")]
+    [SerializeField, Min(1)] private int eventStage = 1;
+
     [Header("UI References")]
     [Tooltip("노드가 배치될 부모 RectTransform (Canvas 하위)")]
     [SerializeField] private RectTransform mapContainer;
@@ -74,7 +77,7 @@ public class MapManager : MonoBehaviour
         if (GUI.Button(new Rect(10, Screen.height - 45, 110, 30), "Debug: Event"))
         {
             var eventMgr = EventManager.Instance;
-            var eventData = eventMgr?.GetRandomEvent(1);
+            var eventData = eventMgr?.GetRandomEvent(eventStage);
             if (eventData != null)
             {
                 Debug.Log($"[MapManager Debug] 이벤트 강제 실행: {eventData.eventTitle}");
@@ -717,7 +720,7 @@ label.color = Color.white;
                 return;
 
             case MoveValidation.Risky_WillCollapse:
-                Debug.LogWarning($"[MapManager] ⚠️ 위험! {targetNode.floor}층은 다음 턴에 붕괴됩니다!");
+                Debug.LogWarning($"[MapManager] [경고] 위험! {targetNode.floor}층은 다음 턴에 붕괴됩니다!");
                 // 경고를 표시하지만 이동은 허용 (위험 감수)
                 break;
 
@@ -754,7 +757,7 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
         switch (result)
         {
             case CollapseResult.GameOver:
-                Debug.Log("[MapManager] 💀 게임 오버!");
+                Debug.Log("[MapManager] [게임 오버]");
                 // TODO: 게임 오버 UI 표시
                 break;
 
@@ -781,7 +784,7 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
         {
             // 이벤트: 맵 위에 팝업 표시
             var eventMgr = EventManager.Instance;
-            var eventData = eventMgr.GetRandomEvent(1); // TODO: 현재 스테이지 연동
+            var eventData = eventMgr.GetRandomEvent(eventStage);
             if (eventData != null)
             {
                 Debug.Log($"[MapManager] 이벤트 팝업 표시: {eventData.eventTitle}");
@@ -811,7 +814,7 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
 
     private void OnCollapseWarning(int floor)
     {
-        Debug.Log($"[MapManager] ⚠️ UI 경고 연출: {floor}층");
+        Debug.Log($"[MapManager] UI 경고 연출: {floor}층");
 
         // 경고 대상 층의 노드들에 경고 이펙트
         foreach (var node in mapData.GetFloorNodes(floor))
@@ -824,13 +827,13 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
 
         if (collapseWarningText != null)
         {
-            collapseWarningText.text = $"⚠️ WARNING: {floor}층 붕괴 임박!";
+            collapseWarningText.text = $"[WARNING] {floor}층 붕괴 임박!";
         }
     }
 
     private void OnFloorCollapsed(int floor)
     {
-        Debug.Log($"[MapManager] 💥 UI 붕괴 연출: {floor}층");
+        Debug.Log($"[MapManager] UI 붕괴 연출: {floor}층");
 
         // 붕괴된 층의 노드들에 붕괴 이펙트
         foreach (var node in mapData.GetFloorNodes(floor))
@@ -849,11 +852,11 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
 
     private void OnGameOver()
     {
-        Debug.Log("[MapManager] 💀 게임 오버 UI 처리");
+        Debug.Log("[MapManager] 게임 오버 UI 처리");
         // TODO: 게임 오버 UI 오버레이 표시
         if (collapseWarningText != null)
         {
-            collapseWarningText.text = "💀 GAME OVER";
+            collapseWarningText.text = "GAME OVER";
             collapseWarningText.fontSize = 32;
         }
     }

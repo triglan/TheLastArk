@@ -15,8 +15,10 @@ MonoBehaviour:
   relicID: Relic_ArchInvest
   relicName: "\uACE0\uACE0\uD559 \uD22C\uC790 \uC99D\uC11C"
   description: "\uC0C1\uC810\uC5D0\uC11C \uB4F1\uC7A5\uD558\uB294 1\uBC88\uC9F8 \uC720\uBB3C\uC740
-    \uD56D\uC0C1 \uC804\uC124 \uC720\uBB3C\uC774 \uB429\uB2C8\uB2E4."
+    \uD56D\uC0C1 \uC804\uC124 \uC720\uBB3C\uC774 \uB429\uB2C8\uB2E4. (\uB0A8\uC740
+    \uC804\uC124 \uC720\uBB3C\uC774 \uC5C6\uC73C\uBA74 \uC77C\uBC18\uC720\uBB3C \uB4F1\uC7A5)"
   icon: {fileID: 0}
   rarity: 1
   effectType: 10
   effectValue: 0
+  targetSynergy: 0

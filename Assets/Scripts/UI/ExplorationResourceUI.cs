@@ -47,7 +47,7 @@ namespace TheLastArk.UI
             trainHpText = trainHpObj.AddComponent<TextMeshProUGUI>();
             trainHpText.fontSize = 28;
             trainHpText.color = Color.green;
-            trainHpText.text = "🚂 HP: 100/100";
+            trainHpText.text = "기차 HP: 100/100";
             trainHpText.alignment = TextAlignmentOptions.Left;
             if (mainFont != null) trainHpText.font = mainFont;
 
@@ -59,7 +59,7 @@ namespace TheLastArk.UI
             goldText = goldObj.AddComponent<TextMeshProUGUI>();
             goldText.fontSize = 30;
             goldText.color = Color.yellow;
-            goldText.text = "💰 0 G";
+            goldText.text = "0 G";
             goldText.alignment = TextAlignmentOptions.Left;
             if (mainFont != null) goldText.font = mainFont;
 
@@ -177,7 +177,7 @@ namespace TheLastArk.UI
             if (isBattleScene)
             {
                 // 0) 지도 아이콘 (배틀 씬 전용, 기차 버튼 왼쪽)
-                CreateTopBarIconButton(mgmtIconsContainer.transform, "🗺️", "지도",
+                CreateTopBarIconButton(mgmtIconsContainer.transform, "MAP", "지도",
                     new Color(0.35f, 0.3f, 0.5f, 1f), mainFont, () =>
                     {
                         BattleMapPopupUI.Show();
@@ -185,28 +185,28 @@ namespace TheLastArk.UI
             }
 
             // 1) 기차 아이콘
-            CreateTopBarIconButton(mgmtIconsContainer.transform, "🚆", "기차",
+            CreateTopBarIconButton(mgmtIconsContainer.transform, "TRAIN", "기차",
                 new Color(0.2f, 0.35f, 0.55f, 1f), mainFont, () =>
                 {
                     ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Train);
                 });
 
             // 2) 캐릭터 아이콘
-            CreateTopBarIconButton(mgmtIconsContainer.transform, "👤", "캐릭터",
+            CreateTopBarIconButton(mgmtIconsContainer.transform, "HERO", "캐릭터",
                 new Color(0.25f, 0.45f, 0.3f, 1f), mainFont, () =>
                 {
                     ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Character);
                 });
 
             // 3) 가방 아이콘
-            CreateTopBarIconButton(mgmtIconsContainer.transform, "🎒", "가방",
+            CreateTopBarIconButton(mgmtIconsContainer.transform, "BAG", "가방",
                 new Color(0.5f, 0.35f, 0.2f, 1f), mainFont, () =>
                 {
                     ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Inventory);
                 });
 
             // 4) 환경설정 아이콘 (단독 팝업 호출)
-            CreateTopBarIconButton(mgmtIconsContainer.transform, "⚙️", "설정",
+            CreateTopBarIconButton(mgmtIconsContainer.transform, "SET", "설정",
                 new Color(0.35f, 0.35f, 0.35f, 1f), mainFont, () =>
                 {
                     ManagementUIManager.Instance.ShowSettingsPopup();
@@ -273,7 +273,9 @@ namespace TheLastArk.UI
 
             TextMeshProUGUI iconTmp = iconObj.AddComponent<TextMeshProUGUI>();
             iconTmp.text = icon;
-            iconTmp.fontSize = 24;
+            iconTmp.enableAutoSizing = true;
+            iconTmp.fontSizeMin = 9;
+            iconTmp.fontSizeMax = 14;
             iconTmp.color = Color.white;
             iconTmp.alignment = TextAlignmentOptions.Center;
             if (font != null) iconTmp.font = font;
@@ -300,7 +302,7 @@ namespace TheLastArk.UI
         {
             if (trainHpText != null && TrainManager.Instance != null)
             {
-                trainHpText.text = $"🚂 HP: {TrainManager.Instance.currentTrainDurability}/{TrainManager.Instance.maxTrainDurability}";
+                trainHpText.text = $"기차 HP: {TrainManager.Instance.currentTrainDurability}/{TrainManager.Instance.maxTrainDurability}";
             }
         }
 
@@ -308,7 +310,7 @@ namespace TheLastArk.UI
         {
             if (goldText != null && ResourceManager.Instance != null)
             {
-                goldText.text = $"💰 {ResourceManager.Instance.Gold} G";
+                goldText.text = $"{ResourceManager.Instance.Gold} G";
             }
         }
 

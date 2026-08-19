@@ -13,6 +13,10 @@ public class CharacterEditorWindow : EditorWindow
     private const string ENEMY_DATA_FOLDER = "Assets/Resources/Characters/Enemy/Data";
     private const string ENEMY_ILLUST_FOLDER = "Assets/Resources/Characters/Enemy/Illust";
     private const double SAVE_DELAY_SECONDS = 1.0d;
+    private const float LayoutChromeWidth = 12f;
+    private const float CharacterListWidth = 230f;
+    private const float EventListWidth = 210f;
+    private const float EventToolsWidth = 260f;
 
     private readonly List<CharacterData> cachedCharacterList = new List<CharacterData>();
     private CharacterEditorMode editorMode = CharacterEditorMode.Player;
@@ -26,6 +30,8 @@ public class CharacterEditorWindow : EditorWindow
     private bool isDirtyCache = true;
     private bool showValidationDetails;
     private bool hasPendingSave;
+    private List<EffectEntry> statusPaletteTarget;
+    private List<EffectEntry> effectPaletteTarget;
     private double nextSaveTime;
     private EnemyEncounterEditorWindow embeddedEncounterEditor;
 
@@ -35,11 +41,15 @@ public class CharacterEditorWindow : EditorWindow
     private Vector2 eventMiddleScroll;
     private Vector2 eventRightScroll;
     private string eventSearchText = "";
-    private int eventCategoryFilter = 0; // 0: 전체, 1: Common, 2: Stage1
+    private int eventCategoryFilter;
     private bool isDirtyEventCache = true;
 
     private bool IsEnemyMode => editorMode == CharacterEditorMode.Enemy;
     private bool IsCharacterMode => editorMode == CharacterEditorMode.Player || editorMode == CharacterEditorMode.Enemy;
+    private float CharacterWorkWidth => Mathf.Max(600f, position.width - CharacterListWidth - LayoutChromeWidth);
+    private float CharacterDetailWidth => CharacterWorkWidth * (2f / 3f);
+    private float CharacterSheetWidth => CharacterWorkWidth / 3f;
+    private float EventDetailWidth => Mathf.Max(320f, position.width - EventListWidth - EventToolsWidth - LayoutChromeWidth);
 
     private class CharacterValidationResult
     {
@@ -63,7 +73,7 @@ public class CharacterEditorWindow : EditorWindow
         }
 
         CharacterEditorWindow window = GetWindow<CharacterEditorWindow>("편집기");
-        window.minSize = new Vector2(1200, 700);
+        window.minSize = new Vector2(1300, 650);
     }
 
     private void OnEnable()
@@ -107,7 +117,7 @@ public class CharacterEditorWindow : EditorWindow
         if (editorMode == CharacterEditorMode.Events)
         {
             RefreshEventCacheIfNeeded();
-            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginHorizontal(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             DrawEventLeftPanel();
             DrawEventMiddlePanel();
             DrawEventRightOverviewPanel();
@@ -134,7 +144,7 @@ public class CharacterEditorWindow : EditorWindow
             iconFolderPath = "";
         }
 
-        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.BeginHorizontal(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
         DrawLeftPanel();
         DrawMiddlePanel();
         DrawRightOverviewPanel();
@@ -295,9 +305,27 @@ public class CharacterEditorWindow : EditorWindow
         if (changed) AssetDatabase.SaveAssets();
     }
 
+    private static Vector2 BeginVerticalScrollView(Vector2 scrollPosition)
+    {
+        scrollPosition.x = 0f;
+        return GUILayout.BeginScrollView(
+            scrollPosition,
+            false,
+            false,
+            GUIStyle.none,
+            GUI.skin.verticalScrollbar,
+            GUILayout.ExpandWidth(true),
+            GUILayout.ExpandHeight(true));
+    }
+
+    private static void EndVerticalScrollView()
+    {
+        GUILayout.EndScrollView();
+    }
+
     private void DrawLeftPanel()
     {
-        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(230), GUILayout.ExpandHeight(true));
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(CharacterListWidth), GUILayout.ExpandHeight(true));
         DrawModeToolbar();
         EditorGUILayout.Space(6f);
         EditorGUILayout.LabelField(IsEnemyMode ? "적 캐릭터 목록" : "아군 캐릭터 목록", EditorStyles.boldLabel);
@@ -311,7 +339,7 @@ public class CharacterEditorWindow : EditorWindow
         }
 
         EditorGUILayout.Space(5);
-        leftScroll = EditorGUILayout.BeginScrollView(leftScroll);
+        leftScroll = BeginVerticalScrollView(leftScroll);
         foreach (CharacterData data in cachedCharacterList)
         {
             if (data == null || data.isEnemy != IsEnemyMode) continue;
@@ -320,7 +348,9 @@ public class CharacterEditorWindow : EditorWindow
 
             EditorGUILayout.BeginHorizontal();
             bool isSelected = selectedData == data;
-            if (GUILayout.Toggle(isSelected, displayName, "Button", GUILayout.Height(25), GUILayout.ExpandWidth(true)) && !isSelected)
+            float nameButtonWidth = Mathf.Max(80f, CharacterListWidth - 60f);
+            var nameContent = new GUIContent(displayName, displayName);
+            if (GUILayout.Toggle(isSelected, nameContent, "Button", GUILayout.Width(nameButtonWidth), GUILayout.Height(25)) && !isSelected)
             {
                 selectedData = data;
                 iconFolderPath = "";
@@ -342,13 +372,13 @@ public class CharacterEditorWindow : EditorWindow
             GUI.color = Color.white;
             EditorGUILayout.EndHorizontal();
         }
-        EditorGUILayout.EndScrollView();
+        EndVerticalScrollView();
         EditorGUILayout.EndVertical();
     }
 
     private void DrawMiddlePanel()
     {
-        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(520), GUILayout.ExpandHeight(true));
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(CharacterDetailWidth), GUILayout.ExpandHeight(true));
         if (selectedData == null)
         {
             EditorGUILayout.HelpBox(IsEnemyMode ? "적 캐릭터를 선택하세요." : "아군 캐릭터를 선택하세요.", MessageType.Info);
@@ -356,7 +386,7 @@ public class CharacterEditorWindow : EditorWindow
             return;
         }
 
-        middleScroll = EditorGUILayout.BeginScrollView(middleScroll);
+        middleScroll = BeginVerticalScrollView(middleScroll);
         EditorGUI.BeginChangeCheck();
 
         if (string.IsNullOrEmpty(iconFolderPath))
@@ -374,7 +404,7 @@ public class CharacterEditorWindow : EditorWindow
         else DrawPlayerSkillSection();
 
         if (EditorGUI.EndChangeCheck()) MarkDirtyAndSave(selectedData);
-        EditorGUILayout.EndScrollView();
+        EndVerticalScrollView();
         EditorGUILayout.EndVertical();
     }
 
@@ -478,7 +508,7 @@ public class CharacterEditorWindow : EditorWindow
                 var info = TheLastArk.Character.SynergyDatabase.GetInfo(synType);
 
                 GUI.backgroundColor = new Color(0.2f, 0.6f, 0.9f);
-                if (GUILayout.Button($"{info.iconEmoji} {info.displayName}  ✕", GUILayout.Height(24)))
+                if (GUILayout.Button($"{info.displayName}  [X]", GUILayout.Height(24)))
                 {
                     selectedData.synergies.RemoveAt(i);
                     MarkDirtyAndSave(selectedData);
@@ -507,7 +537,7 @@ public class CharacterEditorWindow : EditorWindow
 
             bool hasSyn = selectedData.synergies.Contains(synType);
             GUI.backgroundColor = hasSyn ? new Color(0.3f, 0.9f, 0.4f) : Color.white;
-            bool newHas = GUILayout.Toggle(hasSyn, $"{info.iconEmoji} {info.displayName}", "Button", GUILayout.Height(24));
+            bool newHas = GUILayout.Toggle(hasSyn, info.displayName, "Button", GUILayout.Height(24));
             GUI.backgroundColor = Color.white;
 
             if (newHas != hasSyn)
@@ -542,7 +572,7 @@ public class CharacterEditorWindow : EditorWindow
 
             bool hasSyn = selectedData.synergies.Contains(synType);
             GUI.backgroundColor = hasSyn ? new Color(0.3f, 0.85f, 0.95f) : Color.white;
-            bool newHas = GUILayout.Toggle(hasSyn, $"{info.iconEmoji} {info.displayName}", "Button", GUILayout.Height(24));
+            bool newHas = GUILayout.Toggle(hasSyn, info.displayName, "Button", GUILayout.Height(24));
             GUI.backgroundColor = Color.white;
 
             if (newHas != hasSyn)
@@ -697,17 +727,14 @@ public class CharacterEditorWindow : EditorWindow
     {
         if (selectedData.enemyPatterns == null) selectedData.enemyPatterns = new List<EnemyPatternData>();
         EditorGUILayout.BeginVertical("box");
-        EditorGUILayout.LabelField("행동 패턴", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox("패턴은 1번 -> 2번 -> 3번 순서로 실행되고, 마지막 뒤에는 다시 1번으로 돌아갑니다.", MessageType.None);
-        if (GUILayout.Button("+ 패턴 추가", GUILayout.Width(110)))
-        {
-            selectedData.enemyPatterns.Add(new EnemyPatternData { patternName = $"패턴 {selectedData.enemyPatterns.Count + 1}" });
-            MarkDirtyAndSave(selectedData);
-        }
+        EditorGUILayout.LabelField("적 행동 패턴", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("위에서 아래 순서로 실행한 뒤 처음으로 돌아갑니다.", MessageType.None);
+
+        DrawPatternPresetButtons();
 
         for (int i = 0; i < selectedData.enemyPatterns.Count; i++)
         {
-            EnemyPatternData pattern = selectedData.enemyPatterns[i] ?? new EnemyPatternData { patternName = $"패턴 {i + 1}" };
+            EnemyPatternData pattern = selectedData.enemyPatterns[i] ?? CreateEnemyPattern($"패턴 {i + 1}", TargetType.SingleEnemy, EnemyTargetSelection.Random, EffectType.Damage, 1f);
             selectedData.enemyPatterns[i] = pattern;
             if (pattern.effects == null) pattern.effects = new List<EffectEntry>();
 
@@ -715,33 +742,312 @@ public class CharacterEditorWindow : EditorWindow
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField($"{i + 1}", GUILayout.Width(24));
             pattern.patternName = EditorGUILayout.TextField(pattern.patternName);
-            if (GUILayout.Button("위", GUILayout.Width(36)) && i > 0) { SwapEnemyPatterns(i, i - 1); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
-            if (GUILayout.Button("아래", GUILayout.Width(42)) && i < selectedData.enemyPatterns.Count - 1) { SwapEnemyPatterns(i, i + 1); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
-            if (GUILayout.Button("X", GUILayout.Width(24))) { selectedData.enemyPatterns.RemoveAt(i); MarkDirtyAndSave(selectedData); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
+            if (GUILayout.Button("복", GUILayout.Width(22)))
+            {
+                selectedData.enemyPatterns.Insert(i + 1, CloneEnemyPattern(pattern));
+                MarkDirtyAndSave(selectedData);
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
+                break;
+            }
+            if (GUILayout.Button("↑", GUILayout.Width(22)) && i > 0) { SwapEnemyPatterns(i, i - 1); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
+            if (GUILayout.Button("↓", GUILayout.Width(22)) && i < selectedData.enemyPatterns.Count - 1) { SwapEnemyPatterns(i, i + 1); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
+            if (GUILayout.Button("×", GUILayout.Width(22))) { selectedData.enemyPatterns.RemoveAt(i); MarkDirtyAndSave(selectedData); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
             EditorGUILayout.EndHorizontal();
 
-            pattern.targetType = (TargetType)EditorGUILayout.EnumPopup("대상", pattern.targetType);
-            DrawEffectList(pattern.effects);
+            EnemyTargetSide side = GetEnemyTargetSide(pattern.targetType);
+            EnemyTargetRange range = GetEnemyTargetRange(pattern.targetType);
+            DrawTargetSettings(ref side, ref pattern.targetSelection, ref range);
+
+            if (side == EnemyTargetSide.Self) range = EnemyTargetRange.Single;
+            pattern.targetType = ToTargetType(side, range);
+            DrawEnemyEffectList(pattern.effects);
             EditorGUILayout.EndVertical();
         }
         EditorGUILayout.EndVertical();
     }
 
+    private void DrawPatternPresetButtons()
+    {
+        int columns = position.width >= 900f ? 4 : 2;
+        int clicked = GUILayout.SelectionGrid(-1, new[] { "단일유저", "전체유저", "단일적", "전체적" }, columns, GUILayout.Height(20));
+        switch (clicked)
+        {
+            case 0: AddEnemyPattern(CreateEnemyPattern("단일 공격", TargetType.SingleEnemy, EnemyTargetSelection.Random, EffectType.Damage, 1f)); break;
+            case 1: AddEnemyPattern(CreateEnemyPattern("전체 공격", TargetType.AllEnemy, EnemyTargetSelection.Random, EffectType.Damage, 0.7f)); break;
+            case 2: AddEnemyPattern(CreateEnemyPattern("단일 지원", TargetType.Friendly, EnemyTargetSelection.LowestHp, EffectType.Heal, 1f)); break;
+            case 3: AddEnemyPattern(CreateEnemyPattern("전체 지원", TargetType.AllFriendly, EnemyTargetSelection.Random, EffectType.Strength, 0.1f)); break;
+        }
+    }
+
+    private static void DrawTargetSettings(ref EnemyTargetSide side, ref EnemyTargetSelection selection, ref EnemyTargetRange range)
+    {
+        string[] sideLabels = { "유저", "적", "자신" };
+        string[] selectionLabels = { "랜덤", "리더", "HP 최저", "HP 최고" };
+        string[] rangeLabels = { "단일", "왼쪽", "오른쪽", "양옆", "전체" };
+
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("대상", GUILayout.Width(28));
+        side = (EnemyTargetSide)EditorGUILayout.Popup((int)side, sideLabels, GUILayout.Width(65));
+        GUILayout.Label("선택", GUILayout.Width(28));
+        selection = (EnemyTargetSelection)EditorGUILayout.Popup((int)selection, selectionLabels, GUILayout.Width(72));
+        GUILayout.Label("범위", GUILayout.Width(28));
+        range = (EnemyTargetRange)EditorGUILayout.Popup((int)range, rangeLabels, GUILayout.Width(65));
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private void AddEnemyPattern(EnemyPatternData pattern)
+    {
+        selectedData.enemyPatterns.Add(pattern);
+        MarkDirtyAndSave(selectedData);
+    }
+
+    private static EnemyPatternData CreateEnemyPattern(string name, TargetType targetType, EnemyTargetSelection selection, EffectType effectType, float multiplier)
+    {
+        return new EnemyPatternData
+        {
+            patternName = name,
+            targetType = targetType,
+            targetSelection = selection,
+            effects = new List<EffectEntry>
+            {
+                new EffectEntry { type = effectType, damageType = DamageType.Physical, multiplier = multiplier }
+            }
+        };
+    }
+
+    private static EnemyPatternData CloneEnemyPattern(EnemyPatternData source)
+    {
+        var copy = new EnemyPatternData
+        {
+            patternName = $"{source.patternName} 복사",
+            targetType = source.targetType,
+            targetSelection = source.targetSelection,
+            effects = new List<EffectEntry>()
+        };
+
+        foreach (EffectEntry effect in source.effects)
+        {
+            copy.effects.Add(new EffectEntry
+            {
+                type = effect.type,
+                damageType = effect.damageType,
+                multiplier = effect.multiplier,
+                fixedValue = effect.fixedValue,
+                useActualResult = effect.useActualResult
+            });
+        }
+        return copy;
+    }
+
+    private static EnemyTargetSide GetEnemyTargetSide(TargetType type)
+    {
+        if (type == TargetType.Self) return EnemyTargetSide.Self;
+        return type == TargetType.Friendly || type == TargetType.AllFriendly
+            || type == TargetType.FriendlyLeft || type == TargetType.FriendlyRight || type == TargetType.FriendlyAdjacent
+            ? EnemyTargetSide.Enemy
+            : EnemyTargetSide.User;
+    }
+
+    private static EnemyTargetRange GetEnemyTargetRange(TargetType type)
+    {
+        switch (type)
+        {
+            case TargetType.LeftEnemy:
+            case TargetType.FriendlyLeft: return EnemyTargetRange.Left;
+            case TargetType.RightEnemy:
+            case TargetType.FriendlyRight: return EnemyTargetRange.Right;
+            case TargetType.AdjacentEnemy:
+            case TargetType.FriendlyAdjacent: return EnemyTargetRange.Adjacent;
+            case TargetType.AllEnemy:
+            case TargetType.AllFriendly: return EnemyTargetRange.All;
+            default: return EnemyTargetRange.Single;
+        }
+    }
+
+    private static TargetType ToTargetType(EnemyTargetSide side, EnemyTargetRange range)
+    {
+        if (side == EnemyTargetSide.Self) return TargetType.Self;
+        if (side == EnemyTargetSide.Enemy)
+        {
+            switch (range)
+            {
+                case EnemyTargetRange.Left: return TargetType.FriendlyLeft;
+                case EnemyTargetRange.Right: return TargetType.FriendlyRight;
+                case EnemyTargetRange.Adjacent: return TargetType.FriendlyAdjacent;
+                case EnemyTargetRange.All: return TargetType.AllFriendly;
+                default: return TargetType.Friendly;
+            }
+        }
+
+        switch (range)
+        {
+            case EnemyTargetRange.Left: return TargetType.LeftEnemy;
+            case EnemyTargetRange.Right: return TargetType.RightEnemy;
+            case EnemyTargetRange.Adjacent: return TargetType.AdjacentEnemy;
+            case EnemyTargetRange.All: return TargetType.AllEnemy;
+            default: return TargetType.SingleEnemy;
+        }
+    }
+
+    private enum EnemyEffectPreset
+    {
+        PhysicalDamage,
+        MagicalDamage,
+        TrueDamage,
+        Heal,
+        Stun,
+        Bleed,
+        Taunt,
+        Counter,
+        Shield,
+        Resurrection
+    }
+
+    private void DrawEnemyEffectList(List<EffectEntry> effects)
+    {
+        if (effects == null) return;
+
+        DrawEffectPaletteToggle(effects);
+        DrawStatusPaletteToggle(effects);
+
+        string[] effectLabels =
+        {
+            "물리 피해", "마법 피해", "고정 피해", "회복",
+            "기절", "출혈", "도발", "반격", "보호막", "부활"
+        };
+
+        for (int i = 0; i < effects.Count; i++)
+        {
+            EffectEntry effect = effects[i];
+            EnemyEffectPreset current = GetEffectPreset(effect);
+
+            EditorGUILayout.BeginHorizontal();
+            if (IsConfiguredStatus(effect.type))
+                effect.type = (EffectType)EditorGUILayout.EnumPopup(effect.type, GUILayout.Width(100));
+            else
+            {
+                EnemyEffectPreset next = (EnemyEffectPreset)EditorGUILayout.Popup((int)current, effectLabels, GUILayout.Width(85));
+                if (next != current) ApplyEffectPreset(effect, next, true);
+            }
+
+            if (IsConfiguredStatus(effect.type))
+            {
+                DrawConfiguredStatusFields(effect);
+            }
+            else if (effect.type == EffectType.Damage || effect.type == EffectType.Heal)
+            {
+                GUILayout.Label("배율", GUILayout.Width(28));
+                effect.multiplier = EditorGUILayout.FloatField(effect.multiplier, GUILayout.Width(45));
+                GUILayout.Label("고정", GUILayout.Width(28));
+                effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(45));
+            }
+            else if (effect.type == EffectType.Bleed)
+            {
+                GUILayout.Label("배율", GUILayout.Width(28));
+                effect.multiplier = EditorGUILayout.FloatField(effect.multiplier, GUILayout.Width(45));
+                GUILayout.Label("지속시간", GUILayout.Width(52));
+                effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(35));
+            }
+            else if (effect.type == EffectType.Stun || effect.type == EffectType.Taunt || effect.type == EffectType.Counter)
+            {
+                GUILayout.Label("지속시간", GUILayout.Width(52));
+                effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(35));
+            }
+            else if (effect.type == EffectType.Shield)
+            {
+                GUILayout.Label("배율", GUILayout.Width(28));
+                effect.multiplier = EditorGUILayout.FloatField(effect.multiplier, GUILayout.Width(45));
+                GUILayout.Label("지속시간", GUILayout.Width(52));
+                effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(35));
+            }
+            GUILayout.Label("연계", GUILayout.Width(28));
+            effect.useActualResult = EditorGUILayout.Toggle(effect.useActualResult, GUILayout.Width(18));
+            if (GUILayout.Button("X", GUILayout.Width(22))) { effects.RemoveAt(i); i--; }
+            EditorGUILayout.EndHorizontal();
+        }
+    }
+
+    private static EffectEntry CreateEffect(EnemyEffectPreset preset)
+    {
+        var effect = new EffectEntry();
+        ApplyEffectPreset(effect, preset, true);
+        return effect;
+    }
+
+    private static EnemyEffectPreset GetEffectPreset(EffectEntry effect)
+    {
+        if (effect.type == EffectType.Damage)
+        {
+            if (effect.damageType == DamageType.Magical) return EnemyEffectPreset.MagicalDamage;
+            if (effect.damageType == DamageType.True) return EnemyEffectPreset.TrueDamage;
+            return EnemyEffectPreset.PhysicalDamage;
+        }
+
+        switch (effect.type)
+        {
+            case EffectType.Heal: return EnemyEffectPreset.Heal;
+            case EffectType.Stun: return EnemyEffectPreset.Stun;
+            case EffectType.Bleed: return EnemyEffectPreset.Bleed;
+            case EffectType.Taunt: return EnemyEffectPreset.Taunt;
+            case EffectType.Counter: return EnemyEffectPreset.Counter;
+            case EffectType.Shield: return EnemyEffectPreset.Shield;
+            case EffectType.Resurrection: return EnemyEffectPreset.Resurrection;
+            default: return EnemyEffectPreset.PhysicalDamage;
+        }
+    }
+
+    private static void ApplyEffectPreset(EffectEntry effect, EnemyEffectPreset preset, bool resetValues)
+    {
+        effect.type = EffectType.Damage;
+        effect.damageType = DamageType.Physical;
+
+        switch (preset)
+        {
+            case EnemyEffectPreset.MagicalDamage: effect.damageType = DamageType.Magical; break;
+            case EnemyEffectPreset.TrueDamage: effect.damageType = DamageType.True; break;
+            case EnemyEffectPreset.Heal: effect.type = EffectType.Heal; break;
+            case EnemyEffectPreset.Stun: effect.type = EffectType.Stun; break;
+            case EnemyEffectPreset.Bleed: effect.type = EffectType.Bleed; break;
+            case EnemyEffectPreset.Taunt: effect.type = EffectType.Taunt; break;
+            case EnemyEffectPreset.Counter: effect.type = EffectType.Counter; break;
+            case EnemyEffectPreset.Shield: effect.type = EffectType.Shield; break;
+            case EnemyEffectPreset.Resurrection: effect.type = EffectType.Resurrection; break;
+        }
+
+        if (!resetValues) return;
+        effect.multiplier = preset == EnemyEffectPreset.Stun || preset == EnemyEffectPreset.Taunt
+            || preset == EnemyEffectPreset.Counter || preset == EnemyEffectPreset.Resurrection ? 0f : 1f;
+        effect.fixedValue = preset == EnemyEffectPreset.Stun || preset == EnemyEffectPreset.Bleed
+            || preset == EnemyEffectPreset.Taunt || preset == EnemyEffectPreset.Counter || preset == EnemyEffectPreset.Shield ? 3f : 0f;
+        effect.useActualResult = false;
+    }
+
     private void DrawEffectList(List<EffectEntry> effects)
     {
         if (effects == null) return;
-        if (GUILayout.Button("+ 효과 추가", GUILayout.Width(100))) effects.Add(new EffectEntry());
+        DrawEffectPaletteToggle(effects);
+        DrawStatusPaletteToggle(effects);
         for (int i = 0; i < effects.Count; i++)
         {
             EffectEntry effect = effects[i];
             EditorGUILayout.BeginHorizontal();
+            EffectType previousType = effect.type;
             effect.type = (EffectType)EditorGUILayout.EnumPopup(effect.type, GUILayout.Width(90));
+            if (effect.type != previousType && RequiresDuration(effect.type)) effect.fixedValue = 3f;
+            if (IsConfiguredStatus(effect.type))
+            {
+                DrawConfiguredStatusFields(effect);
+            }
+            else
+            {
             if (effect.type == EffectType.Damage)
                 effect.damageType = (DamageType)EditorGUILayout.EnumPopup(effect.damageType, GUILayout.Width(80));
             GUILayout.Label("배율", GUILayout.Width(32));
             effect.multiplier = EditorGUILayout.FloatField(effect.multiplier, GUILayout.Width(45));
-            GUILayout.Label("고정", GUILayout.Width(32));
+            GUILayout.Label(RequiresDuration(effect.type) ? "지속시간" : "고정", GUILayout.Width(52));
             effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(45));
+            }
             GUILayout.Label("결과", GUILayout.Width(32));
             effect.useActualResult = EditorGUILayout.Toggle(effect.useActualResult, GUILayout.Width(20));
             if (GUILayout.Button("X", GUILayout.Width(20))) { effects.RemoveAt(i); break; }
@@ -749,46 +1055,187 @@ public class CharacterEditorWindow : EditorWindow
         }
     }
 
+    private static bool RequiresDuration(EffectType type)
+    {
+        return type == EffectType.Stun || type == EffectType.Bleed
+            || type == EffectType.Taunt || type == EffectType.Counter || type == EffectType.Shield
+            || type == EffectType.Poison || type == EffectType.Burn;
+    }
+
+    private static bool IsConfiguredStatus(EffectType type)
+    {
+        return (int)type >= (int)EffectType.Blockade || type == EffectType.Stun || type == EffectType.Bleed
+            || type == EffectType.Poison || type == EffectType.Burn || type == EffectType.Strength
+            || type == EffectType.Taunt || type == EffectType.Counter;
+    }
+
+    private static bool UsesCharges(EffectType type)
+    {
+        return type == EffectType.Counter || type == EffectType.Taunt || type == EffectType.Guard;
+    }
+
+    private static void DrawConfiguredStatusFields(EffectEntry effect)
+    {
+        if (effect.type == EffectType.Blockade)
+        {
+            GUILayout.Label("스킬칸", GUILayout.Width(42));
+            effect.skillSlot = EditorGUILayout.IntPopup(effect.skillSlot,
+                new[] { "모두", "1", "2", "3", "4" }, new[] { -1, 0, 1, 2, 3 }, GUILayout.Width(48));
+        }
+        else if (effect.type != EffectType.Fatigue && effect.type != EffectType.Stun && !UsesCharges(effect.type))
+        {
+            string valueLabel = effect.type == EffectType.Confusion ? "확률%" : effect.type == EffectType.Frost ? "AP+" : "수치";
+            GUILayout.Label(valueLabel, GUILayout.Width(38));
+            effect.value = EditorGUILayout.FloatField(effect.value, GUILayout.Width(45));
+        }
+
+        if (UsesCharges(effect.type))
+        {
+            GUILayout.Label("횟수", GUILayout.Width(32));
+            effect.charges = Mathf.Max(1, EditorGUILayout.IntField(effect.charges, GUILayout.Width(35)));
+        }
+        else
+        {
+            GUILayout.Label("지속시간", GUILayout.Width(52));
+            effect.duration = Mathf.Max(1, EditorGUILayout.IntField(effect.duration, GUILayout.Width(35)));
+        }
+    }
+
+    private void DrawStatusPaletteToggle(List<EffectEntry> effects)
+    {
+        bool isOpen = ReferenceEquals(statusPaletteTarget, effects);
+        if (GUILayout.Button(isOpen ? "- 상태이상 닫기" : "+ 상태이상", GUILayout.Width(110)))
+        {
+            statusPaletteTarget = isOpen ? null : effects;
+            if (!isOpen) effectPaletteTarget = null;
+        }
+        if (!ReferenceEquals(statusPaletteTarget, effects)) return;
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        DrawStatusGroup(effects, "행동 제한", new[] { "봉쇄", "피로", "혼란", "기절", "냉기" },
+            new[] { EffectType.Blockade, EffectType.Fatigue, EffectType.Confusion, EffectType.Stun, EffectType.Frost },
+            new[] { 0f, 0f, 30f, 0f, 1f });
+        DrawStatusGroup(effects, "지속 피해", new[] { "출혈", "독", "화상" },
+            new[] { EffectType.Bleed, EffectType.Poison, EffectType.Burn }, new[] { 10f, 20f, 5f });
+        DrawStatusGroup(effects, "정신력", new[] { "공포", "압박", "절망" },
+            new[] { EffectType.Fear, EffectType.Pressure, EffectType.Despair }, new[] { 5f, 3f, 30f });
+        DrawStatusGroup(effects, "능력치", new[] { "힘", "약화", "보호", "취약", "관통" },
+            new[] { EffectType.Strength, EffectType.Weakness, EffectType.Protection, EffectType.Vulnerable, EffectType.Pierce },
+            new[] { 20f, 20f, 20f, 20f, 20f });
+        DrawStatusGroup(effects, "대응/보호", new[] { "반격", "도발", "방호" },
+            new[] { EffectType.Counter, EffectType.Taunt, EffectType.Guard }, new[] { 0f, 0f, 0f });
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawStatusGroup(List<EffectEntry> effects, string title, string[] labels, EffectType[] types, float[] values)
+    {
+        EditorGUILayout.LabelField(title, EditorStyles.miniBoldLabel);
+        int selected = GUILayout.SelectionGrid(-1, labels, Mathf.Min(5, labels.Length), GUILayout.Height(22));
+        if (selected < 0) return;
+
+        EffectType type = types[selected];
+        effects.Add(new EffectEntry
+        {
+            type = type,
+            value = values[selected],
+            duration = 3,
+            charges = 3,
+            skillSlot = type == EffectType.Blockade ? 0 : -1
+        });
+        GUI.changed = true;
+    }
+
+    private void DrawEffectPaletteToggle(List<EffectEntry> effects)
+    {
+        bool isOpen = ReferenceEquals(effectPaletteTarget, effects);
+        if (GUILayout.Button(isOpen ? "- 효과 닫기" : "+ 효과 추가", GUILayout.Width(110)))
+        {
+            effectPaletteTarget = isOpen ? null : effects;
+            if (!isOpen) statusPaletteTarget = null;
+        }
+        if (!ReferenceEquals(effectPaletteTarget, effects)) return;
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.LabelField("즉시 효과", EditorStyles.miniBoldLabel);
+        string[] labels = { "물리 피해", "마법 피해", "고정 피해", "회복", "보호막", "부활" };
+        int selected = GUILayout.SelectionGrid(-1, labels, 4, GUILayout.Height(44));
+        if (selected >= 0)
+        {
+            EffectEntry effect = selected switch
+            {
+                0 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.Physical },
+                1 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.Magical },
+                2 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.True },
+                3 => new EffectEntry { type = EffectType.Heal },
+                4 => new EffectEntry { type = EffectType.Shield, duration = 3 },
+                _ => new EffectEntry { type = EffectType.Resurrection }
+            };
+            effects.Add(effect);
+            GUI.changed = true;
+        }
+        EditorGUILayout.EndVertical();
+    }
+
     private void DrawRightOverviewPanel()
     {
-        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true));
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(CharacterSheetWidth), GUILayout.ExpandHeight(true));
         EditorGUILayout.LabelField(IsEnemyMode ? "적 데이터 시트" : "아군 데이터 시트", EditorStyles.boldLabel);
-        rightScroll = EditorGUILayout.BeginScrollView(rightScroll);
+        rightScroll = BeginVerticalScrollView(rightScroll);
+        float rowWidth = Mathf.Max(180f, CharacterSheetWidth - 18f);
+        float firstRowFieldsWidth = Mathf.Max(90f, rowWidth - 94f);
+        float statFieldsWidth = Mathf.Max(180f, rowWidth - 114f);
+        float hpFieldWidth = statFieldsWidth * 0.2f;
+        float smallStatFieldWidth = statFieldsWidth * 0.15f;
         foreach (CharacterData data in cachedCharacterList)
         {
             if (data == null || data.isEnemy != IsEnemyMode) continue;
             if (selectedData == data) GUI.backgroundColor = Color.cyan;
-            EditorGUILayout.BeginHorizontal("box");
-            GUILayout.Label(ValidateCharacterData(data).Summary, GUILayout.Width(70));
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label(ValidateCharacterData(data).Summary, GUILayout.Width(40));
             EditorGUI.BeginChangeCheck();
             if (data.isEnemy)
             {
-                data.characterName = EditorGUILayout.TextField(data.characterName, GUILayout.Width(110));
+                data.characterName = EditorGUILayout.TextField(data.characterName, GUILayout.Width(firstRowFieldsWidth));
             }
             else
             {
                 string previousId = data.characterId;
-                data.characterId = CharacterData.NormalizeCharacterId(EditorGUILayout.TextField(data.characterId, GUILayout.Width(34)));
+                float idWidth = Mathf.Max(26f, firstRowFieldsWidth * 0.14f);
+                float jobWidth = Mathf.Max(42f, firstRowFieldsWidth * 0.32f);
+                float nameWidth = Mathf.Max(42f, firstRowFieldsWidth - idWidth - jobWidth - 4f);
+                data.characterId = CharacterData.NormalizeCharacterId(EditorGUILayout.TextField(data.characterId, GUILayout.Width(idWidth)));
                 if (data.characterId != previousId) isDirtyCache = true;
-                data.jobName = EditorGUILayout.TextField(data.jobName, GUILayout.Width(80));
-                data.characterName = EditorGUILayout.TextField(data.characterName, GUILayout.Width(90));
+                data.jobName = EditorGUILayout.TextField(data.jobName, GUILayout.Width(jobWidth));
+                data.characterName = EditorGUILayout.TextField(data.characterName, GUILayout.Width(nameWidth));
             }
-            data.maxHp = EditorGUILayout.FloatField(data.maxHp, GUILayout.Width(55));
-            data.maxMental = EditorGUILayout.FloatField(data.maxMental, GUILayout.Width(55));
-            data.baseAttack = EditorGUILayout.FloatField(data.baseAttack, GUILayout.Width(55));
-            if (EditorGUI.EndChangeCheck())
+            bool nameChanged = EditorGUI.EndChangeCheck();
+            if (GUILayout.Button("선택", GUILayout.Width(40))) { selectedData = data; iconFolderPath = ""; }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginChangeCheck();
+            GUILayout.Label("HP", GUILayout.Width(18));
+            data.maxHp = EditorGUILayout.IntField(Mathf.RoundToInt(data.maxHp), GUILayout.Width(hpFieldWidth));
+            GUILayout.Label("MP", GUILayout.Width(18));
+            data.maxMental = EditorGUILayout.IntField(Mathf.RoundToInt(data.maxMental), GUILayout.Width(hpFieldWidth));
+            GUILayout.Label("공", GUILayout.Width(14));
+            data.baseAttack = EditorGUILayout.IntField(Mathf.RoundToInt(data.baseAttack), GUILayout.Width(smallStatFieldWidth));
+            GUILayout.Label("마", GUILayout.Width(14));
+            data.spellPower = EditorGUILayout.IntField(Mathf.RoundToInt(data.spellPower), GUILayout.Width(smallStatFieldWidth));
+            GUILayout.Label("방", GUILayout.Width(14));
+            data.armor = EditorGUILayout.IntField(Mathf.RoundToInt(data.armor), GUILayout.Width(smallStatFieldWidth));
+            GUILayout.Label("저", GUILayout.Width(14));
+            data.magicResist = EditorGUILayout.IntField(Mathf.RoundToInt(data.magicResist), GUILayout.Width(smallStatFieldWidth));
+            if (EditorGUI.EndChangeCheck() || nameChanged)
             {
                 MarkDirtyAndSave(data);
             }
-            EditorGUI.BeginDisabledGroup(true);
-            int count = data.isEnemy ? (data.enemyPatterns?.Count ?? 0) : (data.activeSkills?.Length ?? 0);
-            EditorGUILayout.IntField(count, GUILayout.Width(55));
-            EditorGUI.EndDisabledGroup();
-            if (GUILayout.Button("선택", GUILayout.Width(55))) { selectedData = data; iconFolderPath = ""; }
             EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
             GUI.backgroundColor = Color.white;
         }
-        EditorGUILayout.EndScrollView();
+        EndVerticalScrollView();
         EditorGUILayout.EndVertical();
     }
 
@@ -1183,14 +1630,14 @@ public class CharacterEditorWindow : EditorWindow
 
     private void DrawEventLeftPanel()
     {
-        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(250), GUILayout.ExpandHeight(true));
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(EventListWidth), GUILayout.ExpandHeight(true));
         DrawModeToolbar();
         EditorGUILayout.Space(6f);
         EditorGUILayout.LabelField("이벤트 목록", EditorStyles.boldLabel);
 
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("카테고리:", GUILayout.Width(65));
-        eventCategoryFilter = EditorGUILayout.Popup(eventCategoryFilter, new[] { "전체", "Common", "Stage1" });
+        eventCategoryFilter = EditorGUILayout.Popup(eventCategoryFilter, new[] { "전체", "Common", "Stage1", "Stage2", "Stage3" });
         EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.LabelField("검색", EditorStyles.boldLabel);
@@ -1202,7 +1649,7 @@ public class CharacterEditorWindow : EditorWindow
         }
 
         EditorGUILayout.Space(5);
-        eventLeftScroll = EditorGUILayout.BeginScrollView(eventLeftScroll);
+        eventLeftScroll = BeginVerticalScrollView(eventLeftScroll);
 
         foreach (GameEventData data in cachedEventList)
         {
@@ -1211,14 +1658,23 @@ public class CharacterEditorWindow : EditorWindow
 
             if (eventCategoryFilter == 1 && !assetPath.Contains("/Events/Common/")) continue;
             if (eventCategoryFilter == 2 && !assetPath.Contains("/Events/Stage1/")) continue;
+            if (eventCategoryFilter == 3 && !assetPath.Contains("/Events/Stage2/")) continue;
+            if (eventCategoryFilter == 4 && !assetPath.Contains("/Events/Stage3/")) continue;
 
             string title = string.IsNullOrWhiteSpace(data.eventTitle) ? data.name : data.eventTitle;
             if (!string.IsNullOrEmpty(eventSearchText) && !title.ToLower().Contains(eventSearchText.ToLower()) && !data.name.ToLower().Contains(eventSearchText.ToLower())) continue;
 
             EditorGUILayout.BeginHorizontal();
             bool isSelected = selectedEventData == data;
-            string displayLabel = assetPath.Contains("/Events/Common/") ? $"[Common] {title}" : assetPath.Contains("/Events/Stage1/") ? $"[Stage1] {title}" : title;
-            if (GUILayout.Toggle(isSelected, displayLabel, "Button", GUILayout.Height(25), GUILayout.ExpandWidth(true)) && !isSelected)
+            string category = assetPath.Contains("/Events/Common/") ? "Common"
+                : assetPath.Contains("/Events/Stage1/") ? "Stage1"
+                : assetPath.Contains("/Events/Stage2/") ? "Stage2"
+                : assetPath.Contains("/Events/Stage3/") ? "Stage3"
+                : "Event";
+            string displayLabel = $"[{category}] {title}";
+            float eventNameWidth = Mathf.Max(80f, EventListWidth - 60f);
+            var eventContent = new GUIContent(displayLabel, displayLabel);
+            if (GUILayout.Toggle(isSelected, eventContent, "Button", GUILayout.Width(eventNameWidth), GUILayout.Height(25)) && !isSelected)
             {
                 selectedEventData = data;
                 GUI.FocusControl(null);
@@ -1227,14 +1683,16 @@ public class CharacterEditorWindow : EditorWindow
             {
                 DuplicateEvent(data);
             }
+            GUI.color = new Color(1f, 0.5f, 0.5f);
             if (GUILayout.Button("X", GUILayout.Width(22), GUILayout.Height(25)))
             {
                 DeleteEvent(data);
             }
+            GUI.color = Color.white;
             EditorGUILayout.EndHorizontal();
         }
 
-        EditorGUILayout.EndScrollView();
+        EndVerticalScrollView();
         EditorGUILayout.EndVertical();
     }
 
@@ -1256,7 +1714,7 @@ public class CharacterEditorWindow : EditorWindow
 
         // 1. 기본 정보
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-        EditorGUILayout.LabelField("📌 기본 정보", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("[기본 정보]", EditorStyles.boldLabel);
 
         string currentAssetPath = AssetDatabase.GetAssetPath(selectedEventData);
         int currentStageCategory = currentAssetPath.Contains("/Events/Stage1/") ? 1 : currentAssetPath.Contains("/Events/Stage2/") ? 2 : currentAssetPath.Contains("/Events/Stage3/") ? 3 : 0;
@@ -1308,7 +1766,7 @@ public class CharacterEditorWindow : EditorWindow
         // 2. 선택지 목록 (확정 실행 방식)
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
         EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("💡 선택지 목록 (Options)", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("[선택지 목록 (Options)]", EditorStyles.boldLabel);
         if (GUILayout.Button("+ 선택지 추가", GUILayout.Width(110)))
         {
             if (selectedEventData.options == null) selectedEventData.options = new List<EventOption>();
@@ -1454,7 +1912,7 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUILayout.EndVertical();
 
         EditorGUILayout.Space(10);
-        EditorGUILayout.LabelField("💡 선택지 개요", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("[선택지 개요]", EditorStyles.boldLabel);
 
         if (selectedEventData.options != null)
         {
@@ -1475,22 +1933,22 @@ public class CharacterEditorWindow : EditorWindow
         }
 
         EditorGUILayout.Space(15);
-        EditorGUILayout.LabelField("🛠️ 테스트 도구", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("[테스트 도구]", EditorStyles.boldLabel);
 
-        if (GUILayout.Button("🎮 이벤트 UI 미리보기 (Game 뷰)", GUILayout.Height(35)))
+        if (GUILayout.Button("이벤트 UI 미리보기 (Game 뷰)", GUILayout.Height(35)))
         {
             EventPopupUI.PreviewInEditor(selectedEventData);
             EditorApplication.ExecuteMenuItem("Window/General/Game");
         }
 
-        if (GUILayout.Button("✕ 미리보기 닫기", GUILayout.Height(25)))
+        if (GUILayout.Button("미리보기 닫기 (X)", GUILayout.Height(25)))
         {
             var existing = GameObject.Find("EventPopup_Preview");
             if (existing != null) DestroyImmediate(existing);
         }
 
         EditorGUILayout.Space(5);
-        if (GUILayout.Button("📁 에셋 위치 열기", GUILayout.Height(25)))
+        if (GUILayout.Button("에셋 위치 열기", GUILayout.Height(25)))
         {
             EditorGUIUtility.PingObject(selectedEventData);
         }

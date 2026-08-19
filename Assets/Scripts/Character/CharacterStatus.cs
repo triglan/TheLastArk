@@ -52,6 +52,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
 
     // 전투 시작 시 드래프트된 아군 액티브 스킬 목록입니다.
     public List<SkillInfo> dynamicActiveSkill = new List<SkillInfo>();
+    [System.NonSerialized] public SkillInfo lastUsedSkill;
 
     // 현재 걸려 있는 상태이상 목록입니다.
     public List<ActiveStatusEffect> activeStatusEffects = new List<ActiveStatusEffect>();
@@ -67,13 +68,106 @@ public class CharacterStatus : ISerializationCallbackReceiver
     public float EquipmentBonusMagicResist => GetEquipmentBonus(EquipmentStat.MagicResist);
     public float EquipmentBonusCritRate => GetEquipmentBonus(EquipmentStat.CritRate);
 
-    public float FinalMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergyHpMultiplier())) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
-    public float FinalMaxMental => origin != null ? origin.maxMental * (1 + GetMultiplier()) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental;
-    public float FinalAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergyAttackMultiplier())) + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack : bonusAttack + EquipmentBonusAttack;
-    public float FinalSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier())) + EquipmentBonusSpellPower : EquipmentBonusSpellPower;
-    public float FinalArmor => origin != null ? (origin.armor * (1 + GetMultiplier())) + EquipmentBonusArmor : EquipmentBonusArmor;
+    private float TrainBonusHpMultiplier => (origin != null && !origin.isEnemy && TheLastArk.Managers.TrainManager.IsInitialized)
+        ? TheLastArk.Managers.TrainManager.Instance.GetTrainBonusHpMultiplier() : 0f;
+
+    private float TrainBonusMentalMultiplier => (origin != null && !origin.isEnemy && TheLastArk.Managers.TrainManager.IsInitialized)
+        ? TheLastArk.Managers.TrainManager.Instance.GetTrainBonusMentalMultiplier() : 0f;
+
+    private float TrainBonusAttackMultiplier => (origin != null && !origin.isEnemy && TheLastArk.Managers.TrainManager.IsInitialized)
+        ? TheLastArk.Managers.TrainManager.Instance.GetTrainBonusAttackMultiplier() : 0f;
+
+    private float TrainBonusSpellPowerMultiplier => (origin != null && !origin.isEnemy && TheLastArk.Managers.TrainManager.IsInitialized)
+        ? TheLastArk.Managers.TrainManager.Instance.GetTrainBonusSpellPowerMultiplier() : 0f;
+
+    public float CombatEnhancementMultiplier
+    {
+        get
+        {
+            if (origin == null || origin.isEnemy || !TheLastArk.Managers.TrainManager.IsInitialized) return 0f;
+            var combatCar = TheLastArk.Managers.TrainManager.Instance.GetCarOfType(TheLastArk.Data.TrainCarType.CombatEnhancement);
+            if (combatCar == null || combatCar.level <= 0) return 0f;
+
+            float bonus = combatCar.level * 0.05f;
+
+            // [과적합 회로] 체력 50% 미만 시 효과 25% 추가 증가
+            if (combatCar.HasPartEffect(TheLastArk.Data.TrainPartEffectType.OverfitCircuit) && FinalMaxHp > 0 && (currentHp / FinalMaxHp) < 0.50f)
+            {
+                bonus *= 1.25f;
+            }
+
+            // [완전한 준비] 체력 100% 시 효과 40% 추가 증가
+            if (combatCar.HasPartEffect(TheLastArk.Data.TrainPartEffectType.FullPreparation) && currentHp >= FinalMaxHp)
+            {
+                bonus *= 1.40f;
+            }
+
+            return bonus;
+        }
+    }
+
+    public float FinalMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergyHpMultiplier() + TrainBonusHpMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
+    public float FinalMaxMental => origin != null ? (origin.maxMental * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergyMentalMultiplier() + TrainBonusMentalMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental;
+    public float FinalAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier + GetStatusPercent(EffectType.Strength) - GetStatusPercent(EffectType.Weakness))) + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : bonusAttack + EquipmentBonusAttack;
+    public float FinalSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : EquipmentBonusSpellPower;
+    public float FinalArmor => origin != null ? (origin.armor * (1 + GetMultiplier() + GetStatusPercent(EffectType.Protection) - GetStatusPercent(EffectType.Vulnerable))) + EquipmentBonusArmor : EquipmentBonusArmor;
     public float FinalMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + EquipmentBonusMagicResist : EquipmentBonusMagicResist;
-    public float FinalCritRate => origin != null ? origin.critRate + EquipmentBonusCritRate : EquipmentBonusCritRate;
+    public float FinalCritRate => origin != null ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus : EquipmentBonusCritRate;
+
+    public bool HasSynergy(TheLastArk.Data.SynergyType type)
+    {
+        if (origin == null) return false;
+        if (origin.synergies != null && origin.synergies.Contains(type)) return true;
+        if (!string.IsNullOrEmpty(origin.jobName) && origin.jobName.Equals(type.ToString(), System.StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private float MegalithShieldBonusAttack
+    {
+        get
+        {
+            if (origin == null || origin.isEnemy) return 0f;
+            if (!HasSynergy(TheLastArk.Data.SynergyType.Guardian)) return 0f;
+            if (TheLastArk.Managers.ResourceManager.Instance == null || !TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.MegalithShield)) return 0f;
+            
+            if (origin.baseAttack >= origin.spellPower)
+            {
+                return FinalMaxHp * 0.10f;
+            }
+            return 0f;
+        }
+    }
+
+    private float MegalithShieldBonusSpellPower
+    {
+        get
+        {
+            if (origin == null || origin.isEnemy) return 0f;
+            if (!HasSynergy(TheLastArk.Data.SynergyType.Guardian)) return 0f;
+            if (TheLastArk.Managers.ResourceManager.Instance == null || !TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.MegalithShield)) return 0f;
+            
+            if (origin.spellPower > origin.baseAttack)
+            {
+                return FinalMaxHp * 0.10f;
+            }
+            return 0f;
+        }
+    }
+
+    private float AllianceCrestCritBonus
+    {
+        get
+        {
+            if (origin == null || origin.isEnemy) return 0f;
+            if (TheLastArk.Managers.ResourceManager.Instance == null || !TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.AllianceCrest)) return 0f;
+            
+            if (HasSynergy(TheLastArk.Data.SynergyType.Assassin) || HasSynergy(TheLastArk.Data.SynergyType.Ranger) || HasSynergy(TheLastArk.Data.SynergyType.Mage))
+            {
+                return 10f;
+            }
+            return 0f;
+        }
+    }
 
     public bool IsTraitUnlocked => charLevel >= 1;
     public bool IsTraitAwakened => charLevel >= 4;
@@ -220,11 +314,44 @@ public class CharacterStatus : ISerializationCallbackReceiver
     /// <summary>상태이상을 추가합니다. 같은 타입이 이미 있으면 턴 수를 갱신합니다.</summary>
     public void ApplyStatusEffect(EffectType type, float dmgPerTurn, int turns)
     {
-        var existing = activeStatusEffects.Find(e => e.effectType == type);
-        if (existing != null)
-            existing.remainingTurns = Mathf.Max(existing.remainingTurns, turns);
+        ApplyStatusEffect(type, dmgPerTurn, turns, 0f, 0, -1, null);
+    }
+
+    public ActiveStatusEffect GetStatus(EffectType type)
+    {
+        return activeStatusEffects.Find(e => e.effectType == type && (e.remainingTurns > 0 || e.remainingCharges > 0));
+    }
+
+    public float GetStatusPercent(EffectType type)
+    {
+        var effect = GetStatus(type);
+        return effect != null ? effect.damagePerTurn * 0.01f : 0f;
+    }
+
+    public void ApplyStatusEffect(EffectType type, float value, int turns, float secondaryValue, int charges, int skillSlot, BattleCharacter source)
+    {
+        var existing = activeStatusEffects.Find(e => e.effectType == type && (type != EffectType.Blockade || e.skillSlot == skillSlot));
+        if (existing == null)
+        {
+            existing = new ActiveStatusEffect(type, value, turns);
+            activeStatusEffects.Add(existing);
+        }
         else
-            activeStatusEffects.Add(new ActiveStatusEffect(type, dmgPerTurn, turns));
+        {
+            existing.remainingTurns = Mathf.Max(existing.remainingTurns, turns);
+            existing.remainingCharges = Mathf.Max(existing.remainingCharges, charges);
+            existing.damagePerTurn = type == EffectType.Poison ? existing.damagePerTurn + value : Mathf.Max(existing.damagePerTurn, value);
+        }
+
+        existing.secondaryValue = secondaryValue;
+        existing.remainingCharges = Mathf.Max(existing.remainingCharges, charges);
+        existing.skillSlot = skillSlot;
+        existing.source = source;
+    }
+
+    public void RemoveAllStatusEffects()
+    {
+        activeStatusEffects.Clear();
     }
 }
 

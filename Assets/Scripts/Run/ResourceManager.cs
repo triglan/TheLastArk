@@ -70,7 +70,9 @@ namespace TheLastArk.Managers
 
         public bool TrySpendGold(int amount)
         {
-            if (amount <= 0 || Gold < amount) return false;
+            if (amount <= 0) return false;
+            int minGold = HasRelicEffect(RelicEffectType.CreditLedger) ? -300 : 0;
+            if (Gold - amount < minGold) return false;
             RunManager.Instance.State.gold -= amount;
             OnGoldChanged?.Invoke();
             return true;

@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f5e5d16f9a6ba43b8ff1eb6795be15, type: 3}
+  m_Name: Relic_UncertainScales
+  m_EditorClassIdentifier: 
+  relicID: Relic_UncertainScales
+  relicName: "\uBD88\uD655\uC2E4\uD55C \uCC9C\uCE6D"
+  description: "\uC804\uD22C \uC2A4\uD0AC \uC911, \uD655\uB960\uC801\uC73C\uB85C
+    \uBC1C\uB3D9\uB418\uB294 \uD6A8\uACFC\uC758 \uBC1C\uB3D9 \uD655\uB960 +25%"
+  icon: {fileID: 0}
+  rarity: 0
+  effectType: 37
+  effectValue: 0.25
+  targetSynergy: 0

@@ -132,28 +132,38 @@ namespace TheLastArk.UI
                     switch (effect.type)
                     {
                         case EffectType.Damage:
-                            descSb.AppendLine($"💥 <color=#FF6B6B>물리 피해: {effect.multiplier * 100:F0}% 공격력 (데미지: {val:F1})</color>");
+                            descSb.AppendLine($"<color=#FF6B6B>[피해] 물리 피해: {effect.multiplier * 100:F0}% 공격력 (데미지: {val:F1})</color>");
                             break;
                         case EffectType.Heal:
-                            descSb.AppendLine($"💚 <color=#51CF66>체력 회복: {effect.multiplier * 100:F0}% 계수 (회복량: {val:F1})</color>");
+                            descSb.AppendLine($"<color=#51CF66>[회복] 체력 회복: {effect.multiplier * 100:F0}% 계수 (회복량: {val:F1})</color>");
                             break;
                         case EffectType.Stun:
-                            descSb.AppendLine($"💫 <color=#FCC419>기절 효과: {effect.multiplier * 100:F0}% 확률로 {effect.fixedValue:F0}턴간 기절</color>");
+                            descSb.AppendLine($"<color=#FCC419>[기절] {effect.duration}턴간 행동 불가</color>");
                             break;
                         case EffectType.Bleed:
-                            descSb.AppendLine($"🩸 <color=#E03131>출혈: {effect.multiplier * 100:F0}% 턴당 피해 ({effect.fixedValue:F0}턴)</color>");
-                            break;
-                        case EffectType.Buff:
-                            descSb.AppendLine($"⚡ <color=#339AF0>공격력 증가 버프: +{val:F1}</color>");
+                            descSb.AppendLine($"<color=#E03131>[출혈] {effect.value:F0} 피해 ({effect.duration}턴)</color>");
                             break;
                         case EffectType.Taunt:
-                            descSb.AppendLine($"🛡️ <color=#845EF7>도발: {effect.fixedValue:F0}회 획득</color>");
+                            descSb.AppendLine($"<color=#845EF7>[도발] {effect.charges}회 대신 피격</color>");
                             break;
                         case EffectType.Shield:
-                            descSb.AppendLine($"🔰 <color=#4DABF7>보호막: {val:F1} 획득</color>");
+                            descSb.AppendLine($"<color=#4DABF7>[보호막] 보호막: {val:F1} 획득</color>");
                             break;
                         case EffectType.Counter:
-                            descSb.AppendLine($"⚔️ <color=#FF922B>반격 태세: 피해 흡수 및 반격</color>");
+                            descSb.AppendLine($"<color=#FF922B>[반격] 다음 {effect.charges}회 피격 시 반격</color>");
+                            break;
+                        case EffectType.Poison:
+                            descSb.AppendLine($"<color=#51CF66>[독] {effect.value:F0}, 매턴 10% 감소 ({effect.duration}턴)</color>");
+                            break;
+                        case EffectType.Burn:
+                            descSb.AppendLine($"<color=#FF6B6B>[화상] 최대 체력 {effect.value:F0}% 피해 ({effect.duration}턴)</color>");
+                            break;
+                        case EffectType.Strength:
+                            descSb.AppendLine($"<color=#339AF0>[힘] 기본 공격력 +{(effect.value > 0 ? effect.value : effect.multiplier * 100f):F0}% ({effect.duration}턴)</color>");
+                            break;
+                        default:
+                            if ((int)effect.type >= (int)EffectType.Blockade)
+                                descSb.AppendLine($"[{effect.type}] 수치 {effect.value:F0}, {(effect.charges > 0 && (effect.type == EffectType.Counter || effect.type == EffectType.Taunt || effect.type == EffectType.Guard) ? $"{effect.charges}회" : $"{effect.duration}턴")}");
                             break;
                     }
                 }
@@ -167,8 +177,8 @@ namespace TheLastArk.UI
 
             StringBuilder progSb = new StringBuilder();
             progSb.AppendLine("<color=#FFD700>-- 스킬 강화 효과 --</color>");
-            progSb.AppendLine(status != null && status.charLevel >= 2 ? "✓ <color=#79FF5B>2강 달성: 스킬 효과 +1단계 강화</color>" : "  <color=gray>2강 미달성: 스킬 +1단계 프리뷰</color>");
-            progSb.AppendLine(status != null && status.charLevel >= 3 ? "✓ <color=#79FF5B>3강 달성: 스킬 효과 +2단계 최고 강화</color>" : "  <color=gray>3강 미달성: 스킬 +2단계 최고 프리뷰</color>");
+            progSb.AppendLine(status != null && status.charLevel >= 2 ? "[달성] <color=#79FF5B>2강 달성: 스킬 효과 +1단계 강화</color>" : "  <color=gray>2강 미달성: 스킬 +1단계 프리뷰</color>");
+            progSb.AppendLine(status != null && status.charLevel >= 3 ? "[달성] <color=#79FF5B>3강 달성: 스킬 효과 +2단계 최고 강화</color>" : "  <color=gray>3강 미달성: 스킬 +2단계 최고 프리뷰</color>");
 
             levelProgressionText.text = progSb.ToString();
 

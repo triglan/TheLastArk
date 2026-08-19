@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f5e5d16f9a6ba43b8ff1eb6795be15, type: 3}
+  m_Name: Relic_CreditLedger
+  m_EditorClassIdentifier: 
+  relicID: Relic_CreditLedger
+  relicName: "\uC678\uC0C1 \uC7A5\uBD80"
+  description: "\uC544\uC774\uD15C \uAD6C\uB9E4 \uC2DC \uACE8\uB4DC\uAC00 -300\uAE4C\uC9C0
+    \uAC10\uC18C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  rarity: 0
+  effectType: 14
+  effectValue: 300
+  targetSynergy: 0

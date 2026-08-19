@@ -19,3 +19,4 @@ MonoBehaviour:
   rarity: 1
   effectType: 11
   effectValue: 1
+  targetSynergy: 0

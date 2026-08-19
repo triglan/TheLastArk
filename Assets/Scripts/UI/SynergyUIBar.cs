@@ -49,8 +49,8 @@ namespace TheLastArk.UI
             layoutGroup.childControlWidth = false;
             layoutGroup.childControlHeight = false;
 
-            // 1. 이전 페이지 화살표 버튼 [◀]
-            prevButton = CreateArrowButton("PrevBtn", "◀", OnClickPrevPage);
+            // 1. 이전 페이지 화살표 버튼 [<]
+            prevButton = CreateArrowButton("PrevBtn", "<", OnClickPrevPage);
 
             // 2. 최대 5개 정사각형 시너지 아이템 슬롯 생성
             for (int i = 0; i < PageSize; i++)
@@ -59,8 +59,8 @@ namespace TheLastArk.UI
                 itemSlotPool.Add(itemScript);
             }
 
-            // 3. 다음 페이지 화살표 버튼 [▶]
-            nextButton = CreateArrowButton("NextBtn", "▶", OnClickNextPage);
+            // 3. 다음 페이지 화살표 버튼 [>]
+            nextButton = CreateArrowButton("NextBtn", ">", OnClickNextPage);
 
             RefreshDisplay();
         }

@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f5e5d16f9a6ba43b8ff1eb6795be15, type: 3}
+  m_Name: Relic_SealOfVengeance
+  m_EditorClassIdentifier: 
+  relicID: Relic_SealOfVengeance
+  relicName: "\uBCF5\uC218\uC758 \uC778\uC7A5"
+  description: "\uC544\uAD70\uC774 \uCCB4\uB825 \uD53C\uD574\uB97C \uC785\uC744 \uB54C
+    \uB9C8\uB2E4 \uD798 1\uC744 \uC5BB\uC2B5\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  rarity: 0
+  effectType: 33
+  effectValue: 1
+  targetSynergy: 0

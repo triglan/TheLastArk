@@ -93,7 +93,7 @@ namespace TheLastArk.UI
             titleRect.offsetMin = Vector2.zero;
             titleRect.offsetMax = Vector2.zero;
 
-            CreateTextUI(titleObj.transform, "🔨 대장간 (장비 구매 및 합성)", 36, Color.yellow);
+            CreateTextUI(titleObj.transform, "대장간 (장비 구매 및 합성)", 36, Color.yellow);
 
             // Tabs Container (장비 구매 / 장비 합성)
             GameObject tabsObj = new GameObject("ForgeTabsArea");
@@ -107,8 +107,8 @@ namespace TheLastArk.UI
             HorizontalLayoutGroup tabLayout = tabsObj.AddComponent<HorizontalLayoutGroup>();
             tabLayout.spacing = 20;
 
-            CreateTabButton(tabsObj.transform, "⚔️ 장비 구매", () => SwitchTab(TabType.BuyEquipment));
-            CreateTabButton(tabsObj.transform, "🔥 장비 합성", () => SwitchTab(TabType.Synthesize));
+            CreateTabButton(tabsObj.transform, "장비 구매", () => SwitchTab(TabType.BuyEquipment));
+            CreateTabButton(tabsObj.transform, "장비 합성", () => SwitchTab(TabType.Synthesize));
 
             // Content Area Container
             GameObject contentObj = new GameObject("ForgeContentArea");
@@ -220,7 +220,7 @@ namespace TheLastArk.UI
                 layout.padding = new RectOffset(16, 16, 14, 14);
                 layout.spacing = 8;
 
-                string starText = $"★{slot.equipment.starLevel} [{slot.equipment.category}]";
+                string starText = $"[{slot.equipment.starLevel}성] [{slot.equipment.category}]";
                 CreateTextUI(cardObj.transform, starText, 16, Color.yellow);
 
                 string nameText = slot.equipment != null ? slot.equipment.equipmentName : "강철 장비";
@@ -240,7 +240,7 @@ namespace TheLastArk.UI
                 Button buyBtn = buyBtnObj.AddComponent<Button>();
                 buyBtn.interactable = !slot.sold;
 
-                string btnLabel = slot.sold ? "품절" : $"💰 {slot.price} G 구매";
+                string btnLabel = slot.sold ? "품절" : $"{slot.price} G 구매";
                 CreateTextUI(buyBtnObj.transform, btnLabel, 18, Color.white);
 
                 buyBtn.onClick.AddListener(() =>
@@ -290,7 +290,7 @@ namespace TheLastArk.UI
             tipObj.transform.SetParent(contentArea, false);
             LayoutElement tipLe = tipObj.AddComponent<LayoutElement>();
             tipLe.preferredHeight = 30;
-            CreateTextUI(tipObj.transform, "🔥 동일/같은 계열 장비 2개를 선택하여 50% 확률로 상위 계열 장비 1종으로 무작위 합성합니다.", 20, Color.yellow);
+            CreateTextUI(tipObj.transform, "동일/같은 계열 장비 2개를 선택하여 50% 확률로 상위 계열 장비 1종으로 무작위 합성합니다.", 20, Color.yellow);
 
             var inventoryEquips = ResourceManager.Instance != null ? ResourceManager.Instance.Equipments : new List<EquipmentData>();
 
@@ -352,7 +352,7 @@ namespace TheLastArk.UI
                     RefreshUI();
                 });
 
-                string label = $"{(isSelected ? "✓ " : "")}★{eq.starLevel} {eq.equipmentName}\n<size=15><color=gray>({eq.category})</color></size>";
+                string label = $"{(isSelected ? "[선택] " : "")}[{eq.starLevel}성] {eq.equipmentName}\n<size=15><color=gray>({eq.category})</color></size>";
                 CreateTextUI(cardObj.transform, label, 18, isSelected ? Color.green : Color.white);
             }
 
@@ -379,7 +379,7 @@ namespace TheLastArk.UI
             Button doSynthBtn = doSynthBtnObj.AddComponent<Button>();
             doSynthBtn.interactable = canSynthesize;
 
-            CreateTextUI(doSynthBtnObj.transform, "⚡ 장비 합성 시작 (50 Gold)", 24, Color.white);
+            CreateTextUI(doSynthBtnObj.transform, "장비 합성 시작 (50 Gold)", 24, Color.white);
             doSynthBtn.onClick.AddListener(ExecuteSynthesis);
         }
 
@@ -418,7 +418,7 @@ namespace TheLastArk.UI
                 ResourceManager.Instance.Equipments.Add(result);
             }
 
-            NotificationManager.Instance?.ShowMessage($"🎉 장비 합성 성공! ★{result.starLevel} [{result.equipmentName}] 획득!", Color.cyan);
+            NotificationManager.Instance?.ShowMessage($"장비 합성 성공! [{result.starLevel}성] [{result.equipmentName}] 획득!", Color.cyan);
 
             selectedIndex1 = -1;
             selectedIndex2 = -1;

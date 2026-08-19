@@ -94,6 +94,7 @@ public class SkillLevelData
     // 스킬의 한 단계가 어떤 대상을 공격하고 어떤 효과를 주는지 정합니다.
     public int overrideCost = -1;
     public TargetType targetType;
+    public string customVfxName; // 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
     public List<EffectEntry> effects = new List<EffectEntry>();
 }
 
@@ -106,6 +107,12 @@ public class EffectEntry
     public float multiplier = 1.0f;
     public float fixedValue = 0f;
     public bool useActualResult = false;
+    public float value = 0f;
+    public float secondaryValue = 0f;
+    public int duration = 3;
+    public int charges = 3;
+    public int skillSlot = -1;
+    public string customVfxName; // 개별 효과 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
 }
 
 [System.Serializable]
@@ -114,9 +121,34 @@ public class EnemyPatternData
     // 적이 자기 턴마다 순서대로 실행할 행동 패턴입니다.
     public string patternName = "패턴";
     public TargetType targetType = TargetType.SingleEnemy;
+    public EnemyTargetSelection targetSelection = EnemyTargetSelection.Random;
+    public string customVfxName; // 패턴 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
     public List<EffectEntry> effects = new List<EffectEntry>();
 }
 
-public enum TargetType { SingleEnemy, LeftEnemy, RightEnemy, AdjacentEnemy, AllEnemy, Friendly, AllFriendly }
-public enum EffectType { Damage, Heal, Buff, Stun, Bleed, Taunt, Counter, Shield, Resurrection }
+public enum TargetType
+{
+    SingleEnemy,
+    LeftEnemy,
+    RightEnemy,
+    AdjacentEnemy,
+    AllEnemy,
+    Friendly,
+    AllFriendly,
+    FriendlyLeft,
+    FriendlyRight,
+    FriendlyAdjacent,
+    Self
+}
+public enum EnemyTargetSide { User, Enemy, Self }
+public enum EnemyTargetSelection { Random, Leader, LowestHp, HighestHp }
+public enum EnemyTargetRange { Single, Left, Right, Adjacent, All }
+public enum EffectType
+{
+    Damage = 0, Heal = 1,
+    Stun = 3, Bleed = 4, Taunt = 5, Counter = 6, Shield = 7, Resurrection = 8,
+    Poison = 9, Burn = 10, Strength = 11, Blockade = 12, Fatigue = 13,
+    Confusion = 14, Frost = 15, Fear = 16, Pressure = 17, Despair = 18,
+    Weakness = 19, Protection = 20, Vulnerable = 21, Pierce = 22, Guard = 23
+}
 public enum DamageType { Physical, Magical, True }

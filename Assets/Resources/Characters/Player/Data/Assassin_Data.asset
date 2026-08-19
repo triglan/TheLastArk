@@ -15,8 +15,9 @@ MonoBehaviour:
   characterId: 01
   characterName: "\uCE74\uC5D0\uB370"
   jobName: Assassin
-  synergies: 070000000b000000
+  synergies: 0b00000007000000
   isEnemy: 0
+  regionId: temp
   standingSprite: {fileID: 21300000, guid: 30a7840d587ceda488665554078723cc, type: 3}
   portraitSprite: {fileID: 21300000, guid: 052f0728c973c924faab176aa060ff23, type: 3}
   maxHp: 25
@@ -39,12 +40,15 @@ MonoBehaviour:
     levels:
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
   activeSkills:
   - skillName: abc
@@ -53,16 +57,26 @@ MonoBehaviour:
     levels:
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects:
       - type: 0
+        damageType: 0
         multiplier: 1
         fixedValue: 0
         useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        duration: 3
+        charges: 3
+        skillSlot: -1
+        customVfxName: 
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
   - skillName: abc
     skillIcon: {fileID: 21300000, guid: dc7e094419eea6d46b62a5a2cd65f204, type: 3}
@@ -70,16 +84,26 @@ MonoBehaviour:
     levels:
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects:
       - type: 0
+        damageType: 0
         multiplier: 1
         fixedValue: 0
         useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        duration: 3
+        charges: 3
+        skillSlot: -1
+        customVfxName: 
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
   - skillName: 
     skillIcon: {fileID: 21300000, guid: f57ba593ee873ba41966247d4d63338c, type: 3}
@@ -87,12 +111,15 @@ MonoBehaviour:
     levels:
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
   - skillName: 
     skillIcon: {fileID: 21300000, guid: e1953deb9f7194649a76dacaa7b3bf3c, type: 3}
@@ -100,11 +127,14 @@ MonoBehaviour:
     levels:
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
   enemyPatterns: []

@@ -107,7 +107,7 @@ public class CollapseManager
         warningFloor = 0;
         isWarning = false;
 
-        Debug.Log($"[CollapseManager] 💥 {collapsedFloor}층 붕괴!");
+        Debug.Log($"[CollapseManager] [붕괴] {collapsedFloor}층 붕괴!");
 
         // 해당 층의 모든 노드를 붕괴 처리
         mapData.CollapseFloor(collapsedFloor);
@@ -118,7 +118,7 @@ public class CollapseManager
         // 게임 오버 판정: 플레이어가 무너진 층에 있는 경우
         if (mapData.currentNode != null && mapData.currentNode.floor <= collapsedFloor)
         {
-            Debug.Log($"[CollapseManager] 💀 게임 오버! 플레이어가 {mapData.currentNode.floor}층에 있는데 {collapsedFloor}층까지 붕괴됨.");
+            Debug.Log($"[CollapseManager] [게임 오버] 플레이어가 {mapData.currentNode.floor}층에 있는데 {collapsedFloor}층까지 붕괴됨.");
             OnGameOver?.Invoke();
             return CollapseResult.GameOver;
         }
@@ -134,7 +134,7 @@ public class CollapseManager
         warningFloor = collapsedFloor + 1;
         isWarning = true;
 
-        Debug.Log($"[CollapseManager] ⚠️ 경고! 다음 턴에 {warningFloor}층이 붕괴됩니다!");
+        Debug.Log($"[CollapseManager] [경고] 다음 턴에 {warningFloor}층이 붕괴됩니다!");
 
         // 경고 이벤트 발화
         OnCollapseWarning?.Invoke(warningFloor);

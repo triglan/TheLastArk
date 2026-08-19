@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f5e5d16f9a6ba43b8ff1eb6795be15, type: 3}
+  m_Name: Relic_ArkCoin
+  m_EditorClassIdentifier: 
+  relicID: Relic_ArkCoin
+  relicName: "\uC544\uD06C\uCF54\uC778"
+  description: "\uB9E4 \uC804\uD22C \uC885\uB8CC \uBCF4\uC0C1 \uACE8\uB4DC\uAC00
+    -50%~+150%\uB85C \uBCC0\uB3D9\uB429\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  rarity: 1
+  effectType: 40
+  effectValue: 0
+  targetSynergy: 0

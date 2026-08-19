@@ -83,7 +83,37 @@ namespace UI
             BattleRewardSettings reward = pool != null ? pool.ActiveReward : null;
             bool giveGold = reward == null || reward.giveGold;
             bool giveCard = reward != null && reward.giveCharacterCard;
-            int gold = reward != null ? reward.goldAmount : fallbackGold;
+            int baseGold = reward != null ? reward.goldAmount : fallbackGold;
+            float goldMultiplier = 1f;
+            if (ResourceManager.Instance != null)
+            {
+                if (ResourceManager.Instance.HasRelicEffect(RelicEffectType.VictoryGoldBonus))
+                {
+                    goldMultiplier += ResourceManager.Instance.GetRelicBonus(RelicEffectType.VictoryGoldBonus);
+                }
+                bool isElite = (pool != null && pool.NodeType == NodeType.Elite) || 
+                               (RunManager.Instance != null && RunManager.Instance.CurrentNode != null && RunManager.Instance.CurrentNode.nodeType == NodeType.Elite);
+                if (isElite && ResourceManager.Instance.HasRelicEffect(RelicEffectType.EliteGoldBonus))
+                {
+                    goldMultiplier += ResourceManager.Instance.GetRelicBonus(RelicEffectType.EliteGoldBonus);
+                }
+                // [아크코인] 유물: 매 전투 종료 보상 골드가 -50%~+150%로 변동
+                if (ResourceManager.Instance.HasRelicEffect(RelicEffectType.ArkCoin))
+                {
+                    float coinVariance = UnityEngine.Random.Range(-0.50f, 1.50f);
+                    goldMultiplier += coinVariance;
+                }
+            }
+            int gold = Mathf.Max(0, Mathf.RoundToInt(baseGold * Mathf.Max(0.1f, goldMultiplier)));
+
+            // [황금의 길] 유물: 보유한 골드의 10%만큼 추가 골드 획득 (보유 골드 500일 때 최대 50G)
+            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.GoldenPath))
+            {
+                int currentGold = Mathf.Max(0, ResourceManager.Instance.Gold);
+                int goldenBonus = Mathf.RoundToInt(Mathf.Min(currentGold, 500) * 0.10f);
+                gold += goldenBonus;
+            }
+
             int cardAmount = reward != null ? reward.cardAmount : 1;
             List<CardCandidate> candidates = giveCard ? GenerateCardCandidates(reward) : new List<CardCandidate>();
             if (candidates.Count == 0) giveCard = false;
@@ -91,7 +121,7 @@ namespace UI
             bool cardClaimed = !giveCard;
 
             GameObject overlayObj = CreateOverlay(canvas.transform, "VictoryOverlay", new Color(0.07f, 0.09f, 0.15f, 0.88f));
-            GameObject cardObj = CreateCard(overlayObj.transform, "VictoryCard", new Vector2(560, 650), new Color(0.12f, 0.16f, 0.26f, 0.95f), new Color(0.85f, 0.65f, 0.2f, 0.6f));
+            GameObject cardObj = CreateCard(overlayObj.transform, "VictoryCard", new Vector2(620, 650), new Color(0.12f, 0.16f, 0.26f, 0.95f), new Color(0.85f, 0.65f, 0.2f, 0.6f));
 
             var layout = cardObj.AddComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(30, 30, 40, 40);
@@ -199,9 +229,15 @@ namespace UI
 
             List<CardCandidate> result = new List<CardCandidate>();
             HashSet<CharacterData> used = new HashSet<CharacterData>();
-            for (int slot = 0; slot < 3; slot++)
+            int totalSlots = 3;
+            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.ExtraCardChoice))
             {
-                CharacterCardCandidateRule rule = reward.GetCardRule(slot);
+                totalSlots += Mathf.Max(1, Mathf.RoundToInt(ResourceManager.Instance.GetRelicBonus(RelicEffectType.ExtraCardChoice)));
+            }
+
+            for (int slot = 0; slot < totalSlots; slot++)
+            {
+                CharacterCardCandidateRule rule = reward != null ? reward.GetCardRule(slot) : CharacterCardCandidateRule.CompletelyRandom;
                 CharacterCardCandidateRule actualRule = rule;
                 List<CharacterData> slotCandidates = FilterCandidates(all, used, rule, ownedFactions, ownedRegions);
                 if (slotCandidates.Count == 0)
