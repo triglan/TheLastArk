@@ -126,7 +126,8 @@ namespace TheLastArk.UI
                             _ => "물리 피해"
                         };
                         string scalingStatName = effect.damageType == DamageType.Magical ? "주문력" : "공격력";
-                        descSb.AppendLine($"<color=#FF6B6B>{damageTypeName}: {effect.multiplier * 100:F0}% {scalingStatName} (예상 피해: {val:F1})</color>");
+                        string hitText = Mathf.Max(1, effect.hitCount) > 1 ? $" × {Mathf.Max(1, effect.hitCount)}" : "";
+                        descSb.AppendLine($"<color=#FF6B6B>{damageTypeName}: {effect.multiplier * 100:F0}% {scalingStatName} + {effect.fixedValue:F1} (예상 피해: {val:F1}{hitText})</color>");
                         continue;
                     }
                     switch (effect.type)
@@ -160,6 +161,9 @@ namespace TheLastArk.UI
                             break;
                         case EffectType.Strength:
                             descSb.AppendLine($"<color=#339AF0>[힘] 기본 공격력 +{(effect.value > 0 ? effect.value : effect.multiplier * 100f):F0}% ({effect.duration}턴)</color>");
+                            break;
+                        case EffectType.Focus:
+                            descSb.AppendLine($"<color=#74C0FC>[집중] {effect.duration}턴 동안 도발 무시</color>");
                             break;
                         default:
                             if ((int)effect.type >= (int)EffectType.Blockade)

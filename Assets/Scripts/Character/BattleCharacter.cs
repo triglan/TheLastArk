@@ -153,7 +153,8 @@ public class BattleCharacter : MonoBehaviour, IDamageable
                 return guard.source.ReceiveDamage(amount, attacker, damageType, false);
             }
 
-            var taunter = FindTaunter();
+            bool ignoresTaunt = attacker?.status?.GetStatus(EffectType.Focus) != null;
+            var taunter = ignoresTaunt ? null : FindTaunter();
             if (taunter != null && taunter != this)
             {
                 var taunt = taunter.status.GetStatus(EffectType.Taunt);

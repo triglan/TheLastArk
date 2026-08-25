@@ -29,7 +29,10 @@ namespace TheLastArk.Data
         Defender,
         Steam,
         Mechanic,
-        Vanguard
+        Vanguard,
+
+        // 적 세력 분류
+        BanditGang
     }
 
     [Serializable]

@@ -69,18 +69,17 @@ public class EnemyBattleCharacterEditor : Editor
             EditorGUILayout.HelpBox("아직 전투 상태가 만들어지지 않았습니다. 전투 시작 후에는 현재 값이 표시됩니다.", MessageType.Info);
 
         DrawReadOnlyText("이름", enemy.enemyData.characterName);
+        if (!string.IsNullOrWhiteSpace(enemy.enemyData.enemyRoleDescription))
+            DrawReadOnlyText("역할", enemy.enemyData.enemyRoleDescription);
         float currentHp = status != null ? status.currentHp : enemy.enemyData.maxHp;
         float maxHp = status != null ? status.FinalMaxHp : enemy.enemyData.maxHp;
         float currentMental = status != null ? status.currentMental : enemy.enemyData.maxMental;
         float maxMental = status != null ? status.FinalMaxMental : enemy.enemyData.maxMental;
         DrawReadOnlyText("체력", $"{currentHp:0.##} / {maxHp:0.##}");
         DrawReadOnlyText("정신력", $"{currentMental:0.##} / {maxMental:0.##}");
-        DrawReadOnlyText("기본 공격력", enemy.BaseAttack.ToString("0.##"));
-        DrawReadOnlyText("추가 공격력", (status != null ? status.bonusAttack : 0f).ToString("0.##"));
-        DrawReadOnlyText("총 공격력", (status != null ? status.FinalAttack : enemy.BaseAttack).ToString("0.##"));
-        DrawReadOnlyText("주문력", (status != null ? status.FinalSpellPower : enemy.enemyData.spellPower).ToString("0.##"));
         DrawReadOnlyText("방어력", (status != null ? status.FinalArmor : enemy.enemyData.armor).ToString("0.##"));
         DrawReadOnlyText("마법 저항력", (status != null ? status.FinalMagicResist : enemy.enemyData.magicResist).ToString("0.##"));
+        DrawReadOnlyText("사이클 성장", $"힘 +{enemy.enemyData.damageBonusPerCycle:0.##}, 출혈 +{enemy.enemyData.bleedBonusPerCycle:0.##}");
 
         if (status != null && status.activeStatusEffects != null && status.activeStatusEffects.Count > 0)
             DrawActiveEffects(status.activeStatusEffects);
@@ -107,7 +106,7 @@ public class EnemyBattleCharacterEditor : Editor
 
         if (patterns == null || patterns.Count == 0)
         {
-            EditorGUILayout.HelpBox("등록된 패턴이 없습니다. 전투 중 기본 공격을 사용합니다.", MessageType.Info);
+            EditorGUILayout.HelpBox("등록된 패턴이 없어 행동할 수 없습니다.", MessageType.Warning);
             EditorGUILayout.EndVertical();
             return;
         }
@@ -153,7 +152,13 @@ public class EnemyBattleCharacterEditor : Editor
     {
         if (effect == null) return "비어 있음";
         string resultText = effect.useActualResult ? ", 직전 결과 사용" : "";
-        return $"{GetEffectName(effect.type)} / 배율 {effect.multiplier:0.##} / 고정 {effect.fixedValue:0.##}{resultText}";
+        if (effect.type == EffectType.Damage)
+            return $"{effect.damageType} 피해 {effect.fixedValue:0.##} × {Mathf.Max(1, effect.hitCount)}{resultText}";
+        if (effect.type == EffectType.Bleed)
+            return $"출혈 {effect.value:0.##} / {effect.duration}턴";
+        if (effect.type == EffectType.Focus)
+            return $"집중 / 자신 / {effect.duration}턴";
+        return $"{GetEffectName(effect.type)} / 수치 {effect.fixedValue:0.##}{resultText}";
     }
 
     private string GetTargetName(TargetType targetType)
@@ -180,6 +185,7 @@ public class EnemyBattleCharacterEditor : Editor
             EffectType.Strength => "힘",
             EffectType.Stun => "기절",
             EffectType.Bleed => "출혈",
+            EffectType.Focus => "집중",
             _ => effectType.ToString()
         };
     }

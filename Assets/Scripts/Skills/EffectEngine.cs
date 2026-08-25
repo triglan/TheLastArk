@@ -43,10 +43,19 @@ public static class EffectEngine
 
         foreach (EffectEntry effect in data.effects)
         {
+            if (effect == null || effect.type != EffectType.Focus) continue;
+            ExecuteEffect(effect, actor, actor, skillName);
+        }
+
+        foreach (EffectEntry effect in data.effects)
+        {
+            if (effect == null || effect.type == EffectType.Focus) continue;
             foreach (BattleCharacter target in targets)
             {
                 if (target == null || target.status == null) continue;
-                ExecuteEffect(effect, actor, target, skillName);
+                int executions = effect.type == EffectType.Damage ? Mathf.Max(1, effect.hitCount) : 1;
+                for (int i = 0; i < executions; i++)
+                    ExecuteEffect(effect, actor, target, skillName);
             }
         }
     }
@@ -245,6 +254,13 @@ public static class EffectEngine
                 if (target.view != null) target.view.UpdateVisual(target.status);
                 break;
 
+            case EffectType.Focus:
+                int focusTurns = Mathf.Max(1, effect.duration);
+                actor.status.ApplyStatusEffect(effect.type, 0f, focusTurns, 0f, 0, -1, actor);
+                _lastCalculatedValue = 0f;
+                if (actor.view != null) actor.view.UpdateVisual(actor.status);
+                break;
+
             case EffectType.Taunt:
                 int tauntCharges = Mathf.Max(1, effect.charges);
                 target.status.ApplyStatusEffect(effect.type, 0f, 0, 0f, tauntCharges, -1, actor);
@@ -258,7 +274,7 @@ public static class EffectEngine
                 break;
 
             case EffectType.Shield:
-                int shieldTurns = Mathf.Max(1, Mathf.RoundToInt(effect.fixedValue > 0 ? effect.fixedValue : 1));
+                int shieldTurns = Mathf.Max(1, effect.duration);
                 target.status.ApplyStatusEffect(effect.type, calculatedValue, shieldTurns);
                 _lastCalculatedValue = calculatedValue;
                 Debug.Log($"[보호막] {target.characterName} 보호막 {calculatedValue} 획득!");
