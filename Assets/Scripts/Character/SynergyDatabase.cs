@@ -194,6 +194,12 @@ namespace TheLastArk.Character
                 }
             );
 
+            infoDict[SynergyType.BanditGang] = new SynergyInfo(
+                SynergyType.BanditGang, "도적단", "도적단", true,
+                "도적단 소속 적을 분류합니다.",
+                new List<SynergyTierInfo>()
+            );
+
             // ── 직업 시너지 ───────────────────────────────────────────────
 
             // 10. 수호자 (2/4)

@@ -351,6 +351,7 @@ public class VFXManager : MonoBehaviour
                 return VfxShield;                          // 보호막 -> 배리어 구체 이펙트
 
             case EffectType.Strength:
+            case EffectType.Focus:
                 return VfxSparks;                          // 버프/힘 -> 스파크 광휘 이펙트
 
             case EffectType.Burn:

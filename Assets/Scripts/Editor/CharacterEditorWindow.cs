@@ -460,6 +460,10 @@ public class CharacterEditorWindow : EditorWindow
             isDirtyCache = true;
         }
 
+        selectedData.regionId = EditorGUILayout.TextField("Region", selectedData.regionId);
+        EditorGUILayout.LabelField("역할 설명");
+        selectedData.enemyRoleDescription = EditorGUILayout.TextArea(selectedData.enemyRoleDescription ?? "", GUILayout.MinHeight(42));
+
         EditorGUILayout.EndVertical();
         return;
     }
@@ -479,8 +483,11 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUILayout.LabelField("기본 능력치", EditorStyles.boldLabel);
         selectedData.maxHp = EditorGUILayout.FloatField("최대 체력", selectedData.maxHp);
         selectedData.maxMental = EditorGUILayout.FloatField("최대 정신력", selectedData.maxMental);
-        selectedData.baseAttack = EditorGUILayout.FloatField("기본 공격력", selectedData.baseAttack);
-        selectedData.spellPower = Mathf.Max(0f, EditorGUILayout.FloatField("주문력", selectedData.spellPower));
+        if (!selectedData.isEnemy)
+        {
+            selectedData.baseAttack = EditorGUILayout.FloatField("기본 공격력", selectedData.baseAttack);
+            selectedData.spellPower = Mathf.Max(0f, EditorGUILayout.FloatField("주문력", selectedData.spellPower));
+        }
         selectedData.armor = Mathf.Max(0f, EditorGUILayout.FloatField("방어력", selectedData.armor));
         selectedData.magicResist = Mathf.Max(0f, EditorGUILayout.FloatField("마법 저항력", selectedData.magicResist));
         EditorGUILayout.EndVertical();
@@ -488,7 +495,12 @@ public class CharacterEditorWindow : EditorWindow
 
     private void DrawSynergiesSection()
     {
-        if (selectedData == null || selectedData.isEnemy) return;
+        if (selectedData == null) return;
+        if (selectedData.isEnemy)
+        {
+            DrawEnemyFactionSection();
+            return;
+        }
 
         EditorGUILayout.BeginVertical("helpbox");
         if (selectedData.synergies == null)
@@ -591,6 +603,36 @@ public class CharacterEditorWindow : EditorWindow
         }
         EditorGUILayout.EndHorizontal();
 
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawEnemyFactionSection()
+    {
+        if (selectedData.synergies == null)
+            selectedData.synergies = new List<TheLastArk.Data.SynergyType>();
+
+        var factions = new List<TheLastArk.Data.SynergyType>();
+        var labels = new List<string> { "없음" };
+        int selectedIndex = 0;
+
+        foreach (TheLastArk.Data.SynergyType type in System.Enum.GetValues(typeof(TheLastArk.Data.SynergyType)))
+        {
+            var info = TheLastArk.Character.SynergyDatabase.GetInfo(type);
+            if (!info.isFaction) continue;
+            factions.Add(type);
+            labels.Add(info.displayName);
+            if (selectedData.synergies.Contains(type)) selectedIndex = factions.Count;
+        }
+
+        EditorGUILayout.BeginVertical("helpbox");
+        EditorGUILayout.LabelField("적 세력", EditorStyles.boldLabel);
+        int nextIndex = EditorGUILayout.Popup("세력", selectedIndex, labels.ToArray());
+        if (nextIndex != selectedIndex)
+        {
+            selectedData.synergies.RemoveAll(type => TheLastArk.Character.SynergyDatabase.GetInfo(type).isFaction);
+            if (nextIndex > 0) selectedData.synergies.Add(factions[nextIndex - 1]);
+            MarkDirtyAndSave(selectedData);
+        }
         EditorGUILayout.EndVertical();
     }
 
@@ -730,11 +772,18 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUILayout.LabelField("적 행동 패턴", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox("위에서 아래 순서로 실행한 뒤 처음으로 돌아갑니다.", MessageType.None);
 
+        EditorGUILayout.BeginVertical("helpbox");
+        EditorGUILayout.LabelField("사이클 성장", EditorStyles.miniBoldLabel);
+        selectedData.damageBonusPerCycle = Mathf.Max(0f, EditorGUILayout.FloatField("사이클당 힘", selectedData.damageBonusPerCycle));
+        selectedData.bleedBonusPerCycle = Mathf.Max(0f, EditorGUILayout.FloatField("사이클당 출혈", selectedData.bleedBonusPerCycle));
+        EditorGUILayout.LabelField($"사이클 종료: 직접 피해 +{selectedData.damageBonusPerCycle:0.##}, 출혈 +{selectedData.bleedBonusPerCycle:0.##}", EditorStyles.wordWrappedMiniLabel);
+        EditorGUILayout.EndVertical();
+
         DrawPatternPresetButtons();
 
         for (int i = 0; i < selectedData.enemyPatterns.Count; i++)
         {
-            EnemyPatternData pattern = selectedData.enemyPatterns[i] ?? CreateEnemyPattern($"패턴 {i + 1}", TargetType.SingleEnemy, EnemyTargetSelection.Random, EffectType.Damage, 1f);
+            EnemyPatternData pattern = selectedData.enemyPatterns[i] ?? CreateEnemyPattern($"패턴 {i + 1}", TargetType.SingleEnemy, EnemyTargetSelection.Random, EffectType.Damage, 5f);
             selectedData.enemyPatterns[i] = pattern;
             if (pattern.effects == null) pattern.effects = new List<EffectEntry>();
 
@@ -773,10 +822,10 @@ public class CharacterEditorWindow : EditorWindow
         int clicked = GUILayout.SelectionGrid(-1, new[] { "단일유저", "전체유저", "단일적", "전체적" }, columns, GUILayout.Height(20));
         switch (clicked)
         {
-            case 0: AddEnemyPattern(CreateEnemyPattern("단일 공격", TargetType.SingleEnemy, EnemyTargetSelection.Random, EffectType.Damage, 1f)); break;
-            case 1: AddEnemyPattern(CreateEnemyPattern("전체 공격", TargetType.AllEnemy, EnemyTargetSelection.Random, EffectType.Damage, 0.7f)); break;
-            case 2: AddEnemyPattern(CreateEnemyPattern("단일 지원", TargetType.Friendly, EnemyTargetSelection.LowestHp, EffectType.Heal, 1f)); break;
-            case 3: AddEnemyPattern(CreateEnemyPattern("전체 지원", TargetType.AllFriendly, EnemyTargetSelection.Random, EffectType.Strength, 0.1f)); break;
+            case 0: AddEnemyPattern(CreateEnemyPattern("단일 공격", TargetType.SingleEnemy, EnemyTargetSelection.Random, EffectType.Damage, 5f)); break;
+            case 1: AddEnemyPattern(CreateEnemyPattern("전체 공격", TargetType.AllEnemy, EnemyTargetSelection.Random, EffectType.Damage, 4f)); break;
+            case 2: AddEnemyPattern(CreateEnemyPattern("단일 지원", TargetType.Friendly, EnemyTargetSelection.LowestHp, EffectType.Heal, 5f)); break;
+            case 3: AddEnemyPattern(CreateEnemyPattern("전체 지원", TargetType.AllFriendly, EnemyTargetSelection.Random, EffectType.Strength, 20f)); break;
         }
     }
 
@@ -802,7 +851,7 @@ public class CharacterEditorWindow : EditorWindow
         MarkDirtyAndSave(selectedData);
     }
 
-    private static EnemyPatternData CreateEnemyPattern(string name, TargetType targetType, EnemyTargetSelection selection, EffectType effectType, float multiplier)
+    private static EnemyPatternData CreateEnemyPattern(string name, TargetType targetType, EnemyTargetSelection selection, EffectType effectType, float value)
     {
         return new EnemyPatternData
         {
@@ -811,7 +860,14 @@ public class CharacterEditorWindow : EditorWindow
             targetSelection = selection,
             effects = new List<EffectEntry>
             {
-                new EffectEntry { type = effectType, damageType = DamageType.Physical, multiplier = multiplier }
+                new EffectEntry
+                {
+                    type = effectType,
+                    damageType = DamageType.Physical,
+                    multiplier = 0f,
+                    fixedValue = effectType == EffectType.Damage || effectType == EffectType.Heal ? value : 0f,
+                    value = effectType == EffectType.Strength ? value : 0f
+                }
             }
         };
     }
@@ -823,6 +879,7 @@ public class CharacterEditorWindow : EditorWindow
             patternName = $"{source.patternName} 복사",
             targetType = source.targetType,
             targetSelection = source.targetSelection,
+            customVfxName = source.customVfxName,
             effects = new List<EffectEntry>()
         };
 
@@ -834,7 +891,14 @@ public class CharacterEditorWindow : EditorWindow
                 damageType = effect.damageType,
                 multiplier = effect.multiplier,
                 fixedValue = effect.fixedValue,
-                useActualResult = effect.useActualResult
+                useActualResult = effect.useActualResult,
+                value = effect.value,
+                secondaryValue = effect.secondaryValue,
+                hitCount = effect.hitCount,
+                duration = effect.duration,
+                charges = effect.charges,
+                skillSlot = effect.skillSlot,
+                customVfxName = effect.customVfxName
             });
         }
         return copy;
@@ -935,36 +999,46 @@ public class CharacterEditorWindow : EditorWindow
             {
                 DrawConfiguredStatusFields(effect);
             }
-            else if (effect.type == EffectType.Damage || effect.type == EffectType.Heal)
+            else if (effect.type == EffectType.Damage)
             {
-                GUILayout.Label("배율", GUILayout.Width(28));
-                effect.multiplier = EditorGUILayout.FloatField(effect.multiplier, GUILayout.Width(45));
-                GUILayout.Label("고정", GUILayout.Width(28));
-                effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(45));
+                effect.damageType = (DamageType)EditorGUILayout.EnumPopup(effect.damageType, GUILayout.Width(58));
+                DrawEnemyFixedValueField(effect, "피해");
+                GUILayout.Label("타격", GUILayout.Width(28));
+                effect.hitCount = Mathf.Max(1, EditorGUILayout.IntField(Mathf.Max(1, effect.hitCount), GUILayout.Width(32)));
             }
-            else if (effect.type == EffectType.Bleed)
+            else if (effect.type == EffectType.Heal)
             {
-                GUILayout.Label("배율", GUILayout.Width(28));
-                effect.multiplier = EditorGUILayout.FloatField(effect.multiplier, GUILayout.Width(45));
-                GUILayout.Label("지속시간", GUILayout.Width(52));
-                effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(35));
-            }
-            else if (effect.type == EffectType.Stun || effect.type == EffectType.Taunt || effect.type == EffectType.Counter)
-            {
-                GUILayout.Label("지속시간", GUILayout.Width(52));
-                effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(35));
+                DrawEnemyFixedValueField(effect, "회복");
             }
             else if (effect.type == EffectType.Shield)
             {
-                GUILayout.Label("배율", GUILayout.Width(28));
-                effect.multiplier = EditorGUILayout.FloatField(effect.multiplier, GUILayout.Width(45));
-                GUILayout.Label("지속시간", GUILayout.Width(52));
-                effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(35));
+                DrawEnemyFixedValueField(effect, "보호막");
+                GUILayout.Label("턴", GUILayout.Width(18));
+                effect.duration = Mathf.Max(1, EditorGUILayout.IntField(effect.duration, GUILayout.Width(32)));
             }
             GUILayout.Label("연계", GUILayout.Width(28));
             effect.useActualResult = EditorGUILayout.Toggle(effect.useActualResult, GUILayout.Width(18));
             if (GUILayout.Button("X", GUILayout.Width(22))) { effects.RemoveAt(i); i--; }
             EditorGUILayout.EndHorizontal();
+        }
+    }
+
+    private void DrawEnemyFixedValueField(EffectEntry effect, string label)
+    {
+        float legacyBase = effect.type == EffectType.Damage && effect.damageType == DamageType.Magical
+            ? selectedData.spellPower
+            : selectedData.baseAttack;
+        bool isLegacy = effect.fixedValue <= 0f && !Mathf.Approximately(effect.multiplier, 0f);
+        float displayedValue = isLegacy ? legacyBase * effect.multiplier : effect.fixedValue;
+
+        GUILayout.Label(label, GUILayout.Width(40));
+        EditorGUI.BeginChangeCheck();
+        float nextValue = Mathf.Max(0f, EditorGUILayout.FloatField(displayedValue, GUILayout.Width(45)));
+        if (EditorGUI.EndChangeCheck())
+        {
+            effect.fixedValue = nextValue;
+            effect.multiplier = 0f;
+            effect.useActualResult = false;
         }
     }
 
@@ -1016,10 +1090,12 @@ public class CharacterEditorWindow : EditorWindow
         }
 
         if (!resetValues) return;
-        effect.multiplier = preset == EnemyEffectPreset.Stun || preset == EnemyEffectPreset.Taunt
-            || preset == EnemyEffectPreset.Counter || preset == EnemyEffectPreset.Resurrection ? 0f : 1f;
-        effect.fixedValue = preset == EnemyEffectPreset.Stun || preset == EnemyEffectPreset.Bleed
-            || preset == EnemyEffectPreset.Taunt || preset == EnemyEffectPreset.Counter || preset == EnemyEffectPreset.Shield ? 3f : 0f;
+        effect.multiplier = 0f;
+        effect.fixedValue = preset == EnemyEffectPreset.PhysicalDamage || preset == EnemyEffectPreset.MagicalDamage
+            || preset == EnemyEffectPreset.TrueDamage || preset == EnemyEffectPreset.Heal || preset == EnemyEffectPreset.Shield ? 5f : 0f;
+        effect.value = preset == EnemyEffectPreset.Bleed ? 1f : 0f;
+        effect.hitCount = 1;
+        effect.duration = 3;
         effect.useActualResult = false;
     }
 
@@ -1034,7 +1110,7 @@ public class CharacterEditorWindow : EditorWindow
             EditorGUILayout.BeginHorizontal();
             EffectType previousType = effect.type;
             effect.type = (EffectType)EditorGUILayout.EnumPopup(effect.type, GUILayout.Width(90));
-            if (effect.type != previousType && RequiresDuration(effect.type)) effect.fixedValue = 3f;
+            if (effect.type != previousType && RequiresDuration(effect.type)) effect.duration = 3;
             if (IsConfiguredStatus(effect.type))
             {
                 DrawConfiguredStatusFields(effect);
@@ -1045,8 +1121,13 @@ public class CharacterEditorWindow : EditorWindow
                 effect.damageType = (DamageType)EditorGUILayout.EnumPopup(effect.damageType, GUILayout.Width(80));
             GUILayout.Label("배율", GUILayout.Width(32));
             effect.multiplier = EditorGUILayout.FloatField(effect.multiplier, GUILayout.Width(45));
-            GUILayout.Label(RequiresDuration(effect.type) ? "지속시간" : "고정", GUILayout.Width(52));
+            GUILayout.Label("고정", GUILayout.Width(32));
             effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(45));
+            if (effect.type == EffectType.Shield)
+            {
+                GUILayout.Label("턴", GUILayout.Width(18));
+                effect.duration = Mathf.Max(1, EditorGUILayout.IntField(effect.duration, GUILayout.Width(32)));
+            }
             }
             GUILayout.Label("결과", GUILayout.Width(32));
             effect.useActualResult = EditorGUILayout.Toggle(effect.useActualResult, GUILayout.Width(20));
@@ -1057,7 +1138,7 @@ public class CharacterEditorWindow : EditorWindow
 
     private static bool RequiresDuration(EffectType type)
     {
-        return type == EffectType.Stun || type == EffectType.Bleed
+        return type == EffectType.Stun || type == EffectType.Bleed || type == EffectType.Focus
             || type == EffectType.Taunt || type == EffectType.Counter || type == EffectType.Shield
             || type == EffectType.Poison || type == EffectType.Burn;
     }
@@ -1066,7 +1147,7 @@ public class CharacterEditorWindow : EditorWindow
     {
         return (int)type >= (int)EffectType.Blockade || type == EffectType.Stun || type == EffectType.Bleed
             || type == EffectType.Poison || type == EffectType.Burn || type == EffectType.Strength
-            || type == EffectType.Taunt || type == EffectType.Counter;
+            || type == EffectType.Taunt || type == EffectType.Counter || type == EffectType.Focus;
     }
 
     private static bool UsesCharges(EffectType type)
@@ -1082,7 +1163,8 @@ public class CharacterEditorWindow : EditorWindow
             effect.skillSlot = EditorGUILayout.IntPopup(effect.skillSlot,
                 new[] { "모두", "1", "2", "3", "4" }, new[] { -1, 0, 1, 2, 3 }, GUILayout.Width(48));
         }
-        else if (effect.type != EffectType.Fatigue && effect.type != EffectType.Stun && !UsesCharges(effect.type))
+        else if (effect.type != EffectType.Fatigue && effect.type != EffectType.Stun
+            && effect.type != EffectType.Focus && !UsesCharges(effect.type))
         {
             string valueLabel = effect.type == EffectType.Confusion ? "확률%" : effect.type == EffectType.Frost ? "AP+" : "수치";
             GUILayout.Label(valueLabel, GUILayout.Width(38));
@@ -1124,6 +1206,8 @@ public class CharacterEditorWindow : EditorWindow
             new[] { 20f, 20f, 20f, 20f, 20f });
         DrawStatusGroup(effects, "대응/보호", new[] { "반격", "도발", "방호" },
             new[] { EffectType.Counter, EffectType.Taunt, EffectType.Guard }, new[] { 0f, 0f, 0f });
+        DrawStatusGroup(effects, "특수", new[] { "집중" },
+            new[] { EffectType.Focus }, new[] { 0f });
         EditorGUILayout.EndVertical();
     }
 
@@ -1161,13 +1245,14 @@ public class CharacterEditorWindow : EditorWindow
         int selected = GUILayout.SelectionGrid(-1, labels, 4, GUILayout.Height(44));
         if (selected >= 0)
         {
+            bool enemyFixedValue = selectedData != null && selectedData.isEnemy;
             EffectEntry effect = selected switch
             {
-                0 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.Physical },
-                1 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.Magical },
-                2 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.True },
-                3 => new EffectEntry { type = EffectType.Heal },
-                4 => new EffectEntry { type = EffectType.Shield, duration = 3 },
+                0 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.Physical, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f },
+                1 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.Magical, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f },
+                2 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.True, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f },
+                3 => new EffectEntry { type = EffectType.Heal, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f },
+                4 => new EffectEntry { type = EffectType.Shield, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f, duration = 3 },
                 _ => new EffectEntry { type = EffectType.Resurrection }
             };
             effects.Add(effect);
@@ -1219,10 +1304,13 @@ public class CharacterEditorWindow : EditorWindow
             data.maxHp = EditorGUILayout.IntField(Mathf.RoundToInt(data.maxHp), GUILayout.Width(hpFieldWidth));
             GUILayout.Label("MP", GUILayout.Width(18));
             data.maxMental = EditorGUILayout.IntField(Mathf.RoundToInt(data.maxMental), GUILayout.Width(hpFieldWidth));
-            GUILayout.Label("공", GUILayout.Width(14));
-            data.baseAttack = EditorGUILayout.IntField(Mathf.RoundToInt(data.baseAttack), GUILayout.Width(smallStatFieldWidth));
-            GUILayout.Label("마", GUILayout.Width(14));
-            data.spellPower = EditorGUILayout.IntField(Mathf.RoundToInt(data.spellPower), GUILayout.Width(smallStatFieldWidth));
+            if (!data.isEnemy)
+            {
+                GUILayout.Label("공", GUILayout.Width(14));
+                data.baseAttack = EditorGUILayout.IntField(Mathf.RoundToInt(data.baseAttack), GUILayout.Width(smallStatFieldWidth));
+                GUILayout.Label("마", GUILayout.Width(14));
+                data.spellPower = EditorGUILayout.IntField(Mathf.RoundToInt(data.spellPower), GUILayout.Width(smallStatFieldWidth));
+            }
             GUILayout.Label("방", GUILayout.Width(14));
             data.armor = EditorGUILayout.IntField(Mathf.RoundToInt(data.armor), GUILayout.Width(smallStatFieldWidth));
             GUILayout.Label("저", GUILayout.Width(14));
@@ -1324,6 +1412,9 @@ public class CharacterEditorWindow : EditorWindow
 
         if (isEnemy)
         {
+            data.enemyRoleDescription = "";
+            data.damageBonusPerCycle = 0f;
+            data.bleedBonusPerCycle = 0f;
             data.passiveSkill = null;
             data.activeSkills = null;
             data.enemyPatterns = new List<EnemyPatternData>
@@ -1332,7 +1423,10 @@ public class CharacterEditorWindow : EditorWindow
                 {
                     patternName = "패턴 1",
                     targetType = TargetType.SingleEnemy,
-                    effects = new List<EffectEntry> { new EffectEntry { type = EffectType.Damage, multiplier = 1f } }
+                    effects = new List<EffectEntry>
+                    {
+                        new EffectEntry { type = EffectType.Damage, multiplier = 0f, fixedValue = 5f, hitCount = 1 }
+                    }
                 }
             };
         }
@@ -1372,12 +1466,12 @@ public class CharacterEditorWindow : EditorWindow
         if (string.IsNullOrWhiteSpace(data.characterName)) result.errors.Add("캐릭터 이름이 비어 있습니다.");
         if (data.maxHp <= 0f) result.errors.Add("최대 체력은 0보다 커야 합니다.");
         if (data.maxMental <= 0f) result.errors.Add("최대 정신력은 0보다 커야 합니다.");
-        if (data.baseAttack <= 0f) result.errors.Add("기본 공격력은 0보다 커야 합니다.");
-        if (data.spellPower < 0f) result.errors.Add("주문력은 0 이상이어야 합니다.");
         if (data.armor < 0f) result.errors.Add("방어력은 0 이상이어야 합니다.");
         if (data.magicResist < 0f) result.errors.Add("마법 저항력은 0 이상이어야 합니다.");
         if (!data.isEnemy)
         {
+            if (data.baseAttack <= 0f) result.errors.Add("기본 공격력은 0보다 커야 합니다.");
+            if (data.spellPower < 0f) result.errors.Add("주문력은 0 이상이어야 합니다.");
             if (!CharacterData.IsValidCharacterId(data.characterId)) result.errors.Add("Player ID must be 00-99.");
             else if (IsPlayerIdInUse(data.characterId, data)) result.errors.Add($"Duplicate player ID: {data.characterId}");
 
@@ -1400,14 +1494,36 @@ public class CharacterEditorWindow : EditorWindow
     {
         if (data.enemyPatterns == null || data.enemyPatterns.Count == 0)
         {
-            result.warnings.Add("행동 패턴이 없습니다. 전투 중 기본 공격을 사용합니다.");
+            result.errors.Add("행동 패턴이 없습니다.");
             return;
         }
         for (int i = 0; i < data.enemyPatterns.Count; i++)
         {
             EnemyPatternData pattern = data.enemyPatterns[i];
-            if (pattern == null) result.errors.Add($"{i + 1}번 패턴이 없습니다.");
-            else if (pattern.effects == null || pattern.effects.Count == 0) result.warnings.Add($"{i + 1}번 패턴에 효과가 없습니다.");
+            if (pattern == null)
+            {
+                result.errors.Add($"{i + 1}번 패턴이 없습니다.");
+                continue;
+            }
+            if (pattern.effects == null || pattern.effects.Count == 0)
+            {
+                result.errors.Add($"{i + 1}번 패턴에 효과가 없습니다.");
+                continue;
+            }
+
+            for (int effectIndex = 0; effectIndex < pattern.effects.Count; effectIndex++)
+            {
+                EffectEntry effect = pattern.effects[effectIndex];
+                if (effect == null)
+                {
+                    result.errors.Add($"{i + 1}번 패턴의 {effectIndex + 1}번 효과가 없습니다.");
+                    continue;
+                }
+                if (effect.type == EffectType.Damage && effect.fixedValue <= 0f && Mathf.Approximately(effect.multiplier, 0f))
+                    result.errors.Add($"{i + 1}번 패턴의 피해량은 0보다 커야 합니다.");
+                if (effect.type == EffectType.Damage && effect.hitCount < 1)
+                    result.errors.Add($"{i + 1}번 패턴의 타격 횟수는 1 이상이어야 합니다.");
+            }
         }
     }
 

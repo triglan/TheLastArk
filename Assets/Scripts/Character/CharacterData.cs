@@ -38,6 +38,10 @@ public class CharacterData : ScriptableObject
     public SkillInfo[] activeSkills = new SkillInfo[4];
 
     [Header("적 행동 패턴")]
+    [TextArea(2, 4)]
+    public string enemyRoleDescription;
+    [Min(0f)] public float damageBonusPerCycle;
+    [Min(0f)] public float bleedBonusPerCycle;
     public List<EnemyPatternData> enemyPatterns = new List<EnemyPatternData>();
 
     public static string FormatCharacterId(int id)
@@ -68,11 +72,17 @@ public class CharacterData : ScriptableObject
 
     private void OnValidate()
     {
-        if (isEnemy) return;
-
-        characterId = NormalizeCharacterId(characterId);
         if (string.IsNullOrWhiteSpace(regionId)) regionId = EnemyEncounterPool.DefaultRegionId;
         else regionId = regionId.Trim();
+
+        if (isEnemy)
+        {
+            damageBonusPerCycle = Mathf.Max(0f, damageBonusPerCycle);
+            bleedBonusPerCycle = Mathf.Max(0f, bleedBonusPerCycle);
+            return;
+        }
+
+        characterId = NormalizeCharacterId(characterId);
         if (string.IsNullOrWhiteSpace(jobName))
             jobName = characterName;
     }
@@ -109,6 +119,7 @@ public class EffectEntry
     public bool useActualResult = false;
     public float value = 0f;
     public float secondaryValue = 0f;
+    [Min(1)] public int hitCount = 1;
     public int duration = 3;
     public int charges = 3;
     public int skillSlot = -1;
@@ -149,6 +160,7 @@ public enum EffectType
     Stun = 3, Bleed = 4, Taunt = 5, Counter = 6, Shield = 7, Resurrection = 8,
     Poison = 9, Burn = 10, Strength = 11, Blockade = 12, Fatigue = 13,
     Confusion = 14, Frost = 15, Fear = 16, Pressure = 17, Despair = 18,
-    Weakness = 19, Protection = 20, Vulnerable = 21, Pierce = 22, Guard = 23
+    Weakness = 19, Protection = 20, Vulnerable = 21, Pierce = 22, Guard = 23,
+    Focus = 24
 }
 public enum DamageType { Physical, Magical, True }

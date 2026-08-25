@@ -9,10 +9,12 @@ public class EnemyAI : MonoBehaviour
 
     private BattleCharacter _self;
     private int _patternIndex;
+    private int _completedCycles;
     private List<BattleCharacter> _preparedTargets;
     private EnemyPatternData _preparedPattern;
 
     public IReadOnlyList<BattleCharacter> PreparedTargets => _preparedTargets;
+    public int CompletedCycles => _completedCycles;
 
     private void Awake()
     {
@@ -36,13 +38,11 @@ public class EnemyAI : MonoBehaviour
         // 데이터에 등록된 패턴을 순서대로 실행합니다.
         List<EnemyPatternData> patterns = _self.status.origin.enemyPatterns;
         if (patterns == null || patterns.Count == 0)
-            return PrepareBasicAttack();
+            return false;
 
         EnemyPatternData pattern = patterns[Mathf.Abs(_patternIndex) % patterns.Count];
-        _patternIndex = (_patternIndex + 1) % patterns.Count;
-
         if (pattern == null || pattern.effects == null || pattern.effects.Count == 0)
-            return PrepareBasicAttack();
+            return false;
 
         _preparedTargets = ResolveTargets(pattern.targetType, pattern.targetSelection);
         if (_preparedTargets.Count == 0) return false;
@@ -61,40 +61,70 @@ public class EnemyAI : MonoBehaviour
             return;
         }
 
-        if (_preparedPattern == null)
-        {
-            BattleCharacter target = _preparedTargets[0];
-            float rawDmg = _self.status.FinalAttack;
-            VFXManager.Instance?.PlayDefaultEffect(EffectType.Damage, DamageType.Physical, target);
-            target.ReceiveDamage(rawDmg, _self, DamageType.Physical);
-            Debug.Log($"[EnemyAI] {_self.characterName} -> {target.characterName} 기본 공격 {rawDmg}");
-            _self.ResolveActionStatusEffects();
-            ClearPreparedTurn();
-            return;
-        }
-
         SkillLevelData runtimePattern = new SkillLevelData
         {
             overrideCost = -1,
             targetType = _preparedPattern.targetType,
             customVfxName = _preparedPattern.customVfxName,
-            effects = _preparedPattern.effects
+            effects = BuildRuntimeEffects(_preparedPattern.effects)
         };
 
         EffectEngine.ProcessSkill(_self, _preparedTargets, runtimePattern, _preparedPattern.patternName);
         _self.ResolveActionStatusEffects();
-        Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {_preparedPattern.patternName}");
+        AdvancePattern();
+        Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {_preparedPattern.patternName} (완료 사이클 {_completedCycles})");
         ClearPreparedTurn();
     }
 
-    private bool PrepareBasicAttack()
+    private List<EffectEntry> BuildRuntimeEffects(List<EffectEntry> sourceEffects)
     {
-        // 패턴이 없거나 비어 있으면 기본 공격을 사용합니다.
-        BattleCharacter target = PickRandomAlive(targetParty);
-        if (target == null) return false;
+        var runtimeEffects = new List<EffectEntry>(sourceEffects.Count);
+        float damageBonus = _self.status.origin.damageBonusPerCycle * _completedCycles;
+        float bleedBonus = _self.status.origin.bleedBonusPerCycle * _completedCycles;
 
-        _preparedTargets = new List<BattleCharacter> { target };
-        return true;
+        foreach (EffectEntry source in sourceEffects)
+        {
+            if (source == null) continue;
+            var effect = new EffectEntry
+            {
+                type = source.type,
+                damageType = source.damageType,
+                multiplier = source.multiplier,
+                fixedValue = source.fixedValue,
+                useActualResult = source.useActualResult,
+                value = source.value,
+                secondaryValue = source.secondaryValue,
+                hitCount = source.hitCount,
+                duration = source.duration,
+                charges = source.charges,
+                skillSlot = source.skillSlot,
+                customVfxName = source.customVfxName
+            };
+
+            if (effect.type == EffectType.Damage)
+            {
+                effect.fixedValue += damageBonus;
+            }
+            else if (effect.type == EffectType.Bleed && bleedBonus > 0f)
+            {
+                float baseBleed = effect.value > 0f
+                    ? effect.value
+                    : _self.status.FinalAttack * effect.multiplier;
+                effect.value = baseBleed + bleedBonus;
+                effect.multiplier = 0f;
+            }
+
+            runtimeEffects.Add(effect);
+        }
+
+        return runtimeEffects;
+    }
+
+    private void AdvancePattern()
+    {
+        int patternCount = _self.status.origin.enemyPatterns.Count;
+        _patternIndex = (_patternIndex + 1) % patternCount;
+        if (_patternIndex == 0) _completedCycles++;
     }
 
     private void ClearPreparedTurn()
@@ -206,14 +236,6 @@ public class EnemyAI : MonoBehaviour
         }
 
         return alive;
-    }
-
-    private BattleCharacter PickRandomAlive(List<BattleCharacter> party)
-    {
-        // 살아있는 대상 중 하나를 무작위로 고릅니다.
-        List<BattleCharacter> alive = GetAlive(party);
-        if (alive.Count == 0) return null;
-        return alive[Random.Range(0, alive.Count)];
     }
 
     private void AddAllAlive(List<BattleCharacter> result, List<BattleCharacter> party)

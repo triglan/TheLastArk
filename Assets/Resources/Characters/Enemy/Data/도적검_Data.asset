@@ -40,39 +40,63 @@ MonoBehaviour:
     levels:
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
   activeSkills: []
   enemyPatterns:
   - patternName: "\uD328\uD134 1"
     targetType: 0
     targetSelection: 0
+    customVfxName: 
     effects:
     - type: 0
       damageType: 0
       multiplier: 1
       fixedValue: 0
       useActualResult: 0
+      value: 0
+      secondaryValue: 0
+      duration: 3
+      charges: 3
+      skillSlot: -1
+      customVfxName: 
   - patternName: "\uAD11\uC5ED \uACF5\uACA9"
     targetType: 4
     targetSelection: 0
+    customVfxName: 
     effects:
     - type: 0
       damageType: 0
       multiplier: 0.7
       fixedValue: 0
       useActualResult: 0
+      value: 0
+      secondaryValue: 0
+      duration: 3
+      charges: 3
+      skillSlot: -1
+      customVfxName: 
   - patternName: "\uC751\uAE09 \uCE58\uB8CC"
     targetType: 5
     targetSelection: 2
+    customVfxName: 
     effects:
     - type: 1
       damageType: 0
       multiplier: 1
       fixedValue: 0
       useActualResult: 0
+      value: 0
+      secondaryValue: 0
+      duration: 3
+      charges: 3
+      skillSlot: -1
+      customVfxName: 
