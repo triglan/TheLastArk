@@ -108,10 +108,15 @@ public class CharacterStatus : ISerializationCallbackReceiver
 
     public float FinalMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + GetSynergyHpMultiplier() + TrainBonusHpMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
     public float FinalMaxMental => origin != null ? (origin.maxMental * (1 + GetMultiplier() + GetSynergyMentalMultiplier() + TrainBonusMentalMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental;
-    public float FinalAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + GetSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier + GetStatusPercent(EffectType.Strength) - GetStatusPercent(EffectType.Weakness))) + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : bonusAttack + EquipmentBonusAttack;
-    public float FinalSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + GetSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : EquipmentBonusSpellPower;
-    public float FinalArmor => origin != null ? (origin.armor * (1 + GetMultiplier() + GetStatusPercent(EffectType.Protection) - GetStatusPercent(EffectType.Vulnerable))) + EquipmentBonusArmor : EquipmentBonusArmor;
-    public float FinalMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + EquipmentBonusMagicResist : EquipmentBonusMagicResist;
+    public float AttackStatusModifier => GetStatusValue(EffectType.Strength) - GetStatusValue(EffectType.Weakness);
+    public float SpellPowerStatusModifier => GetStatusValue(EffectType.Amplification) - GetStatusValue(EffectType.Frailty);
+    public float ArmorStatusModifier => GetStatusValue(EffectType.Protection) - GetStatusValue(EffectType.Vulnerable);
+    public float MagicResistStatusModifier => GetStatusValue(EffectType.MagicGuard) - GetStatusValue(EffectType.Corrosion);
+
+    public float FinalAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + GetSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier)) + AttackStatusModifier + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : AttackStatusModifier + bonusAttack + EquipmentBonusAttack;
+    public float FinalSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + GetSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + SpellPowerStatusModifier + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : SpellPowerStatusModifier + EquipmentBonusSpellPower;
+    public float FinalArmor => origin != null ? (origin.armor * (1 + GetMultiplier())) + ArmorStatusModifier + EquipmentBonusArmor : ArmorStatusModifier + EquipmentBonusArmor;
+    public float FinalMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + MagicResistStatusModifier + EquipmentBonusMagicResist : MagicResistStatusModifier + EquipmentBonusMagicResist;
     public float FinalCritRate => origin != null ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus : EquipmentBonusCritRate;
 
     public bool HasSynergy(TheLastArk.Data.SynergyType type)
@@ -342,18 +347,34 @@ public class CharacterStatus : ISerializationCallbackReceiver
     /// <summary>상태이상을 추가합니다. 같은 타입이 이미 있으면 턴 수를 갱신합니다.</summary>
     public void ApplyStatusEffect(EffectType type, float dmgPerTurn, int turns)
     {
-        ApplyStatusEffect(type, dmgPerTurn, turns, 0f, 0, -1, null);
+        ApplyStatusEffect(type, dmgPerTurn, turns, 0f, 0, -1, null, StatusDurationType.Default);
+    }
+
+    public void ApplyStatusEffect(EffectType type, float value, int turns, StatusDurationType durationType)
+    {
+        ApplyStatusEffect(type, value, turns, 0f, 0, -1, null, durationType);
     }
 
     public ActiveStatusEffect GetStatus(EffectType type)
     {
-        return activeStatusEffects.Find(e => e.effectType == type && (e.remainingTurns > 0 || e.remainingCharges > 0));
+        return activeStatusEffects.Find(e => e != null && e.effectType == type && e.IsActive);
     }
 
     public float GetStatusPercent(EffectType type)
     {
-        var effect = GetStatus(type);
-        return effect != null ? effect.damagePerTurn * 0.01f : 0f;
+        return GetStatusValue(type) * 0.01f;
+    }
+
+    public float GetStatusValue(EffectType type)
+    {
+        float total = 0f;
+        for (int i = 0; i < activeStatusEffects.Count; i++)
+        {
+            ActiveStatusEffect effect = activeStatusEffects[i];
+            if (effect != null && effect.effectType == type && effect.IsActive)
+                total += effect.damagePerTurn;
+        }
+        return total;
     }
 
     public void ConsumeStatusCharge(EffectType type)
@@ -366,23 +387,55 @@ public class CharacterStatus : ISerializationCallbackReceiver
 
     public void ApplyStatusEffect(EffectType type, float value, int turns, float secondaryValue, int charges, int skillSlot, BattleCharacter source)
     {
-        var existing = activeStatusEffects.Find(e => e.effectType == type && (type != EffectType.Blockade || e.skillSlot == skillSlot));
+        ApplyStatusEffect(type, value, turns, secondaryValue, charges, skillSlot, source, StatusDurationType.Default);
+    }
+
+    public void ApplyStatusEffect(EffectType type, float value, int turns, float secondaryValue, int charges, int skillSlot, BattleCharacter source, StatusDurationType requestedDuration)
+    {
+        StatusDurationType duration = ResolveDurationType(type, requestedDuration);
+        var existing = activeStatusEffects.Find(e => e != null && e.effectType == type
+            && e.durationType == duration && (type != EffectType.Blockade || e.skillSlot == skillSlot));
         if (existing == null)
         {
-            existing = new ActiveStatusEffect(type, value, turns);
+            existing = new ActiveStatusEffect(type, value, turns, duration);
             activeStatusEffects.Add(existing);
         }
         else
         {
             existing.remainingTurns = Mathf.Max(existing.remainingTurns, turns);
             existing.remainingCharges = Mathf.Max(existing.remainingCharges, charges);
-            existing.damagePerTurn = type == EffectType.Poison ? existing.damagePerTurn + value : Mathf.Max(existing.damagePerTurn, value);
+            existing.damagePerTurn = IsFixedStatModifier(type) || type == EffectType.Poison
+                ? existing.damagePerTurn + value
+                : Mathf.Max(existing.damagePerTurn, value);
         }
 
         existing.secondaryValue = secondaryValue;
         existing.remainingCharges = Mathf.Max(existing.remainingCharges, charges);
         existing.skillSlot = skillSlot;
         existing.source = source;
+    }
+
+    public int RemoveEffectsExpiringAtOwnerPhaseStart()
+    {
+        return activeStatusEffects.RemoveAll(effect => effect != null
+            && ResolveDurationType(effect.effectType, effect.durationType) == StatusDurationType.UntilOwnerPhase);
+    }
+
+    public static StatusDurationType ResolveDurationType(EffectType type, StatusDurationType requested)
+    {
+        if (requested != StatusDurationType.Default) return requested;
+        if (type == EffectType.Shield) return StatusDurationType.UntilOwnerPhase;
+        if (type == EffectType.Taunt || type == EffectType.Counter || type == EffectType.Guard || type == EffectType.Reflect)
+            return StatusDurationType.Charges;
+        return StatusDurationType.Turns;
+    }
+
+    private static bool IsFixedStatModifier(EffectType type)
+    {
+        return type == EffectType.Strength || type == EffectType.Weakness
+            || type == EffectType.Amplification || type == EffectType.Frailty
+            || type == EffectType.Protection || type == EffectType.Vulnerable
+            || type == EffectType.MagicGuard || type == EffectType.Corrosion;
     }
 
     public void RemoveAllStatusEffects()

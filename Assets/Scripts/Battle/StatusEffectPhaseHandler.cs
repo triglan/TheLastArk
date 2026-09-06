@@ -33,6 +33,8 @@ public static class StatusEffectPhaseHandler
         for (int i = effects.Count - 1; i >= 0; i--)
         {
             var effect = effects[i];
+            StatusDurationType durationType = CharacterStatus.ResolveDurationType(effect.effectType, effect.durationType);
+            effect.durationType = durationType;
 
             switch (effect.effectType)
             {
@@ -105,7 +107,7 @@ public static class StatusEffectPhaseHandler
                     break;
             }
 
-            if (effect.effectType == EffectType.Taunt || effect.effectType == EffectType.Counter || effect.effectType == EffectType.Guard)
+            if (durationType != StatusDurationType.Turns)
                 continue;
 
             effect.remainingTurns--;
@@ -115,6 +117,9 @@ public static class StatusEffectPhaseHandler
                 Debug.Log($"[StatusEffect] {character.characterName}의 {effect.effectType} 종료");
             }
         }
+
+        if (character.view != null)
+            character.view.UpdateVisual(character.status);
     }
 
     private static void RestoreRandomAllyMental(float amount)

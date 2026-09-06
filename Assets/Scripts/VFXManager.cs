@@ -355,8 +355,17 @@ public class VFXManager : MonoBehaviour
                 return VfxShield;                          // 보호막 -> 배리어 구체 이펙트
 
             case EffectType.Strength:
+            case EffectType.Amplification:
+            case EffectType.Protection:
+            case EffectType.MagicGuard:
             case EffectType.Focus:
                 return VfxSparks;                          // 버프/힘 -> 스파크 광휘 이펙트
+
+            case EffectType.Weakness:
+            case EffectType.Frailty:
+            case EffectType.Vulnerable:
+            case EffectType.Corrosion:
+                return VfxSmoke;
 
             case EffectType.Burn:
                 return VfxFlames;                          // 화상 -> 불꽃 이펙트
@@ -372,6 +381,7 @@ public class VFXManager : MonoBehaviour
 
             case EffectType.Taunt:
             case EffectType.Counter:
+            case EffectType.Reflect:
                 return VfxShockwave;                       // 도발/반격 -> 충격파 이펙트
 
             case EffectType.Resurrection:

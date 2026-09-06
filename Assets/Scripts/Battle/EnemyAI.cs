@@ -64,7 +64,6 @@ public class EnemyAI : MonoBehaviour
         if (_preparedPattern == null)
         {
             BattleCharacter target = _preparedTargets[0];
-            ConsumePreparedTaunt(TargetType.SingleEnemy);
             float rawDmg = _self.status.FinalAttack;
             VFXManager.Instance?.PlayDefaultEffect(EffectType.Damage, DamageType.Physical, target);
             target.ReceiveDamage(rawDmg, _self, DamageType.Physical);
@@ -82,7 +81,6 @@ public class EnemyAI : MonoBehaviour
             effects = BuildRuntimeEffects(_preparedPattern.effects)
         };
 
-        ConsumePreparedTaunt(_preparedPattern.targetType);
         EffectEngine.ProcessSkill(_self, _preparedTargets, runtimePattern, _preparedPattern.patternName);
         _self.ResolveActionStatusEffects();
         AdvancePattern();
@@ -111,6 +109,7 @@ public class EnemyAI : MonoBehaviour
                 hitCount = source.hitCount,
                 duration = source.duration,
                 charges = source.charges,
+                durationType = source.durationType,
                 skillSlot = source.skillSlot,
                 customVfxName = source.customVfxName
             };
@@ -158,9 +157,8 @@ public class EnemyAI : MonoBehaviour
             return result;
         }
 
-        BattleCharacter main = !IsFriendlyTarget(targetType) && TargetResolver.IsTauntAffected(targetType)
-            ? TargetResolver.FindTauntTarget(party) ?? PickTarget(party, selection)
-            : PickTarget(party, selection);
+        // 도발은 타격마다 BattleCharacter의 피해 경로에서 판정합니다.
+        BattleCharacter main = PickTarget(party, selection);
 
         switch (targetType)
         {
@@ -191,14 +189,6 @@ public class EnemyAI : MonoBehaviour
         }
 
         return result;
-    }
-
-    private void ConsumePreparedTaunt(TargetType targetType)
-    {
-        if (!TargetResolver.IsTauntAffected(targetType)) return;
-        BattleCharacter taunter = TargetResolver.FindTauntTarget(targetParty);
-        if (taunter != null && _preparedTargets.Contains(taunter))
-            taunter.status.ConsumeStatusCharge(EffectType.Taunt);
     }
 
     private bool IsFriendlyTarget(TargetType targetType)
