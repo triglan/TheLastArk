@@ -113,7 +113,8 @@ namespace TheLastArk.UI
             {
                 foreach (var effect in currentLevelData.effects)
                 {
-                    float scalingStat = effect.type == EffectType.Damage && effect.damageType == DamageType.Magical
+                    float scalingStat = (effect.type == EffectType.Damage && effect.damageType == DamageType.Magical)
+                        || effect.type == EffectType.MentalDamage || effect.type == EffectType.MentalHeal
                         ? spellPower
                         : atk;
                     float val = (scalingStat * effect.multiplier) + effect.fixedValue;
@@ -137,6 +138,12 @@ namespace TheLastArk.UI
                             break;
                         case EffectType.Heal:
                             descSb.AppendLine($"<color=#51CF66>[회복] 체력 회복: {effect.multiplier * 100:F0}% 계수 (회복량: {val:F1})</color>");
+                            break;
+                        case EffectType.MentalDamage:
+                            descSb.AppendLine($"<color=#B197FC>[정신 피해] {effect.multiplier * 100:F0}% 주문력 + {effect.fixedValue:F1} (예상 피해: {val:F1})</color>");
+                            break;
+                        case EffectType.MentalHeal:
+                            descSb.AppendLine($"<color=#74C0FC>[정신 회복] {effect.multiplier * 100:F0}% 주문력 + {effect.fixedValue:F1} (예상 회복: {val:F1})</color>");
                             break;
                         case EffectType.Stun:
                             descSb.AppendLine($"<color=#FCC419>[기절] {effect.duration}턴간 행동 불가</color>");

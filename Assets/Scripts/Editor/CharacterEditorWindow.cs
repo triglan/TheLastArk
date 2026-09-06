@@ -962,6 +962,8 @@ public class CharacterEditorWindow : EditorWindow
         MagicalDamage,
         TrueDamage,
         Heal,
+        MentalDamage,
+        MentalHeal,
         Stun,
         Bleed,
         Taunt,
@@ -979,7 +981,7 @@ public class CharacterEditorWindow : EditorWindow
 
         string[] effectLabels =
         {
-            "물리 피해", "마법 피해", "고정 피해", "회복",
+            "물리 피해", "마법 피해", "고정 피해", "체력 회복", "정신 피해", "정신 회복",
             "기절", "출혈", "도발", "반격", "보호막", "부활"
         };
 
@@ -1008,9 +1010,15 @@ public class CharacterEditorWindow : EditorWindow
                 GUILayout.Label("타격", GUILayout.Width(28));
                 effect.hitCount = Mathf.Max(1, EditorGUILayout.IntField(Mathf.Max(1, effect.hitCount), GUILayout.Width(32)));
             }
-            else if (effect.type == EffectType.Heal)
+            else if (effect.type == EffectType.Heal || effect.type == EffectType.MentalHeal)
             {
                 DrawEnemyFixedValueField(effect, "회복");
+            }
+            else if (effect.type == EffectType.MentalDamage)
+            {
+                DrawEnemyFixedValueField(effect, "피해");
+                GUILayout.Label("타격", GUILayout.Width(28));
+                effect.hitCount = Mathf.Max(1, EditorGUILayout.IntField(Mathf.Max(1, effect.hitCount), GUILayout.Width(32)));
             }
             else if (effect.type == EffectType.Shield)
             {
@@ -1027,7 +1035,9 @@ public class CharacterEditorWindow : EditorWindow
 
     private void DrawEnemyFixedValueField(EffectEntry effect, string label)
     {
-        float legacyBase = effect.type == EffectType.Damage && effect.damageType == DamageType.Magical
+        bool usesSpellPower = (effect.type == EffectType.Damage && effect.damageType == DamageType.Magical)
+            || effect.type == EffectType.MentalDamage || effect.type == EffectType.MentalHeal;
+        float legacyBase = usesSpellPower
             ? selectedData.spellPower
             : selectedData.baseAttack;
         bool isLegacy = effect.fixedValue <= 0f && !Mathf.Approximately(effect.multiplier, 0f);
@@ -1063,6 +1073,8 @@ public class CharacterEditorWindow : EditorWindow
         switch (effect.type)
         {
             case EffectType.Heal: return EnemyEffectPreset.Heal;
+            case EffectType.MentalDamage: return EnemyEffectPreset.MentalDamage;
+            case EffectType.MentalHeal: return EnemyEffectPreset.MentalHeal;
             case EffectType.Stun: return EnemyEffectPreset.Stun;
             case EffectType.Bleed: return EnemyEffectPreset.Bleed;
             case EffectType.Taunt: return EnemyEffectPreset.Taunt;
@@ -1083,6 +1095,8 @@ public class CharacterEditorWindow : EditorWindow
             case EnemyEffectPreset.MagicalDamage: effect.damageType = DamageType.Magical; break;
             case EnemyEffectPreset.TrueDamage: effect.damageType = DamageType.True; break;
             case EnemyEffectPreset.Heal: effect.type = EffectType.Heal; break;
+            case EnemyEffectPreset.MentalDamage: effect.type = EffectType.MentalDamage; break;
+            case EnemyEffectPreset.MentalHeal: effect.type = EffectType.MentalHeal; break;
             case EnemyEffectPreset.Stun: effect.type = EffectType.Stun; break;
             case EnemyEffectPreset.Bleed: effect.type = EffectType.Bleed; break;
             case EnemyEffectPreset.Taunt: effect.type = EffectType.Taunt; break;
@@ -1094,7 +1108,9 @@ public class CharacterEditorWindow : EditorWindow
         if (!resetValues) return;
         effect.multiplier = 0f;
         effect.fixedValue = preset == EnemyEffectPreset.PhysicalDamage || preset == EnemyEffectPreset.MagicalDamage
-            || preset == EnemyEffectPreset.TrueDamage || preset == EnemyEffectPreset.Heal || preset == EnemyEffectPreset.Shield ? 5f : 0f;
+            || preset == EnemyEffectPreset.TrueDamage || preset == EnemyEffectPreset.Heal
+            || preset == EnemyEffectPreset.MentalDamage || preset == EnemyEffectPreset.MentalHeal
+            || preset == EnemyEffectPreset.Shield ? 5f : 0f;
         effect.value = preset == EnemyEffectPreset.Bleed ? 1f : 0f;
         effect.hitCount = 1;
         effect.duration = 3;
@@ -1255,7 +1271,7 @@ public class CharacterEditorWindow : EditorWindow
 
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
         EditorGUILayout.LabelField("즉시 효과", EditorStyles.miniBoldLabel);
-        string[] labels = { "물리 피해", "마법 피해", "고정 피해", "회복", "보호막", "부활" };
+        string[] labels = { "물리 피해", "마법 피해", "고정 피해", "체력 회복", "정신 피해", "정신 회복", "보호막", "부활" };
         int selected = GUILayout.SelectionGrid(-1, labels, 4, GUILayout.Height(44));
         if (selected >= 0)
         {
@@ -1266,7 +1282,9 @@ public class CharacterEditorWindow : EditorWindow
                 1 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.Magical, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f },
                 2 => new EffectEntry { type = EffectType.Damage, damageType = DamageType.True, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f },
                 3 => new EffectEntry { type = EffectType.Heal, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f },
-                4 => new EffectEntry { type = EffectType.Shield, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f, duration = 3 },
+                4 => new EffectEntry { type = EffectType.MentalDamage, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f },
+                5 => new EffectEntry { type = EffectType.MentalHeal, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f },
+                6 => new EffectEntry { type = EffectType.Shield, multiplier = enemyFixedValue ? 0f : 1f, fixedValue = enemyFixedValue ? 5f : 0f, duration = 3 },
                 _ => new EffectEntry { type = EffectType.Resurrection }
             };
             effects.Add(effect);

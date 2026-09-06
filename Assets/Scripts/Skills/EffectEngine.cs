@@ -30,7 +30,7 @@ public static class EffectEngine
         _lastCalculatedValue = 0f;
 
         // 스킬 레벨에 지정된 커스텀 VFX가 있으면 대상들에게 재생
-        if (!string.IsNullOrEmpty(data.customVfxName))
+        if (Application.isPlaying && !string.IsNullOrEmpty(data.customVfxName))
         {
             foreach (BattleCharacter target in targets)
             {
@@ -43,6 +43,7 @@ public static class EffectEngine
 
         foreach (EffectEntry effect in data.effects)
         {
+            if (effect == null) continue;
             if (effect.type == EffectType.Taunt)
             {
                 BattleCharacter target = targets.Find(candidate => candidate != null && candidate.status != null);
@@ -50,7 +51,7 @@ public static class EffectEngine
                 continue;
             }
 
-            if (effect == null || effect.type != EffectType.Focus) continue;
+            if (effect.type != EffectType.Focus) continue;
             ExecuteEffect(effect, actor, actor, skillName);
         }
 
@@ -60,7 +61,9 @@ public static class EffectEngine
             foreach (BattleCharacter target in targets)
             {
                 if (target == null || target.status == null) continue;
-                int executions = effect.type == EffectType.Damage ? Mathf.Max(1, effect.hitCount) : 1;
+                int executions = effect.type == EffectType.Damage || effect.type == EffectType.MentalDamage
+                    ? Mathf.Max(1, effect.hitCount)
+                    : 1;
                 for (int i = 0; i < executions; i++)
                 ExecuteEffect(effect, actor, target, skillName);
             }
@@ -70,7 +73,11 @@ public static class EffectEngine
     private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target, string skillName = "")
     {
         // 1. VFX 재생: 커스텀 지정이 있으면 그것을 재생, 없으면 스킬명/효과 타입별 스마트 VFX 자동 재생
-        if (!string.IsNullOrEmpty(effect.customVfxName))
+        if (!Application.isPlaying)
+        {
+            // EditMode 테스트와 데이터 미리보기에서는 씬 VFX를 생성하지 않습니다.
+        }
+        else if (!string.IsNullOrEmpty(effect.customVfxName))
         {
             VFXManager.Instance?.SpawnVFX(effect.customVfxName, target.transform.position);
         }
@@ -80,11 +87,20 @@ public static class EffectEngine
         }
 
         // 기본값은 시전자의 최종 공격력이고, 옵션에 따라 직전 결과를 다시 씁니다.
+        bool usesSpellPower = (effect.type == EffectType.Damage && effect.damageType == DamageType.Magical)
+            || effect.type == EffectType.MentalDamage || effect.type == EffectType.MentalHeal;
+        bool usesActorStat = effect.type == EffectType.Damage ||
+                             effect.type == EffectType.Heal ||
+                             effect.type == EffectType.Shield ||
+                             effect.type == EffectType.MentalDamage ||
+                             effect.type == EffectType.MentalHeal ||
+                             effect.type == EffectType.Bleed ||
+                             effect.type == EffectType.Poison;
         float baseValue = effect.useActualResult
             ? _lastCalculatedValue
-            : effect.type == EffectType.Damage && effect.damageType == DamageType.Magical
-                ? actor.status.FinalSpellPower
-                : actor.status.FinalAttack;
+            : !usesActorStat || Mathf.Approximately(effect.multiplier, 0f)
+                ? 0f
+                : usesSpellPower ? actor.status.FinalSpellPower : actor.status.FinalAttack;
         float calculatedValue = (baseValue * effect.multiplier) + effect.fixedValue;
 
         switch (effect.type)
@@ -146,12 +162,20 @@ public static class EffectEngine
                 break;
 
             case EffectType.Heal:
+                bool isPlayerActor = actor.status.origin != null && !actor.status.origin.isEnemy;
                 // [기도실] 주고 받는 치유량 증가 배율
-                float prayerRoomBonus = TrainManager.IsInitialized ? TrainManager.Instance.GetPrayerRoomHealMultiplier() : 0f;
+                float prayerRoomBonus = isPlayerActor && TrainManager.IsInitialized
+                    ? TrainManager.Instance.GetPrayerRoomHealMultiplier()
+                    : 0f;
                 float finalHealValue = calculatedValue * (1f + prayerRoomBonus);
 
                 // [타락 모듈] 적 대상 치유 시 치유량의 50%만큼 마법 피해
-                if (target != null && target.status != null && target.status.origin != null && target.status.origin.isEnemy)
+                bool convertsEnemyHealToDamage = isPlayerActor
+                    && target?.status?.origin != null
+                    && target.status.origin.isEnemy
+                    && TrainManager.IsInitialized
+                    && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.CorruptionModule);
+                if (convertsEnemyHealToDamage)
                 {
                     float corruptDmg = finalHealValue * 0.5f;
                     _lastCalculatedValue = target.ReceiveDamage(corruptDmg, actor, DamageType.Magical);
@@ -162,7 +186,7 @@ public static class EffectEngine
                 _lastCalculatedValue = target.ReceiveHeal(finalHealValue, actor);
 
                 // [하늘 가호 프로토콜] 치유로 아군 체력 100% 달성 시 해당 턴 공/주 +20%
-                if (TrainManager.IsInitialized && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.SkyBlessingProtocol))
+                if (isPlayerActor && TrainManager.IsInitialized && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.SkyBlessingProtocol))
                 {
                     if (target != null && target.status != null && target.status.currentHp >= target.status.FinalMaxHp)
                     {
@@ -173,7 +197,7 @@ public static class EffectEngine
                 }
 
                 // [빛의 분수대] 단일 치유 시 50%만큼 최저 체력 아군 치유
-                if (TrainManager.IsInitialized && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.FountainOfLight))
+                if (isPlayerActor && TrainManager.IsInitialized && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.FountainOfLight))
                 {
                     var bm = Object.FindObjectOfType<BattleManager>();
                     if (bm != null && bm.playerParty != null)
@@ -202,7 +226,7 @@ public static class EffectEngine
                 }
 
                 // [물고기와 빵 모듈] 시전자 본인 치유 시 20%만큼 모든 아군 광역 치유
-                if (TrainManager.IsInitialized && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.LoavesAndFishesModule))
+                if (isPlayerActor && TrainManager.IsInitialized && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.LoavesAndFishesModule))
                 {
                     if (actor != null && target == actor)
                     {
@@ -221,6 +245,14 @@ public static class EffectEngine
                         }
                     }
                 }
+                break;
+
+            case EffectType.MentalDamage:
+                _lastCalculatedValue = target.TakeMentalDamage(calculatedValue);
+                break;
+
+            case EffectType.MentalHeal:
+                _lastCalculatedValue = target.ReceiveMentalHeal(calculatedValue);
                 break;
 
             case EffectType.Bleed:
