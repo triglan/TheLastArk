@@ -155,7 +155,7 @@ namespace TheLastArk.UI
                             descSb.AppendLine($"<color=#845EF7>[도발] {effect.charges}회 대신 피격</color>");
                             break;
                         case EffectType.Shield:
-                            descSb.AppendLine($"<color=#4DABF7>[보호막] 보호막: {val:F1} 획득</color>");
+                            descSb.AppendLine($"<color=#4DABF7>[보호막] {val:F1} 획득 · {GetDurationText(effect)}</color>");
                             break;
                         case EffectType.Counter:
                             descSb.AppendLine($"<color=#FF922B>[반격] 다음 {effect.charges}회 피격 시 반격</color>");
@@ -167,10 +167,23 @@ namespace TheLastArk.UI
                             descSb.AppendLine($"<color=#FF6B6B>[화상] 최대 체력 {effect.value:F0}% 피해 ({effect.duration}턴)</color>");
                             break;
                         case EffectType.Strength:
-                            descSb.AppendLine($"<color=#339AF0>[힘] 기본 공격력 +{(effect.value > 0 ? effect.value : effect.multiplier * 100f):F0}% ({effect.duration}턴)</color>");
+                        case EffectType.Weakness:
+                        case EffectType.Amplification:
+                        case EffectType.Frailty:
+                        case EffectType.Protection:
+                        case EffectType.Vulnerable:
+                        case EffectType.MagicGuard:
+                        case EffectType.Corrosion:
+                            float statusValue = !Mathf.Approximately(effect.value, 0f)
+                                ? effect.value
+                                : !Mathf.Approximately(effect.fixedValue, 0f) ? effect.fixedValue : effect.multiplier;
+                            descSb.AppendLine($"<color=#339AF0>[{ActiveStatusEffect.GetDisplayName(effect.type)}] {statusValue:F0} · {GetDurationText(effect)}</color>");
+                            break;
+                        case EffectType.Reflect:
+                            descSb.AppendLine($"<color=#FF922B>[반사] {effect.value:F0}% · {GetDurationText(effect)}</color>");
                             break;
                         case EffectType.Focus:
-                            descSb.AppendLine($"<color=#74C0FC>[집중] {effect.duration}턴 동안 도발 무시</color>");
+                            descSb.AppendLine($"<color=#74C0FC>[집중] {GetDurationText(effect)} 동안 도발 무시</color>");
                             break;
                         default:
                             if ((int)effect.type >= (int)EffectType.Blockade)
@@ -195,6 +208,19 @@ namespace TheLastArk.UI
 
             tooltipPanel.SetActive(true);
             FollowMousePosition();
+        }
+
+        private static string GetDurationText(EffectEntry effect)
+        {
+            StatusDurationType duration = CharacterStatus.ResolveDurationType(effect.type, effect.durationType);
+            switch (duration)
+            {
+                case StatusDurationType.Permanent: return "영구";
+                case StatusDurationType.Charges: return $"{effect.charges}회";
+                case StatusDurationType.UntilOwnerPhase: return "다음 자기 턴까지";
+                case StatusDurationType.Marker: return "마커";
+                default: return $"{effect.duration}턴";
+            }
         }
 
         public void ShowTooltip(SkillInfo skill, BattleCharacter actor, RectTransform slotTransform = null)

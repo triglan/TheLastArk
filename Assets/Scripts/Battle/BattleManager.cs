@@ -251,7 +251,7 @@ public class BattleManager : MonoBehaviour
             {
                 if (ally != null && ally.status != null)
                 {
-                    ally.status.ApplyStatusEffect(EffectType.Shield, 20f, 2);
+                    ally.status.ApplyStatusEffect(EffectType.Shield, 20f, 2, StatusDurationType.Turns);
                     Debug.Log($"[철벽 성채의 조각] {ally.characterName}에게 보호막 20 부여!");
                 }
             }
@@ -269,7 +269,7 @@ public class BattleManager : MonoBehaviour
                     if (lostHp > 0f)
                     {
                         float shieldAmount = lostHp * 0.20f;
-                        ally.status.ApplyStatusEffect(EffectType.Shield, shieldAmount, 1);
+                        ally.status.ApplyStatusEffect(EffectType.Shield, shieldAmount, 1, StatusDurationType.Turns);
                         Debug.Log($"[적응형 보호막 생성기] {ally.characterName}에게 잃은 체력 20% 보호막({shieldAmount:F0}) 생성");
                     }
                 }
@@ -1006,6 +1006,7 @@ public class BattleManager : MonoBehaviour
 
     private void OnEnterPlayerTurn()
     {
+        RemoveOwnerPhaseEffects(playerParty);
         ClearEnemyTargetMarkers();
         Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");
 
@@ -1603,7 +1604,7 @@ public class BattleManager : MonoBehaviour
                     if (livingAllies.Count > 0)
                     {
                         var targetAlly = livingAllies[UnityEngine.Random.Range(0, livingAllies.Count)];
-                        targetAlly.status.ApplyStatusEffect(EffectType.Shield, suitVal, 2); // 보호: 2턴 유지 보호막
+                        targetAlly.status.ApplyStatusEffect(EffectType.Shield, suitVal, 2, StatusDurationType.Turns); // 보호: 2턴 유지 보호막
                         Debug.Log($"[클러스터 ♦] {targetAlly.characterName}에게 ♦{activeNum} 효과로 보호 {suitVal} 부여!");
                     }
                     break;
@@ -1841,6 +1842,7 @@ public class BattleManager : MonoBehaviour
 
     private IEnumerator RunEnemyTurn()
     {
+        RemoveOwnerPhaseEffects(enemyParty);
         ClearEnemyTargetMarkers();
         Debug.Log($"[Battle] {_turnCount}턴: 적 턴 시작. 생존 적 수 확인 중...");
         Debug.Log($"[Battle] enemyParty 총 수: {enemyParty.Count}");
@@ -1926,6 +1928,22 @@ public class BattleManager : MonoBehaviour
         Debug.Log($"[Battle] 턴 카운트 증가: {_turnCount}턴으로 진입");
         UpdateTurnUI();
         EnterPhase(BattlePhase.PlayerTurn);
+    }
+
+    private static void RemoveOwnerPhaseEffects(List<BattleCharacter> party)
+    {
+        if (party == null) return;
+
+        foreach (BattleCharacter character in party)
+        {
+            if (character?.status == null) continue;
+            int removed = character.status.RemoveEffectsExpiringAtOwnerPhaseStart();
+            if (removed <= 0) continue;
+
+            Debug.Log($"[StatusEffect] {character.characterName}의 다음 자기 턴 지속 효과 {removed}개 종료");
+            if (character.view != null)
+                character.view.UpdateVisual(character.status);
+        }
     }
 
     private void OnEnterBattleEnd()

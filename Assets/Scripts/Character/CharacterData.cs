@@ -122,6 +122,7 @@ public class EffectEntry
     [Min(1)] public int hitCount = 1;
     public int duration = 3;
     public int charges = 3;
+    public StatusDurationType durationType = StatusDurationType.Default;
     public int skillSlot = -1;
     public string customVfxName; // 개별 효과 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
 }
@@ -161,6 +162,17 @@ public enum EffectType
     Poison = 9, Burn = 10, Strength = 11, Blockade = 12, Fatigue = 13,
     Confusion = 14, Frost = 15, Fear = 16, Pressure = 17, Despair = 18,
     Weakness = 19, Protection = 20, Vulnerable = 21, Pierce = 22, Guard = 23,
-    Focus = 24, MentalDamage = 25, MentalHeal = 26
+    Focus = 24, MentalDamage = 25, MentalHeal = 26,
+    Amplification = 27, Frailty = 28, MagicGuard = 29, Corrosion = 30,
+    Reflect = 31
 }
 public enum DamageType { Physical, Magical, True }
+public enum StatusDurationType
+{
+    Default = 0,
+    Turns = 1,
+    Permanent = 2,
+    Charges = 3,
+    UntilOwnerPhase = 4,
+    Marker = 5
+}

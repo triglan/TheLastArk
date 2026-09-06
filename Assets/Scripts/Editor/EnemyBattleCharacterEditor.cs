@@ -94,7 +94,7 @@ public class EnemyBattleCharacterEditor : Editor
         foreach (ActiveStatusEffect effect in effects)
         {
             if (effect == null) continue;
-            DrawReadOnlyText(GetEffectName(effect.effectType), $"{effect.remainingTurns}턴 / 수치 {effect.damagePerTurn:0.##}");
+            DrawReadOnlyText(GetEffectName(effect.effectType), effect.GetDisplayText());
         }
     }
 
@@ -162,7 +162,24 @@ public class EnemyBattleCharacterEditor : Editor
             return $"출혈 {effect.value:0.##} / {effect.duration}턴";
         if (effect.type == EffectType.Focus)
             return $"집중 / 자신 / {effect.duration}턴";
+        if (effect.type == EffectType.Reflect)
+            return $"반사 {effect.value:0.##}% / {effect.charges}회";
+        if (effect.type == EffectType.Strength || effect.type == EffectType.Weakness
+            || effect.type == EffectType.Amplification || effect.type == EffectType.Frailty
+            || effect.type == EffectType.Protection || effect.type == EffectType.Vulnerable
+            || effect.type == EffectType.MagicGuard || effect.type == EffectType.Corrosion)
+            return $"{ActiveStatusEffect.GetDisplayName(effect.type)} {effect.value:0.##} / {GetDurationSummary(effect)}";
         return $"{GetEffectName(effect.type)} / 수치 {effect.fixedValue:0.##}{resultText}";
+    }
+
+    private static string GetDurationSummary(EffectEntry effect)
+    {
+        StatusDurationType duration = CharacterStatus.ResolveDurationType(effect.type, effect.durationType);
+        if (duration == StatusDurationType.Permanent) return "영구";
+        if (duration == StatusDurationType.Charges) return $"{effect.charges}회";
+        if (duration == StatusDurationType.UntilOwnerPhase) return "다음 자기 턴까지";
+        if (duration == StatusDurationType.Marker) return "마커";
+        return $"{effect.duration}턴";
     }
 
     private string GetTargetName(TargetType targetType)
@@ -187,6 +204,14 @@ public class EnemyBattleCharacterEditor : Editor
             EffectType.Damage => "피해",
             EffectType.Heal => "회복",
             EffectType.Strength => "힘",
+            EffectType.Weakness => "약화",
+            EffectType.Amplification => "증폭",
+            EffectType.Frailty => "쇠약",
+            EffectType.Protection => "견고",
+            EffectType.Vulnerable => "파쇄",
+            EffectType.MagicGuard => "항마",
+            EffectType.Corrosion => "침식",
+            EffectType.Reflect => "반사",
             EffectType.Stun => "기절",
             EffectType.Bleed => "출혈",
             EffectType.Focus => "집중",

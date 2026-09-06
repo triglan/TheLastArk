@@ -152,7 +152,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
                     {
                         type = EffectType.Strength,
                         damageType = DamageType.Physical,
-                        value = 20f,
+                        value = 1f,
                         duration = 3
                     }
                 }
@@ -177,24 +177,31 @@ public class BattleCharacter : MonoBehaviour, IDamageable
 
     public DamageResult ReceiveDamageDetailed(float amount, BattleCharacter attacker, DamageType damageType, bool triggerResponses = true)
     {
+        return ReceiveDamageInternal(amount, attacker, damageType, triggerResponses, triggerResponses);
+    }
+
+    private DamageResult ReceiveDamageInternal(float amount, BattleCharacter attacker, DamageType damageType, bool allowRedirect, bool allowReactions)
+    {
         if (status == null || amount <= 0f)
             return new DamageResult(amount, 0f, 0f, 0f, 0f, this, false);
 
-        if (triggerResponses)
+        if (allowRedirect)
         {
             var guard = status.GetStatus(EffectType.Guard);
             if (guard != null && guard.source != null && guard.source != this && guard.source.status != null && guard.source.status.currentHp > 0f)
             {
                 status.ConsumeStatusCharge(EffectType.Guard);
-                return guard.source.ReceiveDamageDetailed(amount, attacker, damageType, false);
+                if (view != null) view.UpdateVisual(status);
+                return guard.source.ReceiveDamageInternal(amount, attacker, damageType, false, allowReactions);
             }
 
             bool ignoresTaunt = attacker?.status?.GetStatus(EffectType.Focus) != null;
             var taunter = ignoresTaunt ? null : FindTaunter();
-            if (taunter != null && taunter != this)
+            if (taunter != null)
             {
                 taunter.status.ConsumeStatusCharge(EffectType.Taunt);
-                return taunter.ReceiveDamageDetailed(amount, attacker, damageType, false);
+                if (taunter != this)
+                    return taunter.ReceiveDamageInternal(amount, attacker, damageType, false, allowReactions);
             }
         }
 
@@ -222,10 +229,9 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         float shieldDamage = 0f;
 
         // [보호막 (Shield)] 상태이상 흡수 처리
-        var shieldEffect = status.activeStatusEffects.Find(e => e.effectType == EffectType.Shield);
-        if (shieldEffect != null && shieldEffect.damagePerTurn > 0f && resolvedDamage > 0f)
+        float totalShield = status.GetStatusValue(EffectType.Shield);
+        if (totalShield > 0f && resolvedDamage > 0f)
         {
-            float shieldBefore = shieldEffect.damagePerTurn;
             float shieldMultiplier = 1f;
             // [마나분쇄자] 유물: 적 보호막에 주는 피해 +50%
             if (status.origin != null && status.origin.isEnemy && attacker?.status?.origin != null && !attacker.status.origin.isEnemy)
@@ -237,9 +243,24 @@ public class BattleCharacter : MonoBehaviour, IDamageable
                 }
             }
 
-            shieldDamage = Mathf.Min(shieldBefore, resolvedDamage * shieldMultiplier);
-            shieldEffect.damagePerTurn = Mathf.Max(0f, shieldBefore - shieldDamage);
-            healthDamage = Mathf.Max(0f, resolvedDamage - shieldBefore);
+            shieldDamage = Mathf.Min(totalShield, resolvedDamage * shieldMultiplier);
+            healthDamage = Mathf.Max(0f, resolvedDamage - totalShield);
+
+            float remainingShieldDamage = shieldDamage;
+            for (int i = 0; i < status.activeStatusEffects.Count && remainingShieldDamage > 0f; i++)
+            {
+                ActiveStatusEffect shield = status.activeStatusEffects[i];
+                if (shield == null || shield.effectType != EffectType.Shield || !shield.IsActive) continue;
+
+                float absorbed = Mathf.Min(shield.damagePerTurn, remainingShieldDamage);
+                shield.damagePerTurn -= absorbed;
+                remainingShieldDamage -= absorbed;
+                if (shield.damagePerTurn <= 0f)
+                {
+                    status.activeStatusEffects.RemoveAt(i);
+                    i--;
+                }
+            }
         }
 
         float hpBefore = status.currentHp;
@@ -275,9 +296,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         }
 
         Debug.Log($"{gameObject.name} 피격! 남은 체력: {status.currentHp}");
-        if (view != null) view.UpdateVisual(status);
-
-        if (triggerResponses && attacker != null && attacker != this)
+        if (allowReactions && attacker != null && attacker != this && attacker.status != null && attacker.status.currentHp > 0f)
         {
             var counter = status.GetStatus(EffectType.Counter);
             if (counter != null)
@@ -285,7 +304,21 @@ public class BattleCharacter : MonoBehaviour, IDamageable
                 status.ConsumeStatusCharge(EffectType.Counter);
                 attacker.ReceiveDamage(status.FinalAttack, this, DamageType.Physical, false);
             }
+
+            var reflect = status.GetStatus(EffectType.Reflect);
+            if (reflect != null && attacker.status.currentHp > 0f)
+            {
+                float reflectedStat = damageType == DamageType.Magical
+                    ? attacker.status.FinalSpellPower
+                    : attacker.status.FinalAttack;
+                float reflectedDamage = reflectedStat * Mathf.Max(0f, reflect.damagePerTurn) * 0.01f;
+                status.ConsumeStatusCharge(EffectType.Reflect);
+                if (reflectedDamage > 0f)
+                    attacker.ReceiveDamage(reflectedDamage, this, damageType, false);
+            }
         }
+
+        if (view != null) view.UpdateVisual(status);
 
         return new DamageResult(
             amount,

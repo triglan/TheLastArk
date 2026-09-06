@@ -827,7 +827,7 @@ public class CharacterEditorWindow : EditorWindow
             case 0: AddEnemyPattern(CreateEnemyPattern("단일 공격", TargetType.SingleEnemy, EnemyTargetSelection.Random, EffectType.Damage, 5f)); break;
             case 1: AddEnemyPattern(CreateEnemyPattern("전체 공격", TargetType.AllEnemy, EnemyTargetSelection.Random, EffectType.Damage, 4f)); break;
             case 2: AddEnemyPattern(CreateEnemyPattern("단일 지원", TargetType.Friendly, EnemyTargetSelection.LowestHp, EffectType.Heal, 5f)); break;
-            case 3: AddEnemyPattern(CreateEnemyPattern("전체 지원", TargetType.AllFriendly, EnemyTargetSelection.Random, EffectType.Strength, 20f)); break;
+            case 3: AddEnemyPattern(CreateEnemyPattern("전체 지원", TargetType.AllFriendly, EnemyTargetSelection.Random, EffectType.Strength, 1f)); break;
         }
     }
 
@@ -899,6 +899,7 @@ public class CharacterEditorWindow : EditorWindow
                 hitCount = effect.hitCount,
                 duration = effect.duration,
                 charges = effect.charges,
+                durationType = effect.durationType,
                 skillSlot = effect.skillSlot,
                 customVfxName = effect.customVfxName
             });
@@ -1023,8 +1024,7 @@ public class CharacterEditorWindow : EditorWindow
             else if (effect.type == EffectType.Shield)
             {
                 DrawEnemyFixedValueField(effect, "보호막");
-                GUILayout.Label("턴", GUILayout.Width(18));
-                effect.duration = Mathf.Max(1, EditorGUILayout.IntField(effect.duration, GUILayout.Width(32)));
+                DrawStatusDurationFields(effect);
             }
             GUILayout.Label("연계", GUILayout.Width(28));
             effect.useActualResult = EditorGUILayout.Toggle(effect.useActualResult, GUILayout.Width(18));
@@ -1114,6 +1114,9 @@ public class CharacterEditorWindow : EditorWindow
         effect.value = preset == EnemyEffectPreset.Bleed ? 1f : 0f;
         effect.hitCount = 1;
         effect.duration = 3;
+        effect.durationType = preset == EnemyEffectPreset.Shield
+            ? StatusDurationType.UntilOwnerPhase
+            : StatusDurationType.Default;
         effect.useActualResult = false;
     }
 
@@ -1143,8 +1146,7 @@ public class CharacterEditorWindow : EditorWindow
             effect.fixedValue = EditorGUILayout.FloatField(effect.fixedValue, GUILayout.Width(45));
             if (effect.type == EffectType.Shield)
             {
-                GUILayout.Label("턴", GUILayout.Width(18));
-                effect.duration = Mathf.Max(1, EditorGUILayout.IntField(effect.duration, GUILayout.Width(32)));
+                DrawStatusDurationFields(effect);
             }
             }
             GUILayout.Label("결과", GUILayout.Width(32));
@@ -1158,19 +1160,24 @@ public class CharacterEditorWindow : EditorWindow
     {
         return type == EffectType.Stun || type == EffectType.Bleed || type == EffectType.Focus
             || type == EffectType.Taunt || type == EffectType.Counter || type == EffectType.Shield
-            || type == EffectType.Poison || type == EffectType.Burn;
+            || type == EffectType.Poison || type == EffectType.Burn || IsFixedStatModifier(type)
+            || type == EffectType.Reflect;
     }
 
     private static bool IsConfiguredStatus(EffectType type)
     {
-        return (int)type >= (int)EffectType.Blockade || type == EffectType.Stun || type == EffectType.Bleed
-            || type == EffectType.Poison || type == EffectType.Burn || type == EffectType.Strength
-            || type == EffectType.Taunt || type == EffectType.Counter || type == EffectType.Focus;
+        return type == EffectType.Stun || type == EffectType.Bleed || type == EffectType.Poison
+            || type == EffectType.Burn || type == EffectType.Blockade || type == EffectType.Fatigue
+            || type == EffectType.Confusion || type == EffectType.Frost || type == EffectType.Fear
+            || type == EffectType.Pressure || type == EffectType.Despair || IsFixedStatModifier(type)
+            || type == EffectType.Pierce || type == EffectType.Guard || type == EffectType.Taunt
+            || type == EffectType.Counter || type == EffectType.Focus || type == EffectType.Reflect;
     }
 
     private static bool UsesCharges(EffectType type)
     {
-        return type == EffectType.Counter || type == EffectType.Taunt || type == EffectType.Guard;
+        return type == EffectType.Counter || type == EffectType.Taunt || type == EffectType.Guard
+            || type == EffectType.Reflect;
     }
 
     private static TargetType ForceSingleTauntTarget(TargetType targetType, List<EffectEntry> effects)
@@ -1201,16 +1208,51 @@ public class CharacterEditorWindow : EditorWindow
             effect.value = EditorGUILayout.FloatField(effect.value, GUILayout.Width(45));
         }
 
-        if (UsesCharges(effect.type))
+        if (effect.type == EffectType.Reflect)
+        {
+            GUILayout.Label("반사%", GUILayout.Width(42));
+            effect.value = Mathf.Max(0f, EditorGUILayout.FloatField(effect.value, GUILayout.Width(45)));
+        }
+
+        DrawStatusDurationFields(effect);
+    }
+
+    private static void DrawStatusDurationFields(EffectEntry effect)
+    {
+        StatusDurationType resolved = CharacterStatus.ResolveDurationType(effect.type, effect.durationType);
+        StatusDurationType[] values =
+        {
+            StatusDurationType.Turns,
+            StatusDurationType.Permanent,
+            StatusDurationType.Charges,
+            StatusDurationType.UntilOwnerPhase,
+            StatusDurationType.Marker
+        };
+        string[] labels = { "턴", "영구", "횟수", "다음 자기 턴", "마커" };
+        int current = System.Array.IndexOf(values, resolved);
+        current = Mathf.Max(0, current);
+        GUILayout.Label("지속", GUILayout.Width(28));
+        int next = EditorGUILayout.Popup(current, labels, GUILayout.Width(78));
+        effect.durationType = values[next];
+
+        if (UsesCharges(effect.type) || effect.durationType == StatusDurationType.Charges)
         {
             GUILayout.Label("횟수", GUILayout.Width(32));
             effect.charges = Mathf.Max(1, EditorGUILayout.IntField(effect.charges, GUILayout.Width(35)));
         }
-        else
+        if (effect.durationType == StatusDurationType.Turns)
         {
-            GUILayout.Label("지속시간", GUILayout.Width(52));
+            GUILayout.Label("턴", GUILayout.Width(20));
             effect.duration = Mathf.Max(1, EditorGUILayout.IntField(effect.duration, GUILayout.Width(35)));
         }
+    }
+
+    private static bool IsFixedStatModifier(EffectType type)
+    {
+        return type == EffectType.Strength || type == EffectType.Weakness
+            || type == EffectType.Amplification || type == EffectType.Frailty
+            || type == EffectType.Protection || type == EffectType.Vulnerable
+            || type == EffectType.MagicGuard || type == EffectType.Corrosion;
     }
 
     private void DrawStatusPaletteToggle(List<EffectEntry> effects)
@@ -1231,11 +1273,13 @@ public class CharacterEditorWindow : EditorWindow
             new[] { EffectType.Bleed, EffectType.Poison, EffectType.Burn }, new[] { 10f, 20f, 5f });
         DrawStatusGroup(effects, "정신력", new[] { "공포", "압박", "절망" },
             new[] { EffectType.Fear, EffectType.Pressure, EffectType.Despair }, new[] { 5f, 3f, 30f });
-        DrawStatusGroup(effects, "능력치", new[] { "힘", "약화", "보호", "취약", "관통" },
-            new[] { EffectType.Strength, EffectType.Weakness, EffectType.Protection, EffectType.Vulnerable, EffectType.Pierce },
-            new[] { 20f, 20f, 20f, 20f, 20f });
-        DrawStatusGroup(effects, "대응/보호", new[] { "반격", "도발", "방호" },
-            new[] { EffectType.Counter, EffectType.Taunt, EffectType.Guard }, new[] { 0f, 0f, 0f });
+        DrawStatusGroup(effects, "능력치", new[] { "힘", "약화", "증폭", "쇠약", "견고", "파쇄", "항마", "침식" },
+            new[] { EffectType.Strength, EffectType.Weakness, EffectType.Amplification, EffectType.Frailty,
+                EffectType.Protection, EffectType.Vulnerable, EffectType.MagicGuard, EffectType.Corrosion },
+            new[] { 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f });
+        DrawStatusGroup(effects, "대응/보호", new[] { "반격", "반사", "도발", "보호" },
+            new[] { EffectType.Counter, EffectType.Reflect, EffectType.Taunt, EffectType.Guard },
+            new[] { 0f, 50f, 0f, 0f });
         DrawStatusGroup(effects, "특수", new[] { "집중" },
             new[] { EffectType.Focus }, new[] { 0f });
         EditorGUILayout.EndVertical();
@@ -1254,6 +1298,7 @@ public class CharacterEditorWindow : EditorWindow
             value = values[selected],
             duration = 3,
             charges = 3,
+            durationType = CharacterStatus.ResolveDurationType(type, StatusDurationType.Default),
             skillSlot = type == EffectType.Blockade ? 0 : -1
         });
         GUI.changed = true;
@@ -1555,6 +1600,17 @@ public class CharacterEditorWindow : EditorWindow
                     result.errors.Add($"{i + 1}번 패턴의 피해량은 0보다 커야 합니다.");
                 if (effect.type == EffectType.Damage && effect.hitCount < 1)
                     result.errors.Add($"{i + 1}번 패턴의 타격 횟수는 1 이상이어야 합니다.");
+
+                StatusDurationType duration = CharacterStatus.ResolveDurationType(effect.type, effect.durationType);
+                if (RequiresDuration(effect.type) && duration == StatusDurationType.Turns && effect.duration < 1)
+                    result.errors.Add($"{i + 1}번 패턴의 상태 지속 턴은 1 이상이어야 합니다.");
+                if ((UsesCharges(effect.type) || duration == StatusDurationType.Charges) && effect.charges < 1)
+                    result.errors.Add($"{i + 1}번 패턴의 상태 횟수는 1 이상이어야 합니다.");
+                if (IsFixedStatModifier(effect.type) && Mathf.Approximately(effect.value, 0f)
+                    && Mathf.Approximately(effect.fixedValue, 0f) && Mathf.Approximately(effect.multiplier, 0f))
+                    result.errors.Add($"{i + 1}번 패턴의 능력치 변화량은 0이 아니어야 합니다.");
+                if (effect.type == EffectType.Reflect && effect.value <= 0f)
+                    result.errors.Add($"{i + 1}번 패턴의 반사 비율은 0보다 커야 합니다.");
             }
         }
     }
