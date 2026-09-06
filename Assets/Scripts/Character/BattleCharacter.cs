@@ -153,6 +153,12 @@ public class BattleCharacter : MonoBehaviour, IDamageable
                 return guard.source.ReceiveDamage(amount, attacker, damageType, false);
             }
 
+            var taunter = FindTaunter();
+            if (taunter != null && taunter != this)
+            {
+                var taunt = taunter.status.GetStatus(EffectType.Taunt);
+                taunter.ConsumeCharge(taunt);
+                return taunter.ReceiveDamage(amount, attacker, damageType, false);
             bool ignoresTaunt = attacker?.status?.GetStatus(EffectType.Focus) != null;
             var taunter = ignoresTaunt ? null : FindTaunter();
             if (taunter != null && taunter != this)
@@ -161,7 +167,6 @@ public class BattleCharacter : MonoBehaviour, IDamageable
                 taunter.ConsumeCharge(taunt);
                 return taunter.ReceiveDamage(amount, attacker, damageType, false);
             }
-        }
 
         // [날카로운 못] 유물: 아군 공격자가 물리 피해를 입힐 때 +1 고정 피해
         if (damageType == DamageType.Physical && attacker != null && attacker.status != null && !attacker.status.origin.isEnemy)
@@ -258,14 +263,6 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             }
         }
         return actualDamage;
-    }
-
-    private BattleCharacter FindTaunter()
-    {
-        var bm = FindObjectOfType<BattleManager>();
-        if (bm == null) return null;
-        var party = status.origin != null && status.origin.isEnemy ? bm.enemyParty : bm.playerParty;
-        return party?.Find(c => c != null && c != this && c.status != null && c.status.currentHp > 0f && c.status.GetStatus(EffectType.Taunt) != null);
     }
 
     private void ConsumeCharge(ActiveStatusEffect effect)

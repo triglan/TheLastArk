@@ -20,6 +20,10 @@ public static class TargetResolver
         bool hasCorruption = TheLastArk.Managers.TrainManager.IsInitialized && 
                              TheLastArk.Managers.TrainManager.Instance.HasPartEffectInAnyCar(TheLastArk.Data.TrainPartEffectType.CorruptionModule);
 
+        BattleCharacter taunter = FindTauntTarget(enemyParty);
+        if (IsTauntAffected(skillType) && taunter != null)
+            return clicked == taunter;
+
         return skillType switch
         {
             TargetType.Friendly    => isAlly || hasCorruption,
@@ -39,6 +43,12 @@ public static class TargetResolver
     {
         var result = new List<BattleCharacter>();
 
+        if (IsTauntAffected(type))
+        {
+            BattleCharacter taunter = FindTauntTarget(enemyParty);
+            if (taunter != null) mainTarget = taunter;
+        }
+
         bool isEnemy = enemyParty.Contains(mainTarget);
         var team     = isEnemy ? enemyParty : playerParty;
         int idx      = team.IndexOf(mainTarget);
@@ -47,6 +57,7 @@ public static class TargetResolver
         {
             case TargetType.SingleEnemy:
             case TargetType.Friendly:
+            case TargetType.Self:
                 result.Add(mainTarget);
                 break;
 
@@ -76,5 +87,17 @@ public static class TargetResolver
         }
 
         return result;
+    }
+
+    public static bool IsTauntAffected(TargetType type)
+    {
+        return type == TargetType.SingleEnemy || type == TargetType.LeftEnemy
+            || type == TargetType.RightEnemy || type == TargetType.AdjacentEnemy;
+    }
+
+    public static BattleCharacter FindTauntTarget(List<BattleCharacter> party)
+    {
+        return party?.Find(character => character != null && character.status != null
+            && character.status.currentHp > 0f && character.status.GetStatus(EffectType.Taunt) != null);
     }
 }
