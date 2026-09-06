@@ -21,16 +21,6 @@ public class EnemyAI : MonoBehaviour
         _self = GetComponent<BattleCharacter>();
     }
 
-    private bool PrepareBasicAttack()
-    {
-        // 패턴이 없거나 비어 있으면 기본 공격을 사용합니다.
-        BattleCharacter target = TargetResolver.FindTauntTarget(targetParty) ?? PickRandomAlive(targetParty);
-        if (target == null) return false;
-
-        _preparedTargets = new List<BattleCharacter> { target };
-        return true;
-    }
-
     public bool PrepareTurn()
     {
         _preparedTargets = null;
@@ -75,18 +65,6 @@ public class EnemyAI : MonoBehaviour
         {
             BattleCharacter target = _preparedTargets[0];
             ConsumePreparedTaunt(TargetType.SingleEnemy);
-            float rawDmg = _self.status.FinalAttack;
-            VFXManager.Instance?.PlayDefaultEffect(EffectType.Damage, DamageType.Physical, target);
-            target.ReceiveDamage(rawDmg, _self, DamageType.Physical);
-            Debug.Log($"[EnemyAI] {_self.characterName} -> {target.characterName} 기본 공격 {rawDmg}");
-            _self.ResolveActionStatusEffects();
-            ClearPreparedTurn();
-            return;
-        }
-
-        if (_preparedPattern == null)
-        {
-            BattleCharacter target = _preparedTargets[0];
             float rawDmg = _self.status.FinalAttack;
             VFXManager.Instance?.PlayDefaultEffect(EffectType.Damage, DamageType.Physical, target);
             target.ReceiveDamage(rawDmg, _self, DamageType.Physical);

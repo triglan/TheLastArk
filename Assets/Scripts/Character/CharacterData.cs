@@ -161,6 +161,6 @@ public enum EffectType
     Poison = 9, Burn = 10, Strength = 11, Blockade = 12, Fatigue = 13,
     Confusion = 14, Frost = 15, Fear = 16, Pressure = 17, Despair = 18,
     Weakness = 19, Protection = 20, Vulnerable = 21, Pierce = 22, Guard = 23,
-    Focus = 24
+    Focus = 24, MentalDamage = 25, MentalHeal = 26
 }
 public enum DamageType { Physical, Magical, True }

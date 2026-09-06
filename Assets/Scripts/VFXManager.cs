@@ -345,7 +345,11 @@ public class VFXManager : MonoBehaviour
                 };
 
             case EffectType.Heal:
+            case EffectType.MentalHeal:
                 return VfxHeal;                            // 치유 -> 힐링 빛무리 이펙트
+
+            case EffectType.MentalDamage:
+                return VfxShockwave;                       // 정신 피해 -> 충격파 이펙트
 
             case EffectType.Shield:
                 return VfxShield;                          // 보호막 -> 배리어 구체 이펙트

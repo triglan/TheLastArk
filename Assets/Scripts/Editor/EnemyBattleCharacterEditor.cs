@@ -154,6 +154,10 @@ public class EnemyBattleCharacterEditor : Editor
         string resultText = effect.useActualResult ? ", 직전 결과 사용" : "";
         if (effect.type == EffectType.Damage)
             return $"{effect.damageType} 피해 {effect.fixedValue:0.##} × {Mathf.Max(1, effect.hitCount)}{resultText}";
+        if (effect.type == EffectType.MentalDamage)
+            return $"정신 피해 {effect.fixedValue:0.##} × {Mathf.Max(1, effect.hitCount)}{resultText}";
+        if (effect.type == EffectType.MentalHeal)
+            return $"정신 회복 {effect.fixedValue:0.##}{resultText}";
         if (effect.type == EffectType.Bleed)
             return $"출혈 {effect.value:0.##} / {effect.duration}턴";
         if (effect.type == EffectType.Focus)

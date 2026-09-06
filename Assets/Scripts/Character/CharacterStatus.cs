@@ -106,10 +106,10 @@ public class CharacterStatus : ISerializationCallbackReceiver
         }
     }
 
-    public float FinalMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergyHpMultiplier() + TrainBonusHpMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
-    public float FinalMaxMental => origin != null ? (origin.maxMental * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergyMentalMultiplier() + TrainBonusMentalMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental;
-    public float FinalAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier + GetStatusPercent(EffectType.Strength) - GetStatusPercent(EffectType.Weakness))) + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : bonusAttack + EquipmentBonusAttack;
-    public float FinalSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + TheLastArk.Character.SynergyCalculator.GetTotalSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : EquipmentBonusSpellPower;
+    public float FinalMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + GetSynergyHpMultiplier() + TrainBonusHpMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
+    public float FinalMaxMental => origin != null ? (origin.maxMental * (1 + GetMultiplier() + GetSynergyMentalMultiplier() + TrainBonusMentalMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental;
+    public float FinalAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + GetSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier + GetStatusPercent(EffectType.Strength) - GetStatusPercent(EffectType.Weakness))) + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : bonusAttack + EquipmentBonusAttack;
+    public float FinalSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + GetSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : EquipmentBonusSpellPower;
     public float FinalArmor => origin != null ? (origin.armor * (1 + GetMultiplier() + GetStatusPercent(EffectType.Protection) - GetStatusPercent(EffectType.Vulnerable))) + EquipmentBonusArmor : EquipmentBonusArmor;
     public float FinalMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + EquipmentBonusMagicResist : EquipmentBonusMagicResist;
     public float FinalCritRate => origin != null ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus : EquipmentBonusCritRate;
@@ -183,9 +183,37 @@ public class CharacterStatus : ISerializationCallbackReceiver
 
     private float GetRelicBonus(TheLastArk.Data.RelicEffectType type)
     {
+        if (origin == null || origin.isEnemy || !Application.isPlaying)
+            return 0f;
+
         if (TheLastArk.Managers.ResourceManager.Instance != null)
             return TheLastArk.Managers.ResourceManager.Instance.GetRelicBonus(type);
         return 0f;
+    }
+
+    private bool CanUsePlayerSynergy()
+    {
+        return origin != null && !origin.isEnemy && Application.isPlaying;
+    }
+
+    private float GetSynergyHpMultiplier()
+    {
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyHpMultiplier() : 0f;
+    }
+
+    private float GetSynergyMentalMultiplier()
+    {
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyMentalMultiplier() : 0f;
+    }
+
+    private float GetSynergyAttackMultiplier()
+    {
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyAttackMultiplier() : 0f;
+    }
+
+    private float GetSynergySpellPowerMultiplier()
+    {
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergySpellPowerMultiplier() : 0f;
     }
 
     public int SkillLevelIndex => charLevel switch
@@ -212,7 +240,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
         int idx2 = pool[UnityEngine.Random.Range(0, pool.Count)];
         selectedActiveSkillIndices = new List<int> { idx1, idx2 };
         
-        if (data != null && !data.isEnemy && TheLastArk.Managers.ResourceManager.Instance != null)
+        if (data != null && !data.isEnemy && Application.isPlaying && TheLastArk.Managers.ResourceManager.Instance != null)
         {
             charLevel = TheLastArk.Managers.ResourceManager.Instance.GetCharacterLevelFromCards(
                 TheLastArk.Managers.ResourceManager.Instance.GetCardCount(data.DataId)
