@@ -760,6 +760,7 @@ public class CharacterEditorWindow : EditorWindow
             if (!isPassive) level.overrideCost = EditorGUILayout.IntField("비용 변경", level.overrideCost);
             level.targetType = (TargetType)EditorGUILayout.EnumPopup("대상", level.targetType);
             DrawEffectList(level.effects);
+            level.targetType = ForceSingleTauntTarget(level.targetType, level.effects);
             EditorGUILayout.EndVertical();
         }
         EditorGUILayout.EndVertical();
@@ -811,6 +812,7 @@ public class CharacterEditorWindow : EditorWindow
             if (side == EnemyTargetSide.Self) range = EnemyTargetRange.Single;
             pattern.targetType = ToTargetType(side, range);
             DrawEnemyEffectList(pattern.effects);
+            pattern.targetType = ForceSingleTauntTarget(pattern.targetType, pattern.effects);
             EditorGUILayout.EndVertical();
         }
         EditorGUILayout.EndVertical();
@@ -1153,6 +1155,18 @@ public class CharacterEditorWindow : EditorWindow
     private static bool UsesCharges(EffectType type)
     {
         return type == EffectType.Counter || type == EffectType.Taunt || type == EffectType.Guard;
+    }
+
+    private static TargetType ForceSingleTauntTarget(TargetType targetType, List<EffectEntry> effects)
+    {
+        if (effects == null || !effects.Exists(effect => effect.type == EffectType.Taunt)) return targetType;
+        if (targetType == TargetType.AllFriendly || targetType == TargetType.FriendlyLeft
+            || targetType == TargetType.FriendlyRight || targetType == TargetType.FriendlyAdjacent)
+            return TargetType.Friendly;
+        if (targetType == TargetType.AllEnemy || targetType == TargetType.LeftEnemy
+            || targetType == TargetType.RightEnemy || targetType == TargetType.AdjacentEnemy)
+            return TargetType.SingleEnemy;
+        return targetType;
     }
 
     private static void DrawConfiguredStatusFields(EffectEntry effect)

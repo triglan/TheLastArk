@@ -43,6 +43,13 @@ public static class EffectEngine
 
         foreach (EffectEntry effect in data.effects)
         {
+            if (effect.type == EffectType.Taunt)
+            {
+                BattleCharacter target = targets.Find(candidate => candidate != null && candidate.status != null);
+                if (target != null) ExecuteEffect(effect, actor, target, skillName);
+                continue;
+            }
+
             if (effect == null || effect.type != EffectType.Focus) continue;
             ExecuteEffect(effect, actor, actor, skillName);
         }
@@ -55,7 +62,7 @@ public static class EffectEngine
                 if (target == null || target.status == null) continue;
                 int executions = effect.type == EffectType.Damage ? Mathf.Max(1, effect.hitCount) : 1;
                 for (int i = 0; i < executions; i++)
-                    ExecuteEffect(effect, actor, target, skillName);
+                ExecuteEffect(effect, actor, target, skillName);
             }
         }
     }
@@ -263,6 +270,7 @@ public static class EffectEngine
 
             case EffectType.Taunt:
                 int tauntCharges = Mathf.Max(1, effect.charges);
+                RemoveOtherPartyTaunts(target);
                 target.status.ApplyStatusEffect(effect.type, 0f, 0, 0f, tauntCharges, -1, actor);
                 _lastCalculatedValue = tauntCharges;
                 break;
@@ -321,6 +329,20 @@ public static class EffectEngine
                 target.status.ApplyStatusEffect(effect.type, 0f, 0, 0f, Mathf.Max(1, effect.charges), -1, actor);
                 _lastCalculatedValue = effect.charges;
                 break;
+        }
+    }
+
+    private static void RemoveOtherPartyTaunts(BattleCharacter target)
+    {
+        var bm = Object.FindObjectOfType<BattleManager>();
+        if (bm == null || target?.status?.origin == null) return;
+        var party = target.status.origin.isEnemy ? bm.enemyParty : bm.playerParty;
+        if (party == null) return;
+
+        foreach (var character in party)
+        {
+            if (character != null && character != target && character.status != null)
+                character.status.activeStatusEffects.RemoveAll(effect => effect.effectType == EffectType.Taunt);
         }
     }
 

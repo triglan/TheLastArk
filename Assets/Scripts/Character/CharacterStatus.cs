@@ -328,6 +328,14 @@ public class CharacterStatus : ISerializationCallbackReceiver
         return effect != null ? effect.damagePerTurn * 0.01f : 0f;
     }
 
+    public void ConsumeStatusCharge(EffectType type)
+    {
+        var effect = GetStatus(type);
+        if (effect == null) return;
+        effect.remainingCharges--;
+        if (effect.remainingCharges <= 0) activeStatusEffects.Remove(effect);
+    }
+
     public void ApplyStatusEffect(EffectType type, float value, int turns, float secondaryValue, int charges, int skillSlot, BattleCharacter source)
     {
         var existing = activeStatusEffects.Find(e => e.effectType == type && (type != EffectType.Blockade || e.skillSlot == skillSlot));

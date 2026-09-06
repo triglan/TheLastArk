@@ -479,9 +479,16 @@ public class BattleManager : MonoBehaviour
         int skillIdx = actor.status.SkillLevelIndex;
         SkillLevelData levelData = skill.levels[Mathf.Clamp(skillIdx, 0, skill.levels.Length - 1)];
 
-        if (!TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty))
+        bool isValidTarget = levelData.targetType == TargetType.Self
+            ? primaryTarget == actor
+            : TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty);
+        if (!isValidTarget)
         {
-            NotificationManager.Instance.ShowMessage($"{skill.skillName}에 맞는 대상이 아닙니다.", Color.red);
+            string message = TargetResolver.IsTauntAffected(levelData.targetType)
+                && TargetResolver.FindTauntTarget(enemyParty) != null
+                ? "[도발] 도발 상태의 적만 공격할 수 있습니다."
+                : $"{skill.skillName}에 맞는 대상이 아닙니다.";
+            NotificationManager.Instance.ShowMessage(message, Color.red);
             if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
@@ -658,6 +665,7 @@ public class BattleManager : MonoBehaviour
                 NotificationManager.Instance?.ShowMessage("[혼란] 스킬 대상이 무작위로 변경되었습니다!", Color.magenta);
             }
             List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty);
+            ConsumeTauntForAttack(levelData.targetType, targets);
             EffectEngine.ProcessSkill(actor, targets, levelData, skill.skillName);
 
             // [탑] 이번 턴 처음 사용하는 스킬 2번 발동 (더블 캐스트)
@@ -769,6 +777,14 @@ public class BattleManager : MonoBehaviour
         if (TryEndBattleIfPartyWiped()) return;
 
         if (currentAP <= 0) EndPlayerTurn();
+    }
+
+    private void ConsumeTauntForAttack(TargetType targetType, List<BattleCharacter> targets)
+    {
+        if (!TargetResolver.IsTauntAffected(targetType)) return;
+        BattleCharacter taunter = TargetResolver.FindTauntTarget(enemyParty);
+        if (taunter != null && targets.Contains(taunter))
+            taunter.status.ConsumeStatusCharge(EffectType.Taunt);
     }
 
     public void PerformConsumable()
