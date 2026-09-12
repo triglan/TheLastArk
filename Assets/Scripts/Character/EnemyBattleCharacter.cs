@@ -14,6 +14,8 @@ public class EnemyBattleCharacter : MonoBehaviour
 
     private BattleCharacter battleCharacter;
     private bool _initialized;
+    private bool _hasFled;
+    private bool _defeatRewardClaimed;
 
     public BattleCharacter BattleCharacterComponent
     {
@@ -59,6 +61,11 @@ public class EnemyBattleCharacter : MonoBehaviour
             InitializeForBattle();
     }
 
+    private void Update()
+    {
+        ClaimDefeatReward();
+    }
+
     [ContextMenu("적 데이터 적용")]
     public void ApplyDataReference()
     {
@@ -87,9 +94,39 @@ public class EnemyBattleCharacter : MonoBehaviour
         }
 
         battleCharacter.Init(enemyData, false);
+        _hasFled = false;
+        _defeatRewardClaimed = false;
         _initialized = true;
 
         Debug.Log($"[EnemyBattleCharacter] {enemyData.characterName} 적 전투 데이터 초기화 완료", this);
+    }
+
+    public void FleeBattle()
+    {
+        if (_hasFled) return;
+
+        _hasFled = true;
+        if (battleCharacter == null) CacheComponents();
+        if (battleCharacter?.status != null) battleCharacter.status.currentHp = 0f;
+        GetComponent<TheLastArk.UI.EnemyIntentUI>()?.Hide();
+        gameObject.SetActive(false);
+    }
+
+    public void ClaimDefeatReward()
+    {
+        if (_defeatRewardClaimed || _hasFled || enemyData == null || battleCharacter?.status == null
+            || battleCharacter.status.currentHp > 0f) return;
+
+        _defeatRewardClaimed = true;
+        int reward = Mathf.Max(0, enemyData.defeatGoldBonus);
+        if (enemyData.returnStolenGoldOnDefeat && !string.IsNullOrWhiteSpace(enemyData.stolenGoldVariableId))
+        {
+            EnemyAI ai = GetComponent<EnemyAI>();
+            reward += Mathf.Max(0, ai != null ? ai.RuntimeState.Get(enemyData.stolenGoldVariableId) : 0);
+        }
+
+        if (reward > 0)
+            TheLastArk.Managers.ResourceManager.Instance.AddGold(reward);
     }
 
     private void CacheComponents()

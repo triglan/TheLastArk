@@ -40,9 +40,16 @@ public class CharacterData : ScriptableObject
     [Header("적 행동 패턴")]
     [TextArea(2, 4)]
     public string enemyRoleDescription;
+    [Tooltip("레거시 데이터 보존용입니다. 전투에는 더 이상 사용하지 않습니다.")]
     [Min(0f)] public float damageBonusPerCycle;
+    [Tooltip("레거시 데이터 보존용입니다. 전투에는 더 이상 사용하지 않습니다.")]
     [Min(0f)] public float bleedBonusPerCycle;
     public List<EnemyPatternData> enemyPatterns = new List<EnemyPatternData>();
+    public List<EnemyRuntimeVariableDefinition> enemyRuntimeVariables = new List<EnemyRuntimeVariableDefinition>();
+    public Sprite enemyEnhancementIcon;
+    [Min(0)] public int defeatGoldBonus;
+    public bool returnStolenGoldOnDefeat;
+    public string stolenGoldVariableId;
 
     public static string FormatCharacterId(int id)
     {
@@ -124,6 +131,7 @@ public class EffectEntry
     public int charges = 3;
     public StatusDurationType durationType = StatusDurationType.Default;
     public int skillSlot = -1;
+    public Sprite statusIcon;
     public string customVfxName; // 개별 효과 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
 }
 
@@ -136,6 +144,38 @@ public class EnemyPatternData
     public EnemyTargetSelection targetSelection = EnemyTargetSelection.Random;
     public string customVfxName; // 패턴 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
     public List<EffectEntry> effects = new List<EffectEntry>();
+    public List<EnemyPatternAction> actions = new List<EnemyPatternAction>();
+}
+
+[System.Serializable]
+public class EnemyRuntimeVariableDefinition
+{
+    public string id;
+    public string displayName;
+    [TextArea] public string displayDescription;
+    public Sprite displayIcon;
+    public int initialValue;
+    public bool hasMaxValue;
+    public int maxValue;
+    public bool showInUi;
+}
+
+[System.Serializable]
+public class EnemyPatternAction
+{
+    public EnemyPatternActionType actionType = EnemyPatternActionType.Effect;
+    public Sprite intentIcon;
+    public TargetType targetType = TargetType.SingleEnemy;
+    public EnemyTargetSelection targetSelection = EnemyTargetSelection.Random;
+    public bool usePreparedTarget;
+    public EffectEntry effect = new EffectEntry();
+    [Tooltip("효과의 고정 수치에 더할 전투 변수 ID입니다.")]
+    public string valueVariableId;
+    [Tooltip("피해 또는 정신 피해의 타격 횟수에 더할 전투 변수 ID입니다.")]
+    public string hitCountVariableId;
+    public string runtimeVariableId;
+    public int runtimeValue;
+    public bool setRuntimeValue;
 }
 
 public enum TargetType
@@ -153,8 +193,9 @@ public enum TargetType
     Self
 }
 public enum EnemyTargetSide { User, Enemy, Self }
-public enum EnemyTargetSelection { Random, Leader, LowestHp, HighestHp }
+public enum EnemyTargetSelection { Random, Leader, LowestHp, HighestHp, Remembered }
 public enum EnemyTargetRange { Single, Left, Right, Adjacent, All }
+public enum EnemyPatternActionType { Effect, ModifyRuntimeVariable, RememberTarget, StealGold, Flee }
 public enum EffectType
 {
     Damage = 0, Heal = 1,

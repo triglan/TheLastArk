@@ -6,17 +6,19 @@ using TheLastArk.Map.Events;
 
 public class CharacterEditorWindow : EditorWindow
 {
-    private enum CharacterEditorMode { Player, Enemy, Formations, Pools, Events }
+    private enum CharacterEditorMode { Player, Enemy, Formations, Pools, Events, Icons }
 
     private const string PLAYER_DATA_FOLDER = "Assets/Resources/Characters/Player/Data";
     private const string PLAYER_ILLUST_FOLDER = "Assets/Resources/Characters/Player/Illust";
     private const string ENEMY_DATA_FOLDER = "Assets/Resources/Characters/Enemy/Data";
     private const string ENEMY_ILLUST_FOLDER = "Assets/Resources/Characters/Enemy/Illust";
     private const double SAVE_DELAY_SECONDS = 1.0d;
-    private const float LayoutChromeWidth = 12f;
-    private const float CharacterListWidth = 230f;
-    private const float EventListWidth = 210f;
-    private const float EventToolsWidth = 260f;
+    private const float NavigationWidthRatio = 0.18f;
+    private const float OverviewWidthRatio = 0.26f;
+    private const float MinimumNavigationWidth = 220f;
+    private const float MaximumNavigationWidth = 280f;
+    private const float MinimumOverviewWidth = 300f;
+    private const float MaximumOverviewWidth = 420f;
 
     private readonly List<CharacterData> cachedCharacterList = new List<CharacterData>();
     private CharacterEditorMode editorMode = CharacterEditorMode.Player;
@@ -43,13 +45,15 @@ public class CharacterEditorWindow : EditorWindow
     private string eventSearchText = "";
     private int eventCategoryFilter;
     private bool isDirtyEventCache = true;
+    private Vector2 commonIconScroll;
+    private Vector2 enhancementIconScroll;
+    private CharacterData iconTargetData;
 
     private bool IsEnemyMode => editorMode == CharacterEditorMode.Enemy;
     private bool IsCharacterMode => editorMode == CharacterEditorMode.Player || editorMode == CharacterEditorMode.Enemy;
-    private float CharacterWorkWidth => Mathf.Max(600f, position.width - CharacterListWidth - LayoutChromeWidth);
-    private float CharacterDetailWidth => CharacterWorkWidth * (2f / 3f);
-    private float CharacterSheetWidth => CharacterWorkWidth / 3f;
-    private float EventDetailWidth => Mathf.Max(320f, position.width - EventListWidth - EventToolsWidth - LayoutChromeWidth);
+    private float EditorViewWidth => Mathf.Max(minSize.x, position.width);
+    private float NavigationPanelWidth => Mathf.Clamp(EditorViewWidth * NavigationWidthRatio, MinimumNavigationWidth, MaximumNavigationWidth);
+    private float OverviewPanelWidth => Mathf.Clamp(EditorViewWidth * OverviewWidthRatio, MinimumOverviewWidth, MaximumOverviewWidth);
 
     private class CharacterValidationResult
     {
@@ -114,6 +118,12 @@ public class CharacterEditorWindow : EditorWindow
 
     private void OnGUI()
     {
+        if (editorMode == CharacterEditorMode.Icons)
+        {
+            DrawIconEditor();
+            return;
+        }
+
         if (editorMode == CharacterEditorMode.Events)
         {
             RefreshEventCacheIfNeeded();
@@ -153,14 +163,100 @@ public class CharacterEditorWindow : EditorWindow
         FlushPendingSaveIfReady();
     }
 
+    private void DrawIconEditor()
+    {
+        EditorGUILayout.BeginHorizontal(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+        BeginNavigationPanel();
+        DrawModeToolbar();
+        EditorGUILayout.LabelField("아이콘 편집", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("오른쪽에서 공용·전용 아이콘을 설정합니다.", MessageType.Info);
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+        CombatIconLibrary library = GetOrCreateCombatIconLibrary();
+
+        EditorGUILayout.BeginHorizontal(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+        DrawCommonEffectIconPanel(library);
+        DrawEnhancementIconPanel(library);
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private void DrawCommonEffectIconPanel(CombatIconLibrary library)
+    {
+        EditorGUILayout.BeginVertical("helpbox", GUILayout.MinWidth(0f), GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+        EditorGUILayout.LabelField("공용 상태·의도 아이콘", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("독은 독 상태와 독 의도에 함께 사용됩니다.", MessageType.Info);
+        commonIconScroll = BeginVerticalScrollView(commonIconScroll);
+        EditorGUI.BeginChangeCheck();
+        foreach (CombatIconEntry entry in library.entries)
+        {
+            if (entry == null) continue;
+            entry.icon = (Sprite)EditorGUILayout.ObjectField(CombatIconLibrary.GetDisplayName(entry.effectType), entry.icon, typeof(Sprite), false);
+        }
+        if (EditorGUI.EndChangeCheck())
+        {
+            EditorUtility.SetDirty(library);
+            AssetDatabase.SaveAssets();
+        }
+        EndVerticalScrollView();
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawEnhancementIconPanel(CombatIconLibrary library)
+    {
+        EditorGUILayout.BeginVertical("helpbox", GUILayout.MinWidth(0f), GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+        EditorGUILayout.LabelField("공통·전용 강화 아이콘", EditorStyles.boldLabel);
+        EditorGUI.BeginChangeCheck();
+        library.commonEnhancementIcon = (Sprite)EditorGUILayout.ObjectField("공용 적 강화 아이콘", library.commonEnhancementIcon, typeof(Sprite), false);
+        if (EditorGUI.EndChangeCheck())
+        {
+            EditorUtility.SetDirty(library);
+            AssetDatabase.SaveAssets();
+        }
+        EditorGUILayout.HelpBox("일반 적은 이 아이콘을 사용합니다.", MessageType.None);
+
+        enhancementIconScroll = BeginVerticalScrollView(enhancementIconScroll);
+        EditorGUILayout.Space(8f);
+        EditorGUILayout.LabelField("보스·엘리트 전용 강화 아이콘", EditorStyles.boldLabel);
+        RefreshCacheIfNeeded();
+        var enemies = new List<CharacterData>();
+        foreach (CharacterData data in cachedCharacterList)
+            if (data != null && data.isEnemy) enemies.Add(data);
+        var names = new string[enemies.Count + 1];
+        names[0] = "선택 안 함";
+        int selectedIndex = 0;
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            names[i + 1] = enemies[i].DisplayName;
+            if (enemies[i] == iconTargetData) selectedIndex = i + 1;
+        }
+        int nextIndex = EditorGUILayout.Popup("대상 적", selectedIndex, names);
+        if (nextIndex != selectedIndex) iconTargetData = nextIndex == 0 ? null : enemies[nextIndex - 1];
+        if (iconTargetData == null || !iconTargetData.isEnemy)
+        {
+            EditorGUILayout.HelpBox("보스 또는 엘리트 적을 선택하면 그 적만의 강화 아이콘을 지정할 수 있습니다.", MessageType.Info);
+        }
+        else
+        {
+            EditorGUI.BeginChangeCheck();
+            iconTargetData.enemyEnhancementIcon = (Sprite)EditorGUILayout.ObjectField("적 전용 강화 아이콘", iconTargetData.enemyEnhancementIcon, typeof(Sprite), false);
+            if (EditorGUI.EndChangeCheck()) MarkDirtyAndSave(iconTargetData);
+            EditorGUILayout.HelpBox("None이면 공용 적 강화 아이콘을 사용합니다.", MessageType.None);
+        }
+        EndVerticalScrollView();
+        EditorGUILayout.EndVertical();
+    }
+
     private void DrawModeToolbar()
     {
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.ExpandWidth(true));
 
         int characterModeIndex = editorMode == CharacterEditorMode.Player
             ? 0
             : editorMode == CharacterEditorMode.Enemy ? 1 : -1;
-        int nextCharacterModeIndex = GUILayout.Toolbar(characterModeIndex, new[] { "아군", "적" });
+        int nextCharacterModeIndex = GUILayout.Toolbar(characterModeIndex, new[] { "아군", "적" }, GUILayout.ExpandWidth(true), GUILayout.Height(22f));
         if (nextCharacterModeIndex >= 0 && nextCharacterModeIndex != characterModeIndex)
             SetEditorMode(nextCharacterModeIndex == 0 ? CharacterEditorMode.Player : CharacterEditorMode.Enemy);
 
@@ -168,17 +264,29 @@ public class CharacterEditorWindow : EditorWindow
             ? 0
             : editorMode == CharacterEditorMode.Pools
             ? 1
-            : editorMode == CharacterEditorMode.Events ? 2 : -1;
-        int nextOtherModeIndex = GUILayout.Toolbar(otherModeIndex, new[] { "포메이션", "풀", "이벤트" });
+            : editorMode == CharacterEditorMode.Events ? 2
+            : editorMode == CharacterEditorMode.Icons ? 3 : -1;
+        int nextOtherModeIndex = GUILayout.Toolbar(otherModeIndex, new[] { "포메이션", "풀", "이벤트", "아이콘" }, GUILayout.ExpandWidth(true), GUILayout.Height(22f));
         if (nextOtherModeIndex >= 0 && nextOtherModeIndex != otherModeIndex)
         {
             if (nextOtherModeIndex == 0) SetEditorMode(CharacterEditorMode.Formations);
             else if (nextOtherModeIndex == 1) SetEditorMode(CharacterEditorMode.Pools);
             else if (nextOtherModeIndex == 2) SetEditorMode(CharacterEditorMode.Events);
+            else if (nextOtherModeIndex == 3) SetEditorMode(CharacterEditorMode.Icons);
         }
 
         EditorGUILayout.EndVertical();
         EditorGUILayout.Space(4f);
+    }
+
+    private void BeginNavigationPanel()
+    {
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(NavigationPanelWidth), GUILayout.ExpandHeight(true));
+    }
+
+    private void BeginOverviewPanel()
+    {
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(OverviewPanelWidth), GUILayout.ExpandHeight(true));
     }
 
     private void SetEditorMode(CharacterEditorMode nextMode)
@@ -186,6 +294,8 @@ public class CharacterEditorWindow : EditorWindow
         if (editorMode == nextMode) return;
 
         FlushPendingSaveNow();
+        if (nextMode == CharacterEditorMode.Icons && selectedData != null && selectedData.isEnemy)
+            iconTargetData = selectedData;
         editorMode = nextMode;
         selectedData = null;
         selectedEventData = null;
@@ -325,7 +435,7 @@ public class CharacterEditorWindow : EditorWindow
 
     private void DrawLeftPanel()
     {
-        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(CharacterListWidth), GUILayout.ExpandHeight(true));
+        BeginNavigationPanel();
         DrawModeToolbar();
         EditorGUILayout.Space(6f);
         EditorGUILayout.LabelField(IsEnemyMode ? "적 캐릭터 목록" : "아군 캐릭터 목록", EditorStyles.boldLabel);
@@ -348,9 +458,8 @@ public class CharacterEditorWindow : EditorWindow
 
             EditorGUILayout.BeginHorizontal();
             bool isSelected = selectedData == data;
-            float nameButtonWidth = Mathf.Max(80f, CharacterListWidth - 60f);
             var nameContent = new GUIContent(displayName, displayName);
-            if (GUILayout.Toggle(isSelected, nameContent, "Button", GUILayout.Width(nameButtonWidth), GUILayout.Height(25)) && !isSelected)
+            if (GUILayout.Toggle(isSelected, nameContent, "Button", GUILayout.ExpandWidth(true), GUILayout.Height(25)) && !isSelected)
             {
                 selectedData = data;
                 iconFolderPath = "";
@@ -378,7 +487,7 @@ public class CharacterEditorWindow : EditorWindow
 
     private void DrawMiddlePanel()
     {
-        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(CharacterDetailWidth), GUILayout.ExpandHeight(true));
+        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
         if (selectedData == null)
         {
             EditorGUILayout.HelpBox(IsEnemyMode ? "적 캐릭터를 선택하세요." : "아군 캐릭터를 선택하세요.", MessageType.Info);
@@ -773,12 +882,17 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUILayout.LabelField("적 행동 패턴", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox("위에서 아래 순서로 실행한 뒤 처음으로 돌아갑니다.", MessageType.None);
 
-        EditorGUILayout.BeginVertical("helpbox");
-        EditorGUILayout.LabelField("사이클 성장", EditorStyles.miniBoldLabel);
-        selectedData.damageBonusPerCycle = Mathf.Max(0f, EditorGUILayout.FloatField("사이클당 힘", selectedData.damageBonusPerCycle));
-        selectedData.bleedBonusPerCycle = Mathf.Max(0f, EditorGUILayout.FloatField("사이클당 출혈", selectedData.bleedBonusPerCycle));
-        EditorGUILayout.LabelField($"사이클 종료: 직접 피해 +{selectedData.damageBonusPerCycle:0.##}, 출혈 +{selectedData.bleedBonusPerCycle:0.##}", EditorStyles.wordWrappedMiniLabel);
-        EditorGUILayout.EndVertical();
+        if (selectedData.damageBonusPerCycle > 0f || selectedData.bleedBonusPerCycle > 0f)
+            EditorGUILayout.HelpBox("사이클 성장은 더 이상 실행되지 않습니다. 패턴에 힘 또는 출혈 행동을 추가해 이전하세요.", MessageType.Warning);
+
+        if (GUILayout.Button("아이콘 탭에서 편집"))
+        {
+            iconTargetData = selectedData;
+            SetEditorMode(CharacterEditorMode.Icons);
+        }
+
+        DrawEnemyRuntimeVariables();
+        DrawEnemyRewardSettings();
 
         DrawPatternPresetButtons();
 
@@ -787,6 +901,7 @@ public class CharacterEditorWindow : EditorWindow
             EnemyPatternData pattern = selectedData.enemyPatterns[i] ?? CreateEnemyPattern($"패턴 {i + 1}", TargetType.SingleEnemy, EnemyTargetSelection.Random, EffectType.Damage, 5f);
             selectedData.enemyPatterns[i] = pattern;
             if (pattern.effects == null) pattern.effects = new List<EffectEntry>();
+            if (pattern.actions == null) pattern.actions = new List<EnemyPatternAction>();
 
             EditorGUILayout.BeginVertical("helpbox");
             EditorGUILayout.BeginHorizontal();
@@ -805,17 +920,145 @@ public class CharacterEditorWindow : EditorWindow
             if (GUILayout.Button("×", GUILayout.Width(22))) { selectedData.enemyPatterns.RemoveAt(i); MarkDirtyAndSave(selectedData); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
             EditorGUILayout.EndHorizontal();
 
-            EnemyTargetSide side = GetEnemyTargetSide(pattern.targetType);
-            EnemyTargetRange range = GetEnemyTargetRange(pattern.targetType);
-            DrawTargetSettings(ref side, ref pattern.targetSelection, ref range);
+            if (pattern.actions.Count > 0)
+            {
+                DrawEnemyPatternActions(pattern);
+            }
+            else
+            {
+                EditorGUILayout.HelpBox("기존 효과형 패턴입니다. 변환 후 행동마다 대상을 따로 지정할 수 있습니다.", MessageType.Info);
+                if (GUILayout.Button("기존 효과를 행동으로 변환")) ConvertLegacyEffectsToActions(pattern);
+                EnemyTargetSide side = GetEnemyTargetSide(pattern.targetType);
+                EnemyTargetRange range = GetEnemyTargetRange(pattern.targetType);
+                DrawTargetSettings(ref side, ref pattern.targetSelection, ref range);
 
-            if (side == EnemyTargetSide.Self) range = EnemyTargetRange.Single;
-            pattern.targetType = ToTargetType(side, range);
-            DrawEnemyEffectList(pattern.effects);
-            pattern.targetType = ForceSingleTauntTarget(pattern.targetType, pattern.effects);
+                if (side == EnemyTargetSide.Self) range = EnemyTargetRange.Single;
+                pattern.targetType = ToTargetType(side, range);
+                DrawEnemyEffectList(pattern.effects);
+                pattern.targetType = ForceSingleTauntTarget(pattern.targetType, pattern.effects);
+            }
             EditorGUILayout.EndVertical();
         }
         EditorGUILayout.EndVertical();
+    }
+
+    private void DrawEnemyRuntimeVariables()
+    {
+        if (selectedData.enemyRuntimeVariables == null) selectedData.enemyRuntimeVariables = new List<EnemyRuntimeVariableDefinition>();
+        EditorGUILayout.BeginVertical("helpbox");
+        EditorGUILayout.LabelField("전투 변수", EditorStyles.miniBoldLabel);
+        for (int i = 0; i < selectedData.enemyRuntimeVariables.Count; i++)
+        {
+            EnemyRuntimeVariableDefinition variable = selectedData.enemyRuntimeVariables[i] ?? new EnemyRuntimeVariableDefinition();
+            selectedData.enemyRuntimeVariables[i] = variable;
+            EditorGUILayout.BeginHorizontal();
+            variable.id = EditorGUILayout.TextField(variable.id, GUILayout.MinWidth(100));
+            variable.displayName = EditorGUILayout.TextField(variable.displayName, GUILayout.MinWidth(80));
+            variable.initialValue = EditorGUILayout.IntField(variable.initialValue, GUILayout.Width(42));
+            variable.hasMaxValue = EditorGUILayout.ToggleLeft("최대", variable.hasMaxValue, GUILayout.Width(50));
+            if (variable.hasMaxValue) variable.maxValue = EditorGUILayout.IntField(variable.maxValue, GUILayout.Width(42));
+            variable.showInUi = EditorGUILayout.ToggleLeft("표시", variable.showInUi, GUILayout.Width(50));
+            if (GUILayout.Button("X", GUILayout.Width(22))) { selectedData.enemyRuntimeVariables.RemoveAt(i); i--; }
+            EditorGUILayout.EndHorizontal();
+            variable.displayDescription = EditorGUILayout.TextField("설명", variable.displayDescription);
+        }
+        if (GUILayout.Button("전투 변수 추가")) selectedData.enemyRuntimeVariables.Add(new EnemyRuntimeVariableDefinition());
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawEnemyRewardSettings()
+    {
+        EditorGUILayout.BeginVertical("helpbox");
+        EditorGUILayout.LabelField("처치 골드", EditorStyles.miniBoldLabel);
+        selectedData.defeatGoldBonus = Mathf.Max(0, EditorGUILayout.IntField("추가 골드", selectedData.defeatGoldBonus));
+        selectedData.returnStolenGoldOnDefeat = EditorGUILayout.Toggle("탈취 골드 반환", selectedData.returnStolenGoldOnDefeat);
+        if (selectedData.returnStolenGoldOnDefeat)
+            selectedData.stolenGoldVariableId = EditorGUILayout.TextField("탈취 골드 변수 ID", selectedData.stolenGoldVariableId);
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawEnemyPatternActions(EnemyPatternData pattern)
+    {
+        EditorGUILayout.LabelField("행동", EditorStyles.miniBoldLabel);
+        for (int i = 0; i < pattern.actions.Count; i++)
+        {
+            EnemyPatternAction action = pattern.actions[i] ?? new EnemyPatternAction();
+            pattern.actions[i] = action;
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField($"{i + 1}", GUILayout.Width(20));
+            action.actionType = (EnemyPatternActionType)EditorGUILayout.EnumPopup(action.actionType);
+            if (GUILayout.Button("복", GUILayout.Width(22))) { pattern.actions.Insert(i + 1, CloneEnemyAction(action)); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
+            if (GUILayout.Button("↑", GUILayout.Width(22)) && i > 0) { SwapEnemyActions(pattern.actions, i, i - 1); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
+            if (GUILayout.Button("↓", GUILayout.Width(22)) && i < pattern.actions.Count - 1) { SwapEnemyActions(pattern.actions, i, i + 1); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
+            if (GUILayout.Button("X", GUILayout.Width(22))) { pattern.actions.RemoveAt(i); EditorGUILayout.EndHorizontal(); EditorGUILayout.EndVertical(); break; }
+            EditorGUILayout.EndHorizontal();
+            if (action.actionType == EnemyPatternActionType.StealGold)
+            {
+                action.runtimeVariableId = EditorGUILayout.TextField("탈취 골드 변수 ID", action.runtimeVariableId);
+                action.runtimeValue = Mathf.Max(0, EditorGUILayout.IntField("탈취 골드", action.runtimeValue));
+            }
+            else if (action.actionType == EnemyPatternActionType.Flee)
+            {
+                EditorGUILayout.HelpBox("이 적만 전투에서 도주합니다.", MessageType.None);
+            }
+            else if (action.actionType == EnemyPatternActionType.ModifyRuntimeVariable)
+            {
+                action.runtimeVariableId = EditorGUILayout.TextField("변수 ID", action.runtimeVariableId);
+                action.setRuntimeValue = EditorGUILayout.Toggle("값 설정", action.setRuntimeValue);
+                action.runtimeValue = EditorGUILayout.IntField(action.setRuntimeValue ? "설정 값" : "증감 값", action.runtimeValue);
+            }
+            else
+            {
+                DrawEnemyActionTarget(action);
+                if (action.actionType == EnemyPatternActionType.Effect)
+                {
+                    action.usePreparedTarget = EditorGUILayout.Toggle("앞 행동 대상 공유", action.usePreparedTarget);
+                    if (action.effect == null) action.effect = new EffectEntry();
+                    DrawEnemyEffectList(new List<EffectEntry> { action.effect }, false);
+                    action.valueVariableId = EditorGUILayout.TextField("수치 변수", action.valueVariableId);
+                    action.hitCountVariableId = EditorGUILayout.TextField("타격 변수", action.hitCountVariableId);
+                }
+            }
+            EditorGUILayout.EndVertical();
+        }
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("효과 행동 추가")) pattern.actions.Add(new EnemyPatternAction());
+        if (GUILayout.Button("변수 변경 추가")) pattern.actions.Add(new EnemyPatternAction { actionType = EnemyPatternActionType.ModifyRuntimeVariable });
+        if (GUILayout.Button("대상 기억 추가")) pattern.actions.Add(new EnemyPatternAction { actionType = EnemyPatternActionType.RememberTarget });
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private static void DrawEnemyActionTarget(EnemyPatternAction action)
+    {
+        EnemyTargetSide side = GetEnemyTargetSide(action.targetType);
+        EnemyTargetRange range = GetEnemyTargetRange(action.targetType);
+        DrawTargetSettings(ref side, ref action.targetSelection, ref range);
+        if (side == EnemyTargetSide.Self) range = EnemyTargetRange.Single;
+        action.targetType = ToTargetType(side, range);
+    }
+
+    private static void ConvertLegacyEffectsToActions(EnemyPatternData pattern)
+    {
+        if (pattern.effects == null) return;
+        foreach (EffectEntry effect in pattern.effects)
+        {
+            if (effect == null) continue;
+            pattern.actions.Add(new EnemyPatternAction
+            {
+                targetType = pattern.targetType,
+                targetSelection = pattern.targetSelection,
+                effect = CloneEffect(effect)
+            });
+        }
+    }
+
+    private static void SwapEnemyActions(List<EnemyPatternAction> actions, int a, int b)
+    {
+        EnemyPatternAction temp = actions[a];
+        actions[a] = actions[b];
+        actions[b] = temp;
     }
 
     private void DrawPatternPresetButtons()
@@ -834,7 +1077,7 @@ public class CharacterEditorWindow : EditorWindow
     private static void DrawTargetSettings(ref EnemyTargetSide side, ref EnemyTargetSelection selection, ref EnemyTargetRange range)
     {
         string[] sideLabels = { "유저", "적", "자신" };
-        string[] selectionLabels = { "랜덤", "리더", "HP 최저", "HP 최고" };
+        string[] selectionLabels = { "랜덤", "리더", "HP 최저", "HP 최고", "기억 대상" };
         string[] rangeLabels = { "단일", "왼쪽", "오른쪽", "양옆", "전체" };
 
         EditorGUILayout.BeginHorizontal();
@@ -855,22 +1098,69 @@ public class CharacterEditorWindow : EditorWindow
 
     private static EnemyPatternData CreateEnemyPattern(string name, TargetType targetType, EnemyTargetSelection selection, EffectType effectType, float value)
     {
+        var effect = new EffectEntry
+        {
+            type = effectType,
+            damageType = DamageType.Physical,
+            multiplier = 0f,
+            fixedValue = effectType == EffectType.Damage || effectType == EffectType.Heal ? value : 0f,
+            value = effectType == EffectType.Strength ? value : 0f
+        };
         return new EnemyPatternData
         {
             patternName = name,
             targetType = targetType,
             targetSelection = selection,
-            effects = new List<EffectEntry>
+            effects = new List<EffectEntry> { CloneEffect(effect) },
+            actions = new List<EnemyPatternAction>
             {
-                new EffectEntry
+                new EnemyPatternAction
                 {
-                    type = effectType,
-                    damageType = DamageType.Physical,
-                    multiplier = 0f,
-                    fixedValue = effectType == EffectType.Damage || effectType == EffectType.Heal ? value : 0f,
-                    value = effectType == EffectType.Strength ? value : 0f
+                    targetType = targetType,
+                    targetSelection = selection,
+                    effect = effect
                 }
             }
+        };
+    }
+
+    private static EnemyPatternAction CloneEnemyAction(EnemyPatternAction source)
+    {
+        return new EnemyPatternAction
+        {
+            actionType = source.actionType,
+            intentIcon = source.intentIcon,
+            targetType = source.targetType,
+            targetSelection = source.targetSelection,
+            usePreparedTarget = source.usePreparedTarget,
+            effect = CloneEffect(source.effect),
+            valueVariableId = source.valueVariableId,
+            hitCountVariableId = source.hitCountVariableId,
+            runtimeVariableId = source.runtimeVariableId,
+            runtimeValue = source.runtimeValue,
+            setRuntimeValue = source.setRuntimeValue
+        };
+    }
+
+    private static EffectEntry CloneEffect(EffectEntry effect)
+    {
+        if (effect == null) return new EffectEntry();
+        return new EffectEntry
+        {
+            type = effect.type,
+            damageType = effect.damageType,
+            multiplier = effect.multiplier,
+            fixedValue = effect.fixedValue,
+            useActualResult = effect.useActualResult,
+            value = effect.value,
+            secondaryValue = effect.secondaryValue,
+            hitCount = effect.hitCount,
+            duration = effect.duration,
+            charges = effect.charges,
+            durationType = effect.durationType,
+            skillSlot = effect.skillSlot,
+            customVfxName = effect.customVfxName,
+            statusIcon = effect.statusIcon
         };
     }
 
@@ -887,23 +1177,11 @@ public class CharacterEditorWindow : EditorWindow
 
         foreach (EffectEntry effect in source.effects)
         {
-            copy.effects.Add(new EffectEntry
-            {
-                type = effect.type,
-                damageType = effect.damageType,
-                multiplier = effect.multiplier,
-                fixedValue = effect.fixedValue,
-                useActualResult = effect.useActualResult,
-                value = effect.value,
-                secondaryValue = effect.secondaryValue,
-                hitCount = effect.hitCount,
-                duration = effect.duration,
-                charges = effect.charges,
-                durationType = effect.durationType,
-                skillSlot = effect.skillSlot,
-                customVfxName = effect.customVfxName
-            });
+            copy.effects.Add(CloneEffect(effect));
         }
+        if (source.actions != null)
+            foreach (EnemyPatternAction action in source.actions)
+                if (action != null) copy.actions.Add(CloneEnemyAction(action));
         return copy;
     }
 
@@ -973,12 +1251,15 @@ public class CharacterEditorWindow : EditorWindow
         Resurrection
     }
 
-    private void DrawEnemyEffectList(List<EffectEntry> effects)
+    private void DrawEnemyEffectList(List<EffectEntry> effects, bool allowPaletteAndRemoval = true)
     {
         if (effects == null) return;
 
-        DrawEffectPaletteToggle(effects);
-        DrawStatusPaletteToggle(effects);
+        if (allowPaletteAndRemoval)
+        {
+            DrawEffectPaletteToggle(effects);
+            DrawStatusPaletteToggle(effects);
+        }
 
         string[] effectLabels =
         {
@@ -1028,9 +1309,22 @@ public class CharacterEditorWindow : EditorWindow
             }
             GUILayout.Label("연계", GUILayout.Width(28));
             effect.useActualResult = EditorGUILayout.Toggle(effect.useActualResult, GUILayout.Width(18));
-            if (GUILayout.Button("X", GUILayout.Width(22))) { effects.RemoveAt(i); i--; }
+            if (allowPaletteAndRemoval && GUILayout.Button("X", GUILayout.Width(22))) { effects.RemoveAt(i); i--; }
             EditorGUILayout.EndHorizontal();
+            DrawCommonEffectIconField(effect.type);
         }
+    }
+
+    private static void DrawCommonEffectIconField(EffectType effectType)
+    {
+        CombatIconLibrary library = GetOrCreateCombatIconLibrary();
+        EditorGUI.BeginChangeCheck();
+        Sprite icon = (Sprite)EditorGUILayout.ObjectField($"공용 {CombatIconLibrary.GetDisplayName(effectType)} 아이콘", library.GetIcon(effectType), typeof(Sprite), false);
+        if (!EditorGUI.EndChangeCheck()) return;
+
+        library.SetIcon(effectType, icon);
+        EditorUtility.SetDirty(library);
+        AssetDatabase.SaveAssets();
     }
 
     private void DrawEnemyFixedValueField(EffectEntry effect, string label)
@@ -1288,7 +1582,9 @@ public class CharacterEditorWindow : EditorWindow
     private void DrawStatusGroup(List<EffectEntry> effects, string title, string[] labels, EffectType[] types, float[] values)
     {
         EditorGUILayout.LabelField(title, EditorStyles.miniBoldLabel);
-        int selected = GUILayout.SelectionGrid(-1, labels, Mathf.Min(5, labels.Length), GUILayout.Height(22));
+        int columns = Mathf.Min(5, labels.Length);
+        int rows = Mathf.CeilToInt(labels.Length / (float)columns);
+        int selected = GUILayout.SelectionGrid(-1, labels, columns, GUILayout.Height(rows * 22f));
         if (selected < 0) return;
 
         EffectType type = types[selected];
@@ -1340,10 +1636,10 @@ public class CharacterEditorWindow : EditorWindow
 
     private void DrawRightOverviewPanel()
     {
-        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(CharacterSheetWidth), GUILayout.ExpandHeight(true));
+        BeginOverviewPanel();
         EditorGUILayout.LabelField(IsEnemyMode ? "적 데이터 시트" : "아군 데이터 시트", EditorStyles.boldLabel);
         rightScroll = BeginVerticalScrollView(rightScroll);
-        float rowWidth = Mathf.Max(180f, CharacterSheetWidth - 18f);
+        float rowWidth = Mathf.Max(180f, OverviewPanelWidth - 18f);
         float firstRowFieldsWidth = Mathf.Max(90f, rowWidth - 94f);
         float statFieldsWidth = Mathf.Max(180f, rowWidth - 114f);
         float hpFieldWidth = statFieldsWidth * 0.2f;
@@ -1503,6 +1799,13 @@ public class CharacterEditorWindow : EditorWindow
                     effects = new List<EffectEntry>
                     {
                         new EffectEntry { type = EffectType.Damage, multiplier = 0f, fixedValue = 5f, hitCount = 1 }
+                    },
+                    actions = new List<EnemyPatternAction>
+                    {
+                        new EnemyPatternAction
+                        {
+                            effect = new EffectEntry { type = EffectType.Damage, multiplier = 0f, fixedValue = 5f, hitCount = 1 }
+                        }
                     }
                 }
             };
@@ -1574,12 +1877,53 @@ public class CharacterEditorWindow : EditorWindow
             result.errors.Add("행동 패턴이 없습니다.");
             return;
         }
+        var variableIds = new HashSet<string>();
+        if (data.enemyRuntimeVariables != null)
+        {
+            foreach (EnemyRuntimeVariableDefinition variable in data.enemyRuntimeVariables)
+            {
+                if (variable == null || string.IsNullOrWhiteSpace(variable.id))
+                {
+                    result.errors.Add("전투 변수 ID가 비어 있습니다.");
+                    continue;
+                }
+                string id = variable.id.Trim();
+                if (!variableIds.Add(id)) result.errors.Add($"전투 변수 ID가 중복됩니다: {id}");
+                if (variable.hasMaxValue && variable.initialValue > variable.maxValue)
+                    result.warnings.Add($"전투 변수 초기값이 최대값보다 큽니다: {id}");
+            }
+        }
         for (int i = 0; i < data.enemyPatterns.Count; i++)
         {
             EnemyPatternData pattern = data.enemyPatterns[i];
             if (pattern == null)
             {
                 result.errors.Add($"{i + 1}번 패턴이 없습니다.");
+                continue;
+            }
+            if (pattern.actions != null && pattern.actions.Count > 0)
+            {
+                for (int actionIndex = 0; actionIndex < pattern.actions.Count; actionIndex++)
+                {
+                    EnemyPatternAction action = pattern.actions[actionIndex];
+                    string label = $"{i + 1}번 패턴의 {actionIndex + 1}번 행동";
+                    if (action == null) { result.errors.Add($"{label}이 없습니다."); continue; }
+                    if (action.actionType == EnemyPatternActionType.ModifyRuntimeVariable)
+                    {
+                        if (!variableIds.Contains(action.runtimeVariableId?.Trim() ?? "")) result.errors.Add($"{label}이 선언되지 않은 변수을 변경합니다.");
+                        continue;
+                    }
+                    if (action.actionType == EnemyPatternActionType.Effect)
+                    {
+                        if (action.effect == null) { result.errors.Add($"{label}의 효과가 없습니다."); continue; }
+                        if (!string.IsNullOrWhiteSpace(action.valueVariableId) && !variableIds.Contains(action.valueVariableId.Trim()))
+                            result.errors.Add($"{label}이 선언되지 않은 수치 변수를 참조합니다.");
+                        if (!string.IsNullOrWhiteSpace(action.hitCountVariableId) && !variableIds.Contains(action.hitCountVariableId.Trim()))
+                            result.errors.Add($"{label}이 선언되지 않은 타격 변수를 참조합니다.");
+                        if (action.effect.type == EffectType.Damage && action.effect.fixedValue <= 0f && Mathf.Approximately(action.effect.multiplier, 0f)
+                            && string.IsNullOrWhiteSpace(action.valueVariableId)) result.errors.Add($"{label}의 피해량은 0보다 커야 합니다.");
+                    }
+                }
                 continue;
             }
             if (pattern.effects == null || pattern.effects.Count == 0)
@@ -1691,6 +2035,28 @@ public class CharacterEditorWindow : EditorWindow
 
     private string GetDataFolder(bool isEnemy) => isEnemy ? ENEMY_DATA_FOLDER : PLAYER_DATA_FOLDER;
     private string GetIllustFolder(bool isEnemy) => isEnemy ? ENEMY_ILLUST_FOLDER : PLAYER_ILLUST_FOLDER;
+
+    private static CombatIconLibrary GetOrCreateCombatIconLibrary()
+    {
+        const string path = "Assets/Resources/CombatIconLibrary.asset";
+        CombatIconLibrary library = AssetDatabase.LoadAssetAtPath<CombatIconLibrary>(path);
+        if (library == null)
+        {
+            Directory.CreateDirectory("Assets/Resources");
+            library = CreateInstance<CombatIconLibrary>();
+            library.EnsureEffectEntries();
+            AssetDatabase.CreateAsset(library, path);
+            AssetDatabase.SaveAssets();
+        }
+        else
+        {
+            int entryCount = library.entries == null ? 0 : library.entries.Count;
+            if (library.entries == null) library.entries = new List<CombatIconEntry>();
+            library.EnsureEffectEntries();
+            if (library.entries.Count != entryCount) EditorUtility.SetDirty(library);
+        }
+        return library;
+    }
 
     private void MarkDirtyAndSave(CharacterData data)
     {
@@ -1834,7 +2200,7 @@ public class CharacterEditorWindow : EditorWindow
 
     private void DrawEventLeftPanel()
     {
-        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(EventListWidth), GUILayout.ExpandHeight(true));
+        BeginNavigationPanel();
         DrawModeToolbar();
         EditorGUILayout.Space(6f);
         EditorGUILayout.LabelField("이벤트 목록", EditorStyles.boldLabel);
@@ -1876,9 +2242,8 @@ public class CharacterEditorWindow : EditorWindow
                 : assetPath.Contains("/Events/Stage3/") ? "Stage3"
                 : "Event";
             string displayLabel = $"[{category}] {title}";
-            float eventNameWidth = Mathf.Max(80f, EventListWidth - 60f);
             var eventContent = new GUIContent(displayLabel, displayLabel);
-            if (GUILayout.Toggle(isSelected, eventContent, "Button", GUILayout.Width(eventNameWidth), GUILayout.Height(25)) && !isSelected)
+            if (GUILayout.Toggle(isSelected, eventContent, "Button", GUILayout.ExpandWidth(true), GUILayout.Height(25)) && !isSelected)
             {
                 selectedEventData = data;
                 GUI.FocusControl(null);
@@ -2092,7 +2457,7 @@ public class CharacterEditorWindow : EditorWindow
 
     private void DrawEventRightOverviewPanel()
     {
-        EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(230), GUILayout.ExpandHeight(true));
+        BeginOverviewPanel();
         EditorGUILayout.LabelField("이벤트 정보 & 도구", EditorStyles.boldLabel);
 
         if (selectedEventData == null)

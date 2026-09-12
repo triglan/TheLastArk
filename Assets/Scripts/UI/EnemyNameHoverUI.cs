@@ -26,6 +26,8 @@ namespace TheLastArk.UI
         private bool isVisible;
         private float pointerEnteredAt;
 
+        public float NormalizedHeight => normalizedHeight;
+
         private void Awake()
         {
             enemy = GetComponent<EnemyBattleCharacter>();

@@ -79,7 +79,8 @@ public class EnemyBattleCharacterEditor : Editor
         DrawReadOnlyText("정신력", $"{currentMental:0.##} / {maxMental:0.##}");
         DrawReadOnlyText("방어력", (status != null ? status.FinalArmor : enemy.enemyData.armor).ToString("0.##"));
         DrawReadOnlyText("마법 저항력", (status != null ? status.FinalMagicResist : enemy.enemyData.magicResist).ToString("0.##"));
-        DrawReadOnlyText("사이클 성장", $"힘 +{enemy.enemyData.damageBonusPerCycle:0.##}, 출혈 +{enemy.enemyData.bleedBonusPerCycle:0.##}");
+        if (enemy.enemyData.damageBonusPerCycle > 0f || enemy.enemyData.bleedBonusPerCycle > 0f)
+            EditorGUILayout.HelpBox("레거시 사이클 성장값은 전투에 적용되지 않습니다.", MessageType.Warning);
 
         if (status != null && status.activeStatusEffects != null && status.activeStatusEffects.Count > 0)
             DrawActiveEffects(status.activeStatusEffects);

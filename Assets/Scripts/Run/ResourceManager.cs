@@ -83,6 +83,16 @@ namespace TheLastArk.Managers
             return TrySpendGold(amount);
         }
 
+        public int TakeGoldUpTo(int amount)
+        {
+            int taken = Mathf.Min(Mathf.Max(0, amount), Mathf.Max(0, Gold));
+            if (taken == 0) return 0;
+
+            RunManager.Instance.State.gold -= taken;
+            OnGoldChanged?.Invoke();
+            return taken;
+        }
+
         public void NotifyGoldChanged()
         {
             OnGoldChanged?.Invoke();

@@ -17,6 +17,7 @@ MonoBehaviour:
   jobName: 
   synergies: 
   isEnemy: 1
+  regionId: temp
   standingSprite: {fileID: 21300000, guid: c2b83b4dc05d4b14ca6dfee7595681a8, type: 3}
   portraitSprite: {fileID: 0}
   maxHp: 30
@@ -39,19 +40,49 @@ MonoBehaviour:
     levels:
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
       targetType: 0
+      customVfxName: 
       effects: []
   activeSkills: []
+  enemyRoleDescription: 
+  damageBonusPerCycle: 0
+  bleedBonusPerCycle: 0
   enemyPatterns:
   - patternName: Pattern 1
     targetType: 0
+    targetSelection: 0
+    customVfxName: 
     effects:
     - type: 0
+      damageType: 0
       multiplier: 1
       fixedValue: 0
       useActualResult: 0
+      value: 0
+      secondaryValue: 0
+      hitCount: 1
+      duration: 3
+      charges: 3
+      durationType: 0
+      skillSlot: -1
+      statusIcon: {fileID: 0}
+      customVfxName: 
+    actions: []
+  enemyRuntimeVariables:
+  - id: 
+    displayName: 
+    displayDescription: 
+    useCommonIcon: 1
+    commonIconType: 0
+    displayIcon: {fileID: 0}
+    initialValue: 0
+    hasMaxValue: 0
+    maxValue: 0
+    showInUi: 0

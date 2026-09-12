@@ -24,6 +24,7 @@ public class ActiveStatusEffect
     public float secondaryValue;
     public int skillSlot = -1;
     public BattleCharacter source;
+    public Sprite displayIcon;
 
     public bool IsActive
     {

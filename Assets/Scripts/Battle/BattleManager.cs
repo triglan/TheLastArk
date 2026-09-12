@@ -1008,6 +1008,7 @@ public class BattleManager : MonoBehaviour
     {
         RemoveOwnerPhaseEffects(playerParty);
         ClearEnemyTargetMarkers();
+        PrepareEnemyIntents();
         Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");
 
         _limitFirstSkillFreeThisTurn = false;
@@ -1884,13 +1885,14 @@ public class BattleManager : MonoBehaviour
             }
 
             Debug.Log($"[Battle] {enemy.characterName}이 행동합니다.");
-            if (!ai.PrepareTurn()) continue;
+            if (!ai.HasPreparedTurn && !ai.PrepareTurn()) continue;
 
             var preparedTargets = new List<BattleCharacter>(ai.PreparedTargets);
             SetEnemyTargetMarkers(preparedTargets, true);
             yield return new WaitForSeconds(EnemyActionDelay);
             ai.ExecuteTurn();
             SetEnemyTargetMarkers(preparedTargets, false);
+            enemy.GetComponent<EnemyIntentUI>()?.Hide();
 
             if (IsPartyWiped(playerParty))
             {
@@ -1950,6 +1952,7 @@ public class BattleManager : MonoBehaviour
     {
         CancelPendingSelection();
         ClearEnemyTargetMarkers();
+        ClearEnemyIntents();
         bool playerWin = IsPartyWiped(enemyParty);
         Debug.Log($"[Battle] 전투 종료: {(playerWin ? "승리" : "패배")}");
 
@@ -2014,6 +2017,38 @@ public class BattleManager : MonoBehaviour
     private void ClearEnemyTargetMarkers()
     {
         SetEnemyTargetMarkers(playerParty, false);
+    }
+
+    private void PrepareEnemyIntents()
+    {
+        if (enemyParty == null) return;
+
+        foreach (BattleCharacter enemy in enemyParty)
+        {
+            if (enemy == null || enemy.status == null || enemy.status.currentHp <= 0f) continue;
+            EnemyAI ai = enemy.GetComponent<EnemyAI>();
+            if (ai == null) continue;
+
+            ai.targetParty = playerParty;
+            ai.allyParty = enemyParty;
+            EnemyIntentUI ui = enemy.GetComponent<EnemyIntentUI>();
+            if (ui == null) ui = enemy.gameObject.AddComponent<EnemyIntentUI>();
+            if (enemy.GetComponent<EnemyEnhancementUI>() == null) enemy.gameObject.AddComponent<EnemyEnhancementUI>();
+
+            if (ai.PrepareTurn())
+            {
+                ui.Show(ai.PreparedIntent);
+                SetEnemyTargetMarkers(ai.PreparedTargets, true);
+            }
+            else ui.Hide();
+        }
+    }
+
+    private void ClearEnemyIntents()
+    {
+        if (enemyParty == null) return;
+        foreach (BattleCharacter enemy in enemyParty)
+            enemy?.GetComponent<EnemyIntentUI>()?.Hide();
     }
 
     private void CacheTurnEndButton()

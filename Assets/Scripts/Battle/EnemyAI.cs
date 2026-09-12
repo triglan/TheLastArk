@@ -9,12 +9,16 @@ public class EnemyAI : MonoBehaviour
 
     private BattleCharacter _self;
     private int _patternIndex;
-    private int _completedCycles;
     private List<BattleCharacter> _preparedTargets;
     private EnemyPatternData _preparedPattern;
+    private EnemyPatternAction _preparedAction;
+    private EnemyIntentData _preparedIntent;
+    private EnemyRuntimeState _runtimeState;
 
     public IReadOnlyList<BattleCharacter> PreparedTargets => _preparedTargets;
-    public int CompletedCycles => _completedCycles;
+    public EnemyIntentData PreparedIntent => _preparedIntent;
+    public bool HasPreparedTurn => _preparedPattern != null;
+    public EnemyRuntimeState RuntimeState => GetRuntimeState();
 
     private void Awake()
     {
@@ -25,10 +29,11 @@ public class EnemyAI : MonoBehaviour
     {
         _preparedTargets = null;
         _preparedPattern = null;
+        _preparedAction = null;
+        _preparedIntent = null;
 
         // 기절 상태면 이번 적 턴의 행동을 건너뜁니다.
         if (_self == null || _self.status?.origin == null) return false;
-        if (targetParty == null || targetParty.Count == 0) return false;
         if (HasStatus(EffectType.Stun))
         {
             Debug.Log($"[EnemyAI] {_self.characterName} 기절로 행동하지 못함");
@@ -41,58 +46,59 @@ public class EnemyAI : MonoBehaviour
             return false;
 
         EnemyPatternData pattern = patterns[Mathf.Abs(_patternIndex) % patterns.Count];
-        if (pattern == null || pattern.effects == null || pattern.effects.Count == 0)
+        if (pattern == null || !HasActions(pattern))
             return false;
 
-        _preparedTargets = ResolveTargets(pattern.targetType, pattern.targetSelection);
-        if (_preparedTargets.Count == 0) return false;
+        _preparedAction = FindTargetedAction(pattern);
+        _preparedTargets = _preparedAction != null
+            ? ResolveTargets(_preparedAction.targetType, _preparedAction.targetSelection)
+            : ResolveTargets(pattern.targetType, pattern.targetSelection);
 
         _preparedPattern = pattern;
+        _preparedIntent = BuildIntent(pattern);
         return true;
     }
 
     public void ExecuteTurn()
     {
         if (_preparedTargets == null && !PrepareTurn()) return;
-        _preparedTargets.RemoveAll(target => target == null || target.status == null || target.status.currentHp <= 0f);
-        if (_preparedTargets.Count == 0)
+        if (_preparedPattern.actions != null && _preparedPattern.actions.Count > 0)
         {
-            ClearPreparedTurn();
-            return;
+            foreach (EnemyPatternAction action in _preparedPattern.actions)
+            {
+                if (action == null) continue;
+                List<BattleCharacter> targets = action.actionType == EnemyPatternActionType.Effect
+                    || action.actionType == EnemyPatternActionType.RememberTarget
+                    ? GetExecutionTargets(action)
+                    : new List<BattleCharacter>();
+                EnemyActionExecutor.Execute(action, new EnemyActionExecutionContext(
+                    _self, GetRuntimeState(), targets, _preparedPattern.patternName, _preparedPattern.customVfxName));
+            }
+        }
+        else
+        {
+            _preparedTargets.RemoveAll(target => target == null || target.status == null || target.status.currentHp <= 0f);
+            if (_preparedTargets.Count > 0)
+            {
+                EffectEngine.ProcessSkill(_self, _preparedTargets, new SkillLevelData
+                {
+                    overrideCost = -1,
+                    targetType = _preparedPattern.targetType,
+                    customVfxName = _preparedPattern.customVfxName,
+                    effects = CloneEffects(_preparedPattern.effects)
+                }, _preparedPattern.patternName);
+            }
         }
 
-        if (_preparedPattern == null)
-        {
-            BattleCharacter target = _preparedTargets[0];
-            float rawDmg = _self.status.FinalAttack;
-            VFXManager.Instance?.PlayDefaultEffect(EffectType.Damage, DamageType.Physical, target);
-            target.ReceiveDamage(rawDmg, _self, DamageType.Physical);
-            Debug.Log($"[EnemyAI] {_self.characterName} -> {target.characterName} 기본 공격 {rawDmg}");
-            _self.ResolveActionStatusEffects();
-            ClearPreparedTurn();
-            return;
-        }
-
-        SkillLevelData runtimePattern = new SkillLevelData
-        {
-            overrideCost = -1,
-            targetType = _preparedPattern.targetType,
-            customVfxName = _preparedPattern.customVfxName,
-            effects = BuildRuntimeEffects(_preparedPattern.effects)
-        };
-
-        EffectEngine.ProcessSkill(_self, _preparedTargets, runtimePattern, _preparedPattern.patternName);
         _self.ResolveActionStatusEffects();
         AdvancePattern();
-        Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {_preparedPattern.patternName} (완료 사이클 {_completedCycles})");
+        Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {_preparedPattern.patternName}");
         ClearPreparedTurn();
     }
 
-    private List<EffectEntry> BuildRuntimeEffects(List<EffectEntry> sourceEffects)
+    private static List<EffectEntry> CloneEffects(List<EffectEntry> sourceEffects)
     {
         var runtimeEffects = new List<EffectEntry>(sourceEffects.Count);
-        float damageBonus = _self.status.origin.damageBonusPerCycle * _completedCycles;
-        float bleedBonus = _self.status.origin.bleedBonusPerCycle * _completedCycles;
 
         foreach (EffectEntry source in sourceEffects)
         {
@@ -111,21 +117,9 @@ public class EnemyAI : MonoBehaviour
                 charges = source.charges,
                 durationType = source.durationType,
                 skillSlot = source.skillSlot,
-                customVfxName = source.customVfxName
+                customVfxName = source.customVfxName,
+                statusIcon = source.statusIcon
             };
-
-            if (effect.type == EffectType.Damage)
-            {
-                effect.fixedValue += damageBonus;
-            }
-            else if (effect.type == EffectType.Bleed && bleedBonus > 0f)
-            {
-                float baseBleed = effect.value > 0f
-                    ? effect.value
-                    : _self.status.FinalAttack * effect.multiplier;
-                effect.value = baseBleed + bleedBonus;
-                effect.multiplier = 0f;
-            }
 
             runtimeEffects.Add(effect);
         }
@@ -137,18 +131,234 @@ public class EnemyAI : MonoBehaviour
     {
         int patternCount = _self.status.origin.enemyPatterns.Count;
         _patternIndex = (_patternIndex + 1) % patternCount;
-        if (_patternIndex == 0) _completedCycles++;
+    }
+
+    private bool HasActions(EnemyPatternData pattern)
+    {
+        return pattern.actions != null && pattern.actions.Exists(action => action != null)
+            || pattern.effects != null && pattern.effects.Exists(effect => effect != null);
+    }
+
+    private EnemyRuntimeState GetRuntimeState()
+    {
+        CharacterData source = _self?.status?.origin;
+        if (_runtimeState == null || _runtimeState.Source != source)
+            _runtimeState = new EnemyRuntimeState(source);
+        return _runtimeState;
     }
 
     private void ClearPreparedTurn()
     {
         _preparedTargets = null;
         _preparedPattern = null;
+        _preparedAction = null;
+        _preparedIntent = null;
+    }
+
+    private EnemyPatternAction FindTargetedAction(EnemyPatternData pattern)
+    {
+        if (pattern.actions == null) return null;
+        return pattern.actions.Find(action => action != null
+            && (action.actionType == EnemyPatternActionType.Effect
+                || action.actionType == EnemyPatternActionType.RememberTarget));
+    }
+
+    private List<BattleCharacter> GetExecutionTargets(EnemyPatternAction action)
+    {
+        if (action != _preparedAction)
+            return ResolveTargets(action.targetType, action.targetSelection);
+
+        // 무작위 대상은 의도에 표시한 대상을 유지하고, 조건 대상은 실행 직전에 다시 고릅니다.
+        if ((action == _preparedAction || action.usePreparedTarget) && HasLivingPreparedTargets())
+            return new List<BattleCharacter>(_preparedTargets);
+
+        return ResolveTargets(action.targetType, action.targetSelection);
+    }
+
+    private bool HasLivingPreparedTargets()
+    {
+        return _preparedTargets != null && _preparedTargets.Exists(target =>
+            target != null && target.status != null && target.status.currentHp > 0f);
+    }
+
+    private EnemyIntentData BuildIntent(EnemyPatternData pattern)
+    {
+        var intent = new EnemyIntentData
+        {
+            PatternName = string.IsNullOrWhiteSpace(pattern.patternName) ? "행동" : pattern.patternName,
+            TargetType = _preparedAction != null ? _preparedAction.targetType : pattern.targetType,
+            TargetSelection = _preparedAction != null ? _preparedAction.targetSelection : pattern.targetSelection,
+            Targets = _preparedTargets == null ? new List<BattleCharacter>() : new List<BattleCharacter>(_preparedTargets)
+        };
+
+        if (pattern.actions != null && pattern.actions.Count > 0)
+        {
+            var previewValues = new Dictionary<string, int>();
+            foreach (EnemyPatternAction action in pattern.actions)
+            {
+                if (action == null) continue;
+                intent.Effects.Add(BuildIntentEffect(action, previewValues));
+                if (action.actionType != EnemyPatternActionType.ModifyRuntimeVariable
+                    || string.IsNullOrWhiteSpace(action.runtimeVariableId)) continue;
+                int current = GetIntentVariable(action.runtimeVariableId, previewValues);
+                previewValues[action.runtimeVariableId] = action.setRuntimeValue
+                    ? action.runtimeValue : current + action.runtimeValue;
+            }
+        }
+        else if (pattern.effects != null)
+        {
+            foreach (EffectEntry effect in pattern.effects)
+            {
+                if (effect == null) continue;
+                EnemyIntentEffectData effectIntent = BuildIntentEffect(effect, pattern.targetType, pattern.targetSelection, null, null);
+                effectIntent.Icon = effect.statusIcon != null ? effect.statusIcon : CombatIconLibrary.FindIcon(effect.type);
+                intent.Effects.Add(effectIntent);
+            }
+        }
+
+        intent.VisualType = ResolveVisualType(intent.Effects);
+        return intent;
+    }
+
+    private EnemyIntentEffectData BuildIntentEffect(EnemyPatternAction action, Dictionary<string, int> previewValues)
+    {
+        if (action.actionType == EnemyPatternActionType.ModifyRuntimeVariable)
+        {
+            return new EnemyIntentEffectData
+            {
+                ActionType = action.actionType,
+                Icon = action.intentIcon != null ? action.intentIcon : GetRuntimeVariableIcon(action.runtimeVariableId),
+                RuntimeVariableId = action.runtimeVariableId,
+                RuntimeDisplayName = GetRuntimeVariableName(action.runtimeVariableId),
+                RuntimeValue = action.runtimeValue,
+                SetRuntimeValue = action.setRuntimeValue
+            };
+        }
+
+        if (action.actionType == EnemyPatternActionType.RememberTarget)
+        {
+            return new EnemyIntentEffectData
+            {
+                ActionType = action.actionType,
+                Icon = action.intentIcon,
+                TargetType = action.targetType,
+                TargetSelection = action.targetSelection
+            };
+        }
+
+        if (action.actionType == EnemyPatternActionType.StealGold)
+        {
+            return new EnemyIntentEffectData
+            {
+                ActionType = action.actionType,
+                Icon = action.intentIcon != null ? action.intentIcon : CombatIconLibrary.FindEnhancementIcon(),
+                RuntimeVariableId = action.runtimeVariableId,
+                RuntimeDisplayName = GetRuntimeVariableName(action.runtimeVariableId),
+                RuntimeValue = action.runtimeValue
+            };
+        }
+
+        if (action.actionType == EnemyPatternActionType.Flee)
+        {
+            return new EnemyIntentEffectData
+            {
+                ActionType = action.actionType,
+                Icon = action.intentIcon,
+                RuntimeValue = action.runtimeValue
+            };
+        }
+
+        EnemyIntentEffectData result = BuildIntentEffect(action.effect, action.targetType, action.targetSelection,
+            action.valueVariableId, action.hitCountVariableId, previewValues);
+        result.Icon = action.intentIcon != null ? action.intentIcon
+            : action.effect?.statusIcon != null ? action.effect.statusIcon : CombatIconLibrary.FindIcon(result.EffectType);
+        return result;
+    }
+
+    private Sprite GetRuntimeVariableIcon(string id)
+    {
+        EnemyRuntimeVariableDefinition definition = GetRuntimeState().GetDefinition(id);
+        if (definition == null) return null;
+        return definition.displayIcon != null ? definition.displayIcon
+            : GetRuntimeState().Source.enemyEnhancementIcon != null ? GetRuntimeState().Source.enemyEnhancementIcon
+            : CombatIconLibrary.FindEnhancementIcon();
+    }
+
+    private string GetRuntimeVariableName(string id)
+    {
+        EnemyRuntimeVariableDefinition definition = GetRuntimeState().GetDefinition(id);
+        return definition == null || string.IsNullOrWhiteSpace(definition.displayName) ? id : definition.displayName;
+    }
+
+    private EnemyIntentEffectData BuildIntentEffect(EffectEntry effect, TargetType targetType,
+        EnemyTargetSelection targetSelection, string valueVariableId, string hitCountVariableId,
+        Dictionary<string, int> previewValues = null)
+    {
+        if (effect == null) return new EnemyIntentEffectData();
+        return new EnemyIntentEffectData
+        {
+            ActionType = EnemyPatternActionType.Effect,
+            EffectType = effect.type,
+            DamageType = effect.damageType,
+            TargetType = targetType,
+            TargetSelection = targetSelection,
+            Value = CalculateIntentValue(effect, GetIntentVariable(valueVariableId, previewValues)),
+            HitCount = Mathf.Max(1, effect.hitCount + GetIntentVariable(hitCountVariableId, previewValues)),
+            Duration = effect.duration,
+            RuntimeVariableId = valueVariableId
+        };
+    }
+
+    private int GetIntentVariable(string id, Dictionary<string, int> previewValues)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return 0;
+        if (previewValues != null && previewValues.TryGetValue(id, out int value)) return value;
+        return GetRuntimeState().Get(id);
+    }
+
+    private float CalculateIntentValue(EffectEntry effect, int runtimeValue)
+    {
+        if (effect.type == EffectType.Bleed || effect.type == EffectType.Poison || effect.type == EffectType.Burn)
+            return effect.value + runtimeValue;
+
+        bool usesSpellPower = (effect.type == EffectType.Damage && effect.damageType == DamageType.Magical)
+            || effect.type == EffectType.MentalDamage || effect.type == EffectType.MentalHeal;
+        bool usesActorStat = effect.type == EffectType.Damage || effect.type == EffectType.Heal
+            || effect.type == EffectType.Shield || effect.type == EffectType.MentalDamage
+            || effect.type == EffectType.MentalHeal || effect.type == EffectType.Bleed || effect.type == EffectType.Poison;
+        float baseValue = !usesActorStat || Mathf.Approximately(effect.multiplier, 0f)
+            ? 0f : usesSpellPower ? _self.status.FinalSpellPower : _self.status.FinalAttack;
+        float value = (baseValue * effect.multiplier) + effect.fixedValue + runtimeValue;
+        if (effect.type == EffectType.Damage && Mathf.Approximately(effect.multiplier, 0f))
+        {
+            if (effect.damageType == DamageType.Physical) value += _self.status.AttackStatusModifier;
+            else if (effect.damageType == DamageType.Magical) value += _self.status.SpellPowerStatusModifier;
+        }
+        return value;
+    }
+
+    private static EnemyIntentVisualType ResolveVisualType(List<EnemyIntentEffectData> effects)
+    {
+        if (effects.Exists(effect => effect.ActionType == EnemyPatternActionType.Effect
+            && (effect.EffectType == EffectType.Damage || effect.EffectType == EffectType.MentalDamage)))
+            return EnemyIntentVisualType.Attack;
+        if (effects.Exists(effect => effect.ActionType == EnemyPatternActionType.Effect
+            && (effect.EffectType == EffectType.Shield || effect.EffectType == EffectType.Protection || effect.EffectType == EffectType.Guard)))
+            return EnemyIntentVisualType.Defend;
+        if (effects.Exists(effect => effect.ActionType == EnemyPatternActionType.Effect
+            && (effect.EffectType == EffectType.Heal || effect.EffectType == EffectType.MentalHeal || effect.EffectType == EffectType.Strength)))
+            return EnemyIntentVisualType.Support;
+        return EnemyIntentVisualType.Special;
     }
 
     private List<BattleCharacter> ResolveTargets(TargetType targetType, EnemyTargetSelection selection)
     {
         var result = new List<BattleCharacter>();
+        if (selection == EnemyTargetSelection.Remembered)
+        {
+            AddIfAlive(result, GetRuntimeState().RememberedTarget);
+            return result;
+        }
         List<BattleCharacter> party = IsFriendlyTarget(targetType) ? allyParty : targetParty;
 
         if (targetType == TargetType.Self)

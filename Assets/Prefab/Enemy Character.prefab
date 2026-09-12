@@ -63,10 +63,16 @@ MonoBehaviour:
     currentMental: 0
     bonusAttack: 0
     charLevel: 0
+    selectedActiveSkillIndices: 
+    leaderExtraSkillIndex: 0
     dynamicActiveSkill: []
     activeStatusEffects: []
+    equippedItems:
+    - {fileID: 0}
+    - {fileID: 0}
   view: {fileID: 0}
   isLeader: 0
+  hasResurrectedThisStage: 0
   testData: {fileID: 0}
 --- !u!114 &1365994193900711587
 MonoBehaviour:
@@ -97,6 +103,8 @@ MonoBehaviour:
   isStandingIllust: 1
   displayImage: {fileID: 2157242836364346164}
   barUI: {fileID: 8078234238712851524}
+  statusText: {fileID: 0}
+  enemyTargetMarkerPrefab: {fileID: 0}
 --- !u!114 &8078234238712851524
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -320,6 +320,9 @@ public class BattleCharacter : MonoBehaviour, IDamageable
 
         if (view != null) view.UpdateVisual(status);
 
+        if (status.currentHp <= 0f)
+            GetComponent<EnemyBattleCharacter>()?.ClaimDefeatReward();
+
         return new DamageResult(
             amount,
             defense,

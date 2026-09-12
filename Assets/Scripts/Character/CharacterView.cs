@@ -2,6 +2,7 @@
 using UnityEngine.UI;
 using TMPro;
 using System.Text;
+using System.Collections.Generic;
 using TheLastArk.UI;
 
 public class CharacterView : MonoBehaviour
@@ -16,6 +17,8 @@ public class CharacterView : MonoBehaviour
     [SerializeField] private TextMeshProUGUI statusText;
     [SerializeField] private GameObject enemyTargetMarkerPrefab;
     private GameObject enemyTargetMarker;
+    private RectTransform statusIconRoot;
+    private readonly List<Image> statusIcons = new List<Image>();
 
     private void Awake()
     {
@@ -40,9 +43,10 @@ public class CharacterView : MonoBehaviour
 
         if (displayImage != null && status.origin != null)
         {
-            displayImage.sprite = (status.origin.isEnemy || isStandingIllust)
+            Sprite sprite = (status.origin.isEnemy || isStandingIllust)
                 ? status.origin.standingSprite
                 : status.origin.portraitSprite;
+            if (sprite != null) displayImage.sprite = sprite;
         }
 
         if (barUI != null && status.origin != null)
@@ -71,8 +75,49 @@ public class CharacterView : MonoBehaviour
             }
         }
 
+        UpdateStatusIcons(status);
         statusText.text = builder.ToString();
         statusText.gameObject.SetActive(builder.Length > 0);
+    }
+
+    private void UpdateStatusIcons(CharacterStatus status)
+    {
+        EnsureStatusIconRoot();
+        if (statusIconRoot == null) return;
+
+        var sprites = new List<Sprite>();
+        if (status?.activeStatusEffects != null)
+            foreach (ActiveStatusEffect effect in status.activeStatusEffects)
+                if (effect != null && effect.IsActive && effect.displayIcon != null) sprites.Add(effect.displayIcon);
+
+        while (statusIcons.Count < sprites.Count)
+        {
+            GameObject icon = new GameObject("Status Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            icon.transform.SetParent(statusIconRoot, false);
+            Image image = icon.GetComponent<Image>();
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            image.rectTransform.sizeDelta = new Vector2(26f, 26f);
+            statusIcons.Add(image);
+        }
+
+        int rows = Mathf.CeilToInt(sprites.Count / 5f);
+        statusIconRoot.sizeDelta = new Vector2(180f, rows * 30f);
+        for (int i = 0; i < statusIcons.Count; i++)
+        {
+            bool active = i < sprites.Count;
+            statusIcons[i].gameObject.SetActive(active);
+            if (!active) continue;
+            int row = i / 5;
+            int column = i % 5;
+            int columnsInRow = Mathf.Min(5, sprites.Count - row * 5);
+            statusIcons[i].sprite = sprites[i];
+            statusIcons[i].rectTransform.anchoredPosition = new Vector2((column - (columnsInRow - 1) * 0.5f) * 30f, -row * 30f);
+        }
+
+        statusIconRoot.gameObject.SetActive(sprites.Count > 0);
+        RectTransform sourceRect = barUI.mentalText.rectTransform;
+        statusText.rectTransform.anchoredPosition = sourceRect.anchoredPosition + new Vector2(0f, -24f - rows * 30f);
     }
 
     private void EnsureStatusText()
@@ -98,6 +143,21 @@ public class CharacterView : MonoBehaviour
         rect.anchoredPosition = sourceRect.anchoredPosition + new Vector2(0f, -24f);
         rect.sizeDelta = new Vector2(Mathf.Max(220f, sourceRect.sizeDelta.x), 90f);
         statusObject.SetActive(false);
+    }
+
+    private void EnsureStatusIconRoot()
+    {
+        if (statusIconRoot != null || barUI == null || barUI.mentalText == null) return;
+
+        GameObject root = new GameObject("StatusIcons", typeof(RectTransform));
+        root.transform.SetParent(barUI.mentalText.transform.parent, false);
+        statusIconRoot = root.GetComponent<RectTransform>();
+        RectTransform sourceRect = barUI.mentalText.rectTransform;
+        statusIconRoot.anchorMin = sourceRect.anchorMin;
+        statusIconRoot.anchorMax = sourceRect.anchorMax;
+        statusIconRoot.pivot = new Vector2(0.5f, 1f);
+        statusIconRoot.anchoredPosition = sourceRect.anchoredPosition + new Vector2(0f, -24f);
+        root.SetActive(false);
     }
 
     public void SetEnemyTargeted(bool targeted)

@@ -6,9 +6,6 @@ using TheLastArk.UI;
 
 public static class EffectEngine
 {
-    // 직전 효과가 실제로 처리한 값을 저장합니다.
-    private static float _lastCalculatedValue = 0f;
-
     // 이번 턴 동안 각 적에게 부여된 화상 횟수 추적 (화염 망치용)
     private static Dictionary<BattleCharacter, int> _turnBurnCounts = new Dictionary<BattleCharacter, int>();
     private static int _lastTrackedTurn = -1;
@@ -27,7 +24,7 @@ public static class EffectEngine
         // 스킬 또는 패턴의 효과를 대상들에게 순서대로 적용합니다.
         if (actor == null || actor.status == null || targets == null || data?.effects == null) return;
 
-        _lastCalculatedValue = 0f;
+        float lastCalculatedValue = 0f;
 
         // 스킬 레벨에 지정된 커스텀 VFX가 있으면 대상들에게 재생
         if (Application.isPlaying && !string.IsNullOrEmpty(data.customVfxName))
@@ -47,12 +44,12 @@ public static class EffectEngine
             if (effect.type == EffectType.Taunt)
             {
                 BattleCharacter target = targets.Find(candidate => candidate != null && candidate.status != null);
-                if (target != null) ExecuteEffect(effect, actor, target, skillName);
+                if (target != null) ExecuteEffect(effect, actor, target, skillName, ref lastCalculatedValue);
                 continue;
             }
 
             if (effect.type != EffectType.Focus) continue;
-            ExecuteEffect(effect, actor, actor, skillName);
+            ExecuteEffect(effect, actor, actor, skillName, ref lastCalculatedValue);
         }
 
         foreach (EffectEntry effect in data.effects)
@@ -65,12 +62,12 @@ public static class EffectEngine
                     ? Mathf.Max(1, effect.hitCount)
                     : 1;
                 for (int i = 0; i < executions; i++)
-                ExecuteEffect(effect, actor, target, skillName);
+                ExecuteEffect(effect, actor, target, skillName, ref lastCalculatedValue);
             }
         }
     }
 
-    private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target, string skillName = "")
+    private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target, string skillName, ref float lastCalculatedValue)
     {
         // 1. VFX 재생: 커스텀 지정이 있으면 그것을 재생, 없으면 스킬명/효과 타입별 스마트 VFX 자동 재생
         if (!Application.isPlaying)
@@ -97,7 +94,7 @@ public static class EffectEngine
                              effect.type == EffectType.Bleed ||
                              effect.type == EffectType.Poison;
         float baseValue = effect.useActualResult
-            ? _lastCalculatedValue
+            ? lastCalculatedValue
             : !usesActorStat || Mathf.Approximately(effect.multiplier, 0f)
                 ? 0f
                 : usesSpellPower ? actor.status.FinalSpellPower : actor.status.FinalAttack;
@@ -136,7 +133,7 @@ public static class EffectEngine
                     }
                 }
 
-                _lastCalculatedValue = target.ReceiveDamage(calculatedValue, actor, effect.damageType);
+                lastCalculatedValue = target.ReceiveDamage(calculatedValue, actor, effect.damageType);
 
                 // [광전사의 도끼] 전사 아군이 적에게 주는 체력 피해의 15%만큼 체력 회복
                 if (actor.status.origin != null && !actor.status.origin.isEnemy &&
@@ -144,9 +141,9 @@ public static class EffectEngine
                     actor.status.HasSynergy(SynergyType.Warrior) &&
                     ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.BerserkerAxe))
                 {
-                    if (_lastCalculatedValue > 0)
+                    if (lastCalculatedValue > 0)
                     {
-                        float lifesteal = _lastCalculatedValue * 0.15f;
+                        float lifesteal = lastCalculatedValue * 0.15f;
                         actor.ReceiveHeal(lifesteal, actor);
                         Debug.Log($"[광전사의 도끼] {actor.characterName} 체력 {lifesteal} 흡혈 회복!");
                     }
@@ -186,12 +183,12 @@ public static class EffectEngine
                 if (convertsEnemyHealToDamage)
                 {
                     float corruptDmg = finalHealValue * 0.5f;
-                    _lastCalculatedValue = target.ReceiveDamage(corruptDmg, actor, DamageType.Magical);
+                    lastCalculatedValue = target.ReceiveDamage(corruptDmg, actor, DamageType.Magical);
                     NotificationManager.Instance?.ShowMessage($"[타락 모듈] {target.characterName}에게 마법 피해 {corruptDmg:F0}!", Color.magenta);
                     break;
                 }
 
-                _lastCalculatedValue = target.ReceiveHeal(finalHealValue, actor);
+                lastCalculatedValue = target.ReceiveHeal(finalHealValue, actor);
 
                 // [하늘 가호 프로토콜] 치유로 아군 체력 100% 달성 시 해당 턴 공/주 +20%
                 if (isPlayerActor && TrainManager.IsInitialized && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.SkyBlessingProtocol))
@@ -256,11 +253,11 @@ public static class EffectEngine
                 break;
 
             case EffectType.MentalDamage:
-                _lastCalculatedValue = target.TakeMentalDamage(calculatedValue);
+                lastCalculatedValue = target.TakeMentalDamage(calculatedValue);
                 break;
 
             case EffectType.MentalHeal:
-                _lastCalculatedValue = target.ReceiveMentalHeal(calculatedValue);
+                lastCalculatedValue = target.ReceiveMentalHeal(calculatedValue);
                 break;
 
             case EffectType.Bleed:
@@ -268,7 +265,7 @@ public static class EffectEngine
                 float bleedDmg = effect.value > 0 ? effect.value : baseValue * effect.multiplier;
                 ApplyBleed(target, bleedDmg, bleedTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
-                _lastCalculatedValue = bleedDmg;
+                lastCalculatedValue = bleedDmg;
                 break;
 
             case EffectType.Poison:
@@ -276,7 +273,7 @@ public static class EffectEngine
                 float poisonDmg = effect.value > 0 ? effect.value : baseValue * effect.multiplier;
                 ApplyPoison(target, poisonDmg, poisonTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
-                _lastCalculatedValue = poisonDmg;
+                lastCalculatedValue = poisonDmg;
                 break;
 
             case EffectType.Burn:
@@ -284,7 +281,7 @@ public static class EffectEngine
                 float burnDmg = effect.value > 0 ? effect.value : effect.multiplier * 100f;
                 ApplyBurn(target, burnDmg, burnTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
-                _lastCalculatedValue = burnDmg;
+                lastCalculatedValue = burnDmg;
                 break;
 
             case EffectType.Stun:
@@ -292,7 +289,7 @@ public static class EffectEngine
                 target.status.ApplyStatusEffect(effect.type, 0f, stunTurns,
                     0f, 0, -1, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
-                _lastCalculatedValue = 0f;
+                lastCalculatedValue = 0f;
                 break;
 
             case EffectType.Strength:
@@ -308,26 +305,26 @@ public static class EffectEngine
                     : !Mathf.Approximately(effect.fixedValue, 0f) ? effect.fixedValue : effect.multiplier;
                 target.status.ApplyStatusEffect(effect.type, statValue,
                     Mathf.Max(1, effect.duration), 0f, 0, -1, actor, effect.durationType);
-                _lastCalculatedValue = statValue;
+                lastCalculatedValue = statValue;
                 break;
 
             case EffectType.Focus:
                 int focusTurns = Mathf.Max(1, effect.duration);
                 actor.status.ApplyStatusEffect(effect.type, 0f, focusTurns, 0f, 0, -1, actor, effect.durationType);
-                _lastCalculatedValue = 0f;
+                lastCalculatedValue = 0f;
                 break;
 
             case EffectType.Taunt:
                 int tauntCharges = Mathf.Max(1, effect.charges);
                 RemoveOtherPartyTaunts(target);
                 target.status.ApplyStatusEffect(effect.type, 0f, 0, 0f, tauntCharges, -1, actor, StatusDurationType.Charges);
-                _lastCalculatedValue = tauntCharges;
+                lastCalculatedValue = tauntCharges;
                 break;
 
             case EffectType.Counter:
                 int counterCharges = Mathf.Max(1, effect.charges);
                 target.status.ApplyStatusEffect(effect.type, 0f, 0, 0f, counterCharges, -1, actor, StatusDurationType.Charges);
-                _lastCalculatedValue = counterCharges;
+                lastCalculatedValue = counterCharges;
                 break;
 
             case EffectType.Reflect:
@@ -335,14 +332,14 @@ public static class EffectEngine
                 float reflectPercent = Mathf.Max(0f, effect.value);
                 target.status.ApplyStatusEffect(effect.type, reflectPercent, 0, 0f,
                     reflectCharges, -1, actor, effect.durationType);
-                _lastCalculatedValue = reflectCharges;
+                lastCalculatedValue = reflectCharges;
                 break;
 
             case EffectType.Shield:
                 int shieldTurns = Mathf.Max(1, effect.duration);
                 target.status.ApplyStatusEffect(effect.type, calculatedValue, shieldTurns,
                     0f, 0, -1, actor, effect.durationType);
-                _lastCalculatedValue = calculatedValue;
+                lastCalculatedValue = calculatedValue;
                 Debug.Log($"[보호막] {target.characterName} 보호막 {calculatedValue} 획득!");
 
                 // [연인] 보호(보호막) 효과 아군 전체 동시 공유
@@ -366,7 +363,7 @@ public static class EffectEngine
 
             case EffectType.Resurrection:
                 target.TryTriggerResurrectionTrait();
-                _lastCalculatedValue = 1f;
+                lastCalculatedValue = 1f;
                 break;
 
             case EffectType.Blockade:
@@ -380,14 +377,20 @@ public static class EffectEngine
                 target.status.ApplyStatusEffect(effect.type, effect.value,
                     Mathf.Max(1, effect.duration > 0 ? effect.duration : 3),
                     effect.secondaryValue, 0, effect.skillSlot, actor, effect.durationType);
-                _lastCalculatedValue = effect.value;
+                lastCalculatedValue = effect.value;
                 break;
 
             case EffectType.Guard:
                 target.status.ApplyStatusEffect(effect.type, 0f, 0, 0f,
                     Mathf.Max(1, effect.charges), -1, actor, StatusDurationType.Charges);
-                _lastCalculatedValue = effect.charges;
+                lastCalculatedValue = effect.charges;
                 break;
+        }
+
+        if (effect.statusIcon != null)
+        {
+            ActiveStatusEffect activeEffect = target.status.GetStatus(effect.type);
+            if (activeEffect != null) activeEffect.displayIcon = effect.statusIcon;
         }
 
         if (target?.view != null)

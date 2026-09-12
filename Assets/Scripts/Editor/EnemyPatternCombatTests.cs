@@ -512,4 +512,476 @@ public class EnemyPatternCombatTests
             Object.DestroyImmediate(targetData);
         }
     }
+
+    [Test]
+    public void EnemyRuntimeStateCopiesDefinitionsAndClampsValues()
+    {
+        var data = ScriptableObject.CreateInstance<CharacterData>();
+        try
+        {
+            data.enemyRuntimeVariables = new List<EnemyRuntimeVariableDefinition>
+            {
+                new EnemyRuntimeVariableDefinition { id = "ammo", initialValue = 1, hasMaxValue = true, maxValue = 3 }
+            };
+            var state = new EnemyRuntimeState(data);
+
+            Assert.AreEqual(1, state.Get("ammo"));
+            Assert.IsTrue(state.Add("ammo", 10));
+            Assert.AreEqual(3, state.Get("ammo"));
+            Assert.AreEqual(1, data.enemyRuntimeVariables[0].initialValue);
+            Assert.IsFalse(state.Set("missing", 1));
+        }
+        finally
+        {
+            Object.DestroyImmediate(data);
+        }
+    }
+
+    [Test]
+    public void EnemyActionsRunInOrderAndUseRuntimeVariables()
+    {
+        var enemyObject = new GameObject("Enemy_Test");
+        var targetObject = new GameObject("Target_Test");
+        var enemyData = ScriptableObject.CreateInstance<CharacterData>();
+        var targetData = ScriptableObject.CreateInstance<CharacterData>();
+
+        try
+        {
+            enemyData.isEnemy = true;
+            enemyData.baseAttack = 99f;
+            enemyData.maxHp = 20f;
+            enemyData.enemyRuntimeVariables = new List<EnemyRuntimeVariableDefinition>
+            {
+                new EnemyRuntimeVariableDefinition { id = "shots", initialValue = 1 }
+            };
+            enemyData.enemyPatterns = new List<EnemyPatternData>
+            {
+                new EnemyPatternData
+                {
+                    patternName = "연타 후 강화",
+                    actions = new List<EnemyPatternAction>
+                    {
+                        new EnemyPatternAction { actionType = EnemyPatternActionType.RememberTarget },
+                        new EnemyPatternAction
+                        {
+                            targetSelection = EnemyTargetSelection.Remembered,
+                            effect = new EffectEntry { type = EffectType.Damage, damageType = DamageType.Physical, multiplier = 0f, fixedValue = 3f, hitCount = 1 },
+                            hitCountVariableId = "shots"
+                        },
+                        new EnemyPatternAction
+                        {
+                            targetType = TargetType.Self,
+                            effect = new EffectEntry { type = EffectType.Strength, value = 1f, durationType = StatusDurationType.Permanent }
+                        },
+                        new EnemyPatternAction
+                        {
+                            actionType = EnemyPatternActionType.ModifyRuntimeVariable,
+                            runtimeVariableId = "shots",
+                            runtimeValue = 1
+                        }
+                    }
+                }
+            };
+            targetData.maxHp = 20f;
+            targetData.armor = 0f;
+
+            var enemy = enemyObject.AddComponent<BattleCharacter>();
+            var ai = enemyObject.AddComponent<EnemyAI>();
+            var target = targetObject.AddComponent<BattleCharacter>();
+            enemy.status = new CharacterStatus(enemyData);
+            target.status = new CharacterStatus(targetData);
+            ai.targetParty = new List<BattleCharacter> { target };
+            ai.allyParty = new List<BattleCharacter> { enemy };
+
+            Assert.IsTrue(ai.PrepareTurn());
+            ai.ExecuteTurn();
+
+            Assert.AreEqual(14f, target.status.currentHp);
+            Assert.AreEqual(1f, enemy.status.AttackStatusModifier);
+            Assert.AreEqual(2, ai.RuntimeState.Get("shots"));
+
+            Assert.IsTrue(ai.PrepareTurn());
+            ai.ExecuteTurn();
+            Assert.AreEqual(2f, target.status.currentHp);
+        }
+        finally
+        {
+            Object.DestroyImmediate(enemyObject);
+            Object.DestroyImmediate(targetObject);
+            Object.DestroyImmediate(enemyData);
+            Object.DestroyImmediate(targetData);
+        }
+    }
+
+    [Test]
+    public void LegacyEnemyPatternsIgnoreCycleGrowth()
+    {
+        var enemyObject = new GameObject("Enemy_Test");
+        var targetObject = new GameObject("Target_Test");
+        var enemyData = ScriptableObject.CreateInstance<CharacterData>();
+        var targetData = ScriptableObject.CreateInstance<CharacterData>();
+
+        try
+        {
+            enemyData.isEnemy = true;
+            enemyData.baseAttack = 99f;
+            enemyData.damageBonusPerCycle = 50f;
+            enemyData.enemyPatterns = new List<EnemyPatternData>
+            {
+                new EnemyPatternData
+                {
+                    effects = new List<EffectEntry>
+                    {
+                        new EffectEntry { type = EffectType.Damage, damageType = DamageType.Physical, multiplier = 0f, fixedValue = 3f }
+                    }
+                }
+            };
+            targetData.maxHp = 20f;
+            targetData.armor = 0f;
+
+            var enemy = enemyObject.AddComponent<BattleCharacter>();
+            var ai = enemyObject.AddComponent<EnemyAI>();
+            var target = targetObject.AddComponent<BattleCharacter>();
+            enemy.status = new CharacterStatus(enemyData);
+            target.status = new CharacterStatus(targetData);
+            ai.targetParty = new List<BattleCharacter> { target };
+            ai.allyParty = new List<BattleCharacter> { enemy };
+
+            ai.PrepareTurn();
+            ai.ExecuteTurn();
+            ai.PrepareTurn();
+            ai.ExecuteTurn();
+
+            Assert.AreEqual(14f, target.status.currentHp);
+        }
+        finally
+        {
+            Object.DestroyImmediate(enemyObject);
+            Object.DestroyImmediate(targetObject);
+            Object.DestroyImmediate(enemyData);
+            Object.DestroyImmediate(targetData);
+        }
+    }
+
+    [Test]
+    public void ActualResultDoesNotLeakBetweenEffectExecutions()
+    {
+        var attackerObject = new GameObject("Attacker_Test");
+        var targetObject = new GameObject("Target_Test");
+        var attackerData = ScriptableObject.CreateInstance<CharacterData>();
+        var targetData = ScriptableObject.CreateInstance<CharacterData>();
+
+        try
+        {
+            targetData.maxHp = 20f;
+            targetData.armor = 0f;
+            var attacker = attackerObject.AddComponent<BattleCharacter>();
+            var target = targetObject.AddComponent<BattleCharacter>();
+            attacker.status = new CharacterStatus(attackerData);
+            target.status = new CharacterStatus(targetData);
+
+            EffectEngine.ProcessSkill(attacker, new List<BattleCharacter> { target }, new SkillLevelData
+            {
+                effects = new List<EffectEntry> { new EffectEntry { type = EffectType.Damage, multiplier = 0f, fixedValue = 4f } }
+            });
+            EffectEngine.ProcessSkill(attacker, new List<BattleCharacter> { target }, new SkillLevelData
+            {
+                effects = new List<EffectEntry> { new EffectEntry { type = EffectType.Damage, multiplier = 1f, useActualResult = true } }
+            });
+
+            Assert.AreEqual(16f, target.status.currentHp);
+        }
+        finally
+        {
+            Object.DestroyImmediate(attackerObject);
+            Object.DestroyImmediate(targetObject);
+            Object.DestroyImmediate(attackerData);
+            Object.DestroyImmediate(targetData);
+        }
+    }
+
+    [Test]
+    public void EnemyIntentUsesPreparedPatternAndStructuredEffectData()
+    {
+        var enemyObject = new GameObject("Enemy_Intent_Test");
+        var targetObject = new GameObject("Target_Intent_Test");
+        var enemyData = ScriptableObject.CreateInstance<CharacterData>();
+        var targetData = ScriptableObject.CreateInstance<CharacterData>();
+        var intentIcon = Sprite.Create(Texture2D.whiteTexture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f));
+
+        try
+        {
+            enemyData.isEnemy = true;
+            enemyData.enemyRuntimeVariables = new List<EnemyRuntimeVariableDefinition>
+            {
+                new EnemyRuntimeVariableDefinition { id = "shots", initialValue = 1 }
+            };
+            enemyData.enemyPatterns = new List<EnemyPatternData>
+            {
+                new EnemyPatternData
+                {
+                    patternName = "연타",
+                    actions = new List<EnemyPatternAction>
+                    {
+                        new EnemyPatternAction
+                        {
+                            actionType = EnemyPatternActionType.ModifyRuntimeVariable,
+                            runtimeVariableId = "shots",
+                            runtimeValue = 1
+                        },
+                        new EnemyPatternAction
+                        {
+                            targetType = TargetType.SingleEnemy,
+                            targetSelection = EnemyTargetSelection.Leader,
+                            intentIcon = intentIcon,
+                            effect = new EffectEntry { type = EffectType.Damage, damageType = DamageType.Physical, multiplier = 0f, fixedValue = 3f, hitCount = 1 },
+                            hitCountVariableId = "shots"
+                        }
+                    }
+                }
+            };
+
+            var enemy = enemyObject.AddComponent<BattleCharacter>();
+            var ai = enemyObject.AddComponent<EnemyAI>();
+            var target = targetObject.AddComponent<BattleCharacter>();
+            target.isLeader = true;
+            enemy.status = new CharacterStatus(enemyData);
+            target.status = new CharacterStatus(targetData);
+            ai.targetParty = new List<BattleCharacter> { target };
+            ai.allyParty = new List<BattleCharacter> { enemy };
+
+            Assert.IsTrue(ai.PrepareTurn());
+            Assert.AreEqual("연타", ai.PreparedIntent.PatternName);
+            Assert.AreEqual(EnemyIntentVisualType.Attack, ai.PreparedIntent.VisualType);
+            Assert.AreSame(target, ai.PreparedIntent.Targets[0]);
+            Assert.AreEqual(3f, ai.PreparedIntent.Effects[1].Value);
+            Assert.AreEqual(2, ai.PreparedIntent.Effects[1].HitCount);
+            Assert.AreSame(intentIcon, ai.PreparedIntent.Effects[1].Icon);
+        }
+        finally
+        {
+            Object.DestroyImmediate(enemyObject);
+            Object.DestroyImmediate(targetObject);
+            Object.DestroyImmediate(enemyData);
+            Object.DestroyImmediate(targetData);
+            Object.DestroyImmediate(intentIcon);
+        }
+    }
+
+    [Test]
+    public void HidingEnemyIntentDoesNotDisableEnemyObject()
+    {
+        var enemyObject = new GameObject("Enemy_Intent_UI_Test", typeof(RectTransform));
+
+        try
+        {
+            var ui = enemyObject.AddComponent<TheLastArk.UI.EnemyIntentUI>();
+            ui.Show(new EnemyIntentData { PatternName = "Test" });
+            ui.Hide();
+
+            Assert.IsTrue(enemyObject.activeSelf);
+        }
+        finally
+        {
+            Object.DestroyImmediate(enemyObject);
+        }
+    }
+
+    [Test]
+    public void EnemyEnhancementIconsSupportMoreThanTenEntries()
+    {
+        var enemyObject = new GameObject("Enemy_Enhancement_UI_Test", typeof(RectTransform));
+        var enemyData = ScriptableObject.CreateInstance<CharacterData>();
+        var icon = Sprite.Create(Texture2D.whiteTexture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f));
+
+        try
+        {
+            enemyData.isEnemy = true;
+            enemyData.enemyRuntimeVariables = new List<EnemyRuntimeVariableDefinition>();
+            for (int i = 0; i < 11; i++)
+                enemyData.enemyRuntimeVariables.Add(new EnemyRuntimeVariableDefinition
+                {
+                    id = $"value_{i}", displayName = $"Value {i}", initialValue = 1, showInUi = true, displayIcon = icon
+                });
+
+            BattleCharacter enemy = enemyObject.AddComponent<BattleCharacter>();
+            enemy.status = new CharacterStatus(enemyData);
+            enemyObject.AddComponent<EnemyAI>();
+            var ui = enemyObject.AddComponent<TheLastArk.UI.EnemyEnhancementUI>();
+            ui.SendMessage("LateUpdate");
+
+            Assert.AreEqual(12, enemyObject.GetComponentsInChildren<UnityEngine.UI.Image>(true).Length);
+        }
+        finally
+        {
+            Object.DestroyImmediate(enemyObject);
+            Object.DestroyImmediate(enemyData);
+            Object.DestroyImmediate(icon);
+        }
+    }
+
+    [Test]
+    public void CombatIconLibraryReturnsConfiguredEffectIcon()
+    {
+        var library = ScriptableObject.CreateInstance<CombatIconLibrary>();
+        var icon = Sprite.Create(Texture2D.whiteTexture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f));
+
+        try
+        {
+            library.SetIcon(EffectType.Poison, icon);
+            Assert.AreSame(icon, library.GetIcon(EffectType.Poison));
+        }
+        finally
+        {
+            Object.DestroyImmediate(library);
+            Object.DestroyImmediate(icon);
+        }
+    }
+
+    [Test]
+    public void PoisonEnemyIntentUsesPoisonAndAppliesIt()
+    {
+        var enemyObject = new GameObject("Poison_Enemy_Test");
+        var targetObject = new GameObject("Poison_Target_Test");
+        var enemyData = ScriptableObject.CreateInstance<CharacterData>();
+        var targetData = ScriptableObject.CreateInstance<CharacterData>();
+
+        try
+        {
+            enemyData.isEnemy = true;
+            enemyData.enemyPatterns = new List<EnemyPatternData>
+            {
+                new EnemyPatternData
+                {
+                    patternName = "Poison Test",
+                    actions = new List<EnemyPatternAction>
+                    {
+                        new EnemyPatternAction
+                        {
+                            targetType = TargetType.SingleEnemy,
+                            targetSelection = EnemyTargetSelection.Leader,
+                            effect = new EffectEntry { type = EffectType.Poison, value = 2f, duration = 2 }
+                        }
+                    }
+                }
+            };
+
+            BattleCharacter enemy = enemyObject.AddComponent<BattleCharacter>();
+            EnemyAI ai = enemyObject.AddComponent<EnemyAI>();
+            BattleCharacter target = targetObject.AddComponent<BattleCharacter>();
+            target.isLeader = true;
+            enemy.status = new CharacterStatus(enemyData);
+            target.status = new CharacterStatus(targetData);
+            ai.targetParty = new List<BattleCharacter> { target };
+            ai.allyParty = new List<BattleCharacter> { enemy };
+
+            Assert.IsTrue(ai.PrepareTurn());
+            Assert.AreEqual(EffectType.Poison, ai.PreparedIntent.Effects[0].EffectType);
+            ai.ExecuteTurn();
+            Assert.AreEqual(2f, target.status.GetStatus(EffectType.Poison).damagePerTurn);
+        }
+        finally
+        {
+            Object.DestroyImmediate(enemyObject);
+            Object.DestroyImmediate(targetObject);
+            Object.DestroyImmediate(enemyData);
+            Object.DestroyImmediate(targetData);
+        }
+    }
+    [Test]
+    public void EnemyRuntimeVariableIncreasesPoisonIntentAndApplication()
+    {
+        var enemyObject = new GameObject("Poison_Growth_Enemy_Test");
+        var targetObject = new GameObject("Poison_Growth_Target_Test");
+        var enemyData = ScriptableObject.CreateInstance<CharacterData>();
+        var targetData = ScriptableObject.CreateInstance<CharacterData>();
+
+        try
+        {
+            enemyData.isEnemy = true;
+            enemyData.enemyRuntimeVariables = new List<EnemyRuntimeVariableDefinition>
+            {
+                new EnemyRuntimeVariableDefinition { id = "poison_bonus", initialValue = 1 }
+            };
+            enemyData.enemyPatterns = new List<EnemyPatternData>
+            {
+                new EnemyPatternData
+                {
+                    targetType = TargetType.SingleEnemy,
+                    actions = new List<EnemyPatternAction>
+                    {
+                        new EnemyPatternAction
+                        {
+                            targetType = TargetType.SingleEnemy,
+                            valueVariableId = "poison_bonus",
+                            effect = new EffectEntry { type = EffectType.Poison, value = 2f, duration = 3 }
+                        }
+                    }
+                }
+            };
+
+            BattleCharacter enemy = enemyObject.AddComponent<BattleCharacter>();
+            EnemyAI ai = enemyObject.AddComponent<EnemyAI>();
+            BattleCharacter target = targetObject.AddComponent<BattleCharacter>();
+            enemy.status = new CharacterStatus(enemyData);
+            target.status = new CharacterStatus(targetData);
+            ai.targetParty = new List<BattleCharacter> { target };
+            ai.allyParty = new List<BattleCharacter> { enemy };
+
+            Assert.IsTrue(ai.PrepareTurn());
+            Assert.AreEqual(3f, ai.PreparedIntent.Effects[0].Value);
+            ai.ExecuteTurn();
+            Assert.AreEqual(3f, target.status.GetStatus(EffectType.Poison).damagePerTurn);
+        }
+        finally
+        {
+            Object.DestroyImmediate(enemyObject);
+            Object.DestroyImmediate(targetObject);
+            Object.DestroyImmediate(enemyData);
+            Object.DestroyImmediate(targetData);
+        }
+    }
+
+    [Test]
+    public void FleeActionRemovesOnlyItsEnemyFromBattle()
+    {
+        var enemyObject = new GameObject("Flee_Enemy_Test");
+        var enemyData = ScriptableObject.CreateInstance<CharacterData>();
+
+        try
+        {
+            enemyData.isEnemy = true;
+            enemyData.enemyPatterns = new List<EnemyPatternData>
+            {
+                new EnemyPatternData
+                {
+                    targetType = TargetType.Self,
+                    actions = new List<EnemyPatternAction>
+                    {
+                        new EnemyPatternAction { actionType = EnemyPatternActionType.Flee }
+                    }
+                }
+            };
+
+            BattleCharacter enemy = enemyObject.AddComponent<BattleCharacter>();
+            EnemyAI ai = enemyObject.AddComponent<EnemyAI>();
+            EnemyBattleCharacter enemyBattleCharacter = enemyObject.AddComponent<EnemyBattleCharacter>();
+            enemyBattleCharacter.enemyData = enemyData;
+            enemy.status = new CharacterStatus(enemyData);
+            ai.targetParty = new List<BattleCharacter>();
+            ai.allyParty = new List<BattleCharacter> { enemy };
+
+            Assert.IsTrue(ai.PrepareTurn());
+            ai.ExecuteTurn();
+
+            Assert.IsTrue(ai.RuntimeState.HasFled);
+            Assert.AreEqual(0f, enemy.status.currentHp);
+            Assert.IsFalse(enemyObject.activeSelf);
+        }
+        finally
+        {
+            Object.DestroyImmediate(enemyObject);
+            Object.DestroyImmediate(enemyData);
+        }
+    }
 }

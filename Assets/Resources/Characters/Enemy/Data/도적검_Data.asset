@@ -51,6 +51,9 @@ MonoBehaviour:
       customVfxName: 
       effects: []
   activeSkills: []
+  enemyRoleDescription: 
+  damageBonusPerCycle: 0
+  bleedBonusPerCycle: 0
   enemyPatterns:
   - patternName: "\uD328\uD134 1"
     targetType: 0
@@ -64,10 +67,14 @@ MonoBehaviour:
       useActualResult: 0
       value: 0
       secondaryValue: 0
+      hitCount: 1
       duration: 3
       charges: 3
+      durationType: 0
       skillSlot: -1
+      statusIcon: {fileID: 0}
       customVfxName: 
+    actions: []
   - patternName: "\uAD11\uC5ED \uACF5\uACA9"
     targetType: 4
     targetSelection: 0
@@ -80,10 +87,14 @@ MonoBehaviour:
       useActualResult: 0
       value: 0
       secondaryValue: 0
+      hitCount: 1
       duration: 3
       charges: 3
+      durationType: 0
       skillSlot: -1
+      statusIcon: {fileID: 0}
       customVfxName: 
+    actions: []
   - patternName: "\uC751\uAE09 \uCE58\uB8CC"
     targetType: 5
     targetSelection: 2
@@ -96,7 +107,12 @@ MonoBehaviour:
       useActualResult: 0
       value: 0
       secondaryValue: 0
+      hitCount: 1
       duration: 3
       charges: 3
+      durationType: 0
       skillSlot: -1
+      statusIcon: {fileID: 0}
       customVfxName: 
+    actions: []
+  enemyRuntimeVariables: []

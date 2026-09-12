@@ -1,0 +1,250 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
+  m_Name: "\uC885\uB9D0\uC758 \uC885\uC9C0\uAE30_Data"
+  m_EditorClassIdentifier: 
+  characterId: 
+  characterName: "\uC885\uB9D0\uC758 \uC885\uC9C0\uAE30"
+  jobName: 
+  synergies: 
+  isEnemy: 1
+  regionId: temp
+  standingSprite: {fileID: 0}
+  portraitSprite: {fileID: 0}
+  maxHp: 10
+  maxMental: 18
+  baseAttack: 5
+  spellPower: 0
+  armor: 0
+  magicResist: 2
+  critRate: 0
+  levelStatMultipliers:
+  - 0
+  - 0.2
+  - 0.5
+  - 1
+  - 2
+  passiveSkill:
+    skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  activeSkills:
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  enemyRoleDescription: "\uB2E8\uC77C \uC815\uC2E0 \uACF5\uACA9 \uB4A4 \uC804\uCCB4
+    \uC815\uC2E0 \uD53C\uD574\uC640 \uD568\uAED8 \uC131\uC7A5\uD558\uB294 \uC815\uC2E0
+    \uACF5\uACA9\uD615 \uC801."
+  damageBonusPerCycle: 0
+  bleedBonusPerCycle: 0
+  enemyPatterns:
+  - patternName: "\uCCAB \uBC88\uC9F8 \uD0C0\uC885"
+    targetType: 0
+    targetSelection: 0
+    customVfxName: 
+    effects: []
+    actions:
+    - actionType: 0
+      intentIcon: {fileID: 0}
+      targetType: 0
+      targetSelection: 0
+      effect:
+        type: 25
+        damageType: 0
+        multiplier: 0
+        fixedValue: 2
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: 
+      hitCountVariableId: 
+      runtimeVariableId: 
+      runtimeValue: 0
+      setRuntimeValue: 0
+  - patternName: "\uB450 \uBC88\uC9F8 \uD0C0\uC885"
+    targetType: 0
+    targetSelection: 0
+    customVfxName: 
+    effects: []
+    actions:
+    - actionType: 0
+      intentIcon: {fileID: 0}
+      targetType: 0
+      targetSelection: 0
+      effect:
+        type: 25
+        damageType: 0
+        multiplier: 0
+        fixedValue: 2
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: 
+      hitCountVariableId: 
+      runtimeVariableId: 
+      runtimeValue: 0
+      setRuntimeValue: 0
+  - patternName: "\uC804\uCCB4 \uD0C0\uC885"
+    targetType: 4
+    targetSelection: 0
+    customVfxName: 
+    effects: []
+    actions:
+    - actionType: 0
+      intentIcon: {fileID: 0}
+      targetType: 4
+      targetSelection: 0
+      effect:
+        type: 25
+        damageType: 0
+        multiplier: 0
+        fixedValue: 2
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: mental_damage_bonus
+      hitCountVariableId: 
+      runtimeVariableId: 
+      runtimeValue: 0
+      setRuntimeValue: 0
+    - actionType: 1
+      intentIcon: {fileID: 0}
+      targetType: 0
+      targetSelection: 0
+      effect:
+        type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: 
+      hitCountVariableId: 
+      runtimeVariableId: mental_damage_bonus
+      runtimeValue: 1
+      setRuntimeValue: 0
+  enemyRuntimeVariables:
+  - id: mental_damage_bonus
+    displayName: "\uC815\uC2E0 \uD53C\uD574 \uAC15\uD654"
+    displayDescription: "\uC815\uC2E0 \uD53C\uD574\uB7C9"
+    displayIcon: {fileID: 0}
+    initialValue: 0
+    hasMaxValue: 0
+    maxValue: 0
+    showInUi: 1
+  enemyEnhancementIcon: {fileID: 0}
+  defeatGoldBonus: 0
+  returnStolenGoldOnDefeat: 0
+  stolenGoldVariableId: 
