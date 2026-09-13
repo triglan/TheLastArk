@@ -26,63 +26,37 @@ void Start()
         mapData.currentNode = mapData.GetFloorNodes(1)[0];
         mapData.currentNodeId = mapData.currentNode.id;
 
-        // ─── 붕괴 시스템 테스트 ───
-        Debug.Log("\n===== [CollapseTest] 붕괴 시뮬레이션 시작 =====");
+        // ─── 전진 이동 시뮬레이션 테스트 ───
+        Debug.Log("\n===== [ForwardMoveTest] 전진 이동 시뮬레이션 시작 =====");
 
-        CollapseManager collapse = new CollapseManager();
-
-        // 이벤트 구독
-        collapse.OnCollapseWarning += (floor) => Debug.Log($"  [Event] [경고] {floor}층 붕괴 예정!");
-        collapse.OnFloorCollapsed += (floor) => Debug.Log($"  [Event] [붕괴] {floor}층 붕괴 완료!");
-        collapse.OnGameOver += () => Debug.Log("  [Event] [게임 오버]");
-        collapse.OnTurnChanged += (turn, remaining) => Debug.Log($"  [Event] 턴 변경: {turn}턴 (붕괴까지 {remaining}턴)");
-
-        // 9턴 시뮬레이션 (3번의 붕괴 발생 예상)
-        for (int i = 0; i < 9; i++)
+        int currentTurn = 0;
+        while (mapData.currentNode != null && mapData.currentNode.floor < mapData.totalFloors)
         {
-            Debug.Log($"\n--- 이동 {i + 1} ---");
-
-            // 시뮬레이션: 플레이어가 위로 이동
+            currentTurn++;
             var accessible = mapData.GetAccessibleNodes();
-            if (accessible.Count > 0)
+            Debug.Log($"\n--- 턴 {currentTurn} (현재: {mapData.currentNode.floor}층 [{mapData.currentNode.nodeType}]) ---");
+            Debug.Log($"  이동 가능한 전진 노드 수: {accessible.Count}");
+
+            if (accessible.Count == 0)
             {
-                // 가능하면 위층으로 이동
-                MapNode nextNode = null;
-                foreach (var node in accessible)
-                {
-                    if (node.floor > mapData.currentNode.floor)
-                    {
-                        nextNode = node;
-                        break;
-                    }
-                }
-                if (nextNode == null) nextNode = accessible[0];
-
-                // 이동 안전성 확인
-                MoveValidation validation = collapse.ValidateMove(nextNode);
-                Debug.Log($"  이동 검증 [{mapData.currentNode.floor}층 → {nextNode.floor}층]: {validation}");
-
-                mapData.currentNode = nextNode;
-                mapData.currentNodeId = nextNode.id;
-                Debug.Log($"  현재 위치: {mapData.currentNode}");
-            }
-
-            // 턴 처리
-            CollapseResult result = collapse.ProcessTurn(mapData);
-            Debug.Log($"  턴 결과: {result}");
-
-            if (result == CollapseResult.GameOver)
-            {
-                Debug.Log("  [게임 오버] 시뮬레이션 중단");
+                Debug.LogError($"  [오류] {mapData.currentNode.floor}층에서 다음 층으로 이동할 수 있는 노드가 없습니다!");
                 break;
             }
+
+            // 첫 번째 이동 가능한 노드로 전진
+            MapNode nextNode = accessible[0];
+            bool canAccess = nextNode.IsAccessibleFrom(mapData.currentNode);
+            Debug.Log($"  이동 시도: {mapData.currentNode.floor}층 → {nextNode.floor}층 ({nextNode.nodeType}), 이동가능 여부: {canAccess}");
+
+            mapData.currentNode = nextNode;
+            mapData.currentNodeId = nextNode.id;
+            mapData.currentNode.isVisited = true;
         }
 
         // 최종 상태 출력
-        Debug.Log("\n===== [CollapseTest] 최종 상태 =====");
-        collapse.DebugPrint();
-        Debug.Log($"  현재 플레이어 위치: {mapData.currentNode}");
-        Debug.Log($"  이동 가능 노드 수: {mapData.GetAccessibleNodes().Count}");
+        Debug.Log("\n===== [ForwardMoveTest] 최종 상태 =====");
+        Debug.Log($"  최종 도달 위치: {mapData.currentNode}");
+        Debug.Log($"  총 소요 턴: {currentTurn}");
         Debug.Log("===== [MapGeneratorTest] 전체 테스트 완료 =====");
     }
 }

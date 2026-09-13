@@ -323,7 +323,8 @@ public static class EffectEngine
 
             case EffectType.Counter:
                 int counterCharges = Mathf.Max(1, effect.charges);
-                target.status.ApplyStatusEffect(effect.type, 0f, 0, 0f, counterCharges, -1, actor, StatusDurationType.Charges);
+                target.status.ApplyStatusEffect(effect.type, effect.value, 0, 0f, counterCharges, -1, actor,
+                    effect.durationType == StatusDurationType.Default ? StatusDurationType.Charges : effect.durationType);
                 lastCalculatedValue = counterCharges;
                 break;
 

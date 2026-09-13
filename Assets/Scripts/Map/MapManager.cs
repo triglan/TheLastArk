@@ -8,6 +8,7 @@ using TheLastArk.Map.Events;
 /// 맵 생성, UI 배치, 플레이어 이동, 붕괴 시스템을 총괄합니다.
 /// 씬에 Canvas와 함께 배치하면 자동으로 맵을 구성합니다.
 /// </summary>
+[ExecuteAlways]
 public class MapManager : MonoBehaviour
 {
     // ─────────────────────────────────────────────
@@ -26,14 +27,37 @@ public class MapManager : MonoBehaviour
     [SerializeField] private RectTransform mapContainer;
 
     [Header("UI Settings")]
-    [SerializeField] private float nodeSize = 185f;
-    [SerializeField] private float mapSpacingX = 250f;   // 층(Floor) 간 X 간격
-    [SerializeField] private float mapSpacingY = 150f;   // 노드 간 Y 간격
+    [Tooltip("노드 아이콘 기본 크기 (과도한 크기를 줄여 정돈된 85px 적용)")]
+    [SerializeField] private float nodeSize = 85f;
+    [Tooltip("가로 방향 노드 간격")]
+    [SerializeField] private float mapSpacingX = 300f;   // 층(Floor) 간 X 간격
+    [Tooltip("세로 방향 노드 간격 (상하단 바 침범 방지를 위해 안전 범위로 압축)")]
+    [SerializeField] private float mapSpacingY = 120f;   // 노드 간 Y 간격
 
     [Header("Info Panel")]
     [SerializeField] private TMPro.TextMeshProUGUI turnInfoText;
     [SerializeField] private TMPro.TextMeshProUGUI floorInfoText;
     [SerializeField] private TMPro.TextMeshProUGUI collapseWarningText;
+
+    [Header("Node Icon Sprites (Assets/Sprites/Map)")]
+    [Tooltip("일반 전투 노드 아이콘 (node_battle.png)")]
+    [SerializeField] private Sprite combatNodeSprite;
+    [Tooltip("엘리트 노드 아이콘 (node_elite.png)")]
+    [SerializeField] private Sprite eliteNodeSprite;
+    [Tooltip("이벤트 노드 아이콘 (node_event.png)")]
+    [SerializeField] private Sprite eventNodeSprite;
+    [Tooltip("휴식/마을 노드 아이콘 (node_rest.png)")]
+    [SerializeField] private Sprite restNodeSprite;
+    [Tooltip("시작 노드 아이콘")]
+    [SerializeField] private Sprite startNodeSprite;
+    [Tooltip("보스 노드 아이콘")]
+    [SerializeField] private Sprite bossNodeSprite;
+
+    [Header("Editor Preview Settings")]
+    [Tooltip("에디터 씬 뷰에서 미리보기 생성 시 사용할 시드")]
+    public int previewSeed = 12345;
+    [Tooltip("에디터 씬 뷰에서 플레이어 현재 위치로 지정할 층")]
+    [Range(1, 15)] public int previewFloor = 1;
 
     // ─────────────────────────────────────────────
     // 내부 데이터
@@ -42,36 +66,91 @@ public class MapManager : MonoBehaviour
     private MapData mapData;
     private TMPro.TMP_FontAsset mainFont;
 
-    private CollapseManager collapseManager;
+    private int currentTurn = 0;
     private MapLineRenderer lineRenderer;
 
     private Dictionary<int, MapNodeUI> nodeUIMap = new Dictionary<int, MapNodeUI>();
     private Dictionary<int, Vector2> nodePositions = new Dictionary<int, Vector2>();
 
-    private RectTransform trainIndicator;
-
     [HideInInspector] public bool isReadOnly = false;
     [HideInInspector] public Transform customCanvasTransform = null;
 
     // ─────────────────────────────────────────────
-    // 공개 접근자 (MapNodeUI에서 사용)
+    // 공개 접근자 (MapNodeUI 및 Editor에서 사용)
     // ─────────────────────────────────────────────
 
     public MapNode GetCurrentNode() => mapData?.currentNode;
-    public CollapseManager GetCollapseManager() => collapseManager;
+    public CollapseManager GetCollapseManager() => null;
+    public RectTransform GetMapContainer() => mapContainer;
+    public MapData GetMapData() => mapData;
+
+    public Sprite GetNodeSprite(NodeType type)
+    {
+        switch (type)
+        {
+            case NodeType.Combat:
+                return combatNodeSprite != null ? combatNodeSprite : (Resources.Load<Sprite>("Map/node_battle") ?? Resources.Load<Sprite>("UI/Node_Enemy"));
+            case NodeType.Elite:
+                return eliteNodeSprite != null ? eliteNodeSprite : (Resources.Load<Sprite>("Map/node_elite") ?? Resources.Load<Sprite>("UI/Node_Elite"));
+            case NodeType.Event:
+                return eventNodeSprite != null ? eventNodeSprite : (Resources.Load<Sprite>("Map/node_event") ?? Resources.Load<Sprite>("UI/Node_Event"));
+            case NodeType.Rest:
+                return restNodeSprite != null ? restNodeSprite : (Resources.Load<Sprite>("Map/node_rest") ?? Resources.Load<Sprite>("UI/Node_Rest"));
+            case NodeType.Start:
+                return startNodeSprite != null ? startNodeSprite : (Resources.Load<Sprite>("Map/node_start") ?? Resources.Load<Sprite>("UI/Node_Start"));
+            case NodeType.Boss:
+                return bossNodeSprite != null ? bossNodeSprite : Resources.Load<Sprite>("UI/Node_Boss_1");
+            default:
+                return null;
+        }
+    }
+
+    public static void SafeDestroy(UnityEngine.Object obj)
+    {
+        if (obj == null) return;
+        if (Application.isPlaying) Destroy(obj);
+        else DestroyImmediate(obj);
+    }
 
     // ─────────────────────────────────────────────
     // 라이프사이클
     // ─────────────────────────────────────────────
 
+    void Awake()
+    {
+        // 씬 파일에 이전 120 크기나 이전 간격이 직렬화되어 남아있을 경우 최적값으로 보정
+        if (nodeSize > 100f || nodeSize < 60f) nodeSize = 85f;
+        if (mapSpacingX < 260f || mapSpacingX > 340f) mapSpacingX = 300f;
+        if (mapSpacingY > 140f || mapSpacingY < 80f) mapSpacingY = 120f;
+
+        if (!Application.isPlaying)
+        {
+            AutoBindSceneReferences();
+        }
+    }
+
+    void OnValidate()
+    {
+        if (nodeSize > 100f || nodeSize < 60f) nodeSize = 85f;
+        if (mapSpacingX < 260f || mapSpacingX > 340f) mapSpacingX = 300f;
+        if (mapSpacingY > 140f || mapSpacingY < 80f) mapSpacingY = 120f;
+    }
+
     void Start()
     {
-        InitializeMap();
+        if (Application.isPlaying)
+        {
+            InitializeMap();
+        }
+        else
+        {
+            AutoBindSceneReferences();
+        }
     }
 
     void OnGUI()
     {
-        if (isReadOnly) return;
+        if (!Application.isPlaying || isReadOnly) return;
 
         // 디버깅용 이벤트 강제 트리거 버튼 (화면 좌측 하단)
         if (GUI.Button(new Rect(10, Screen.height - 45, 110, 30), "Debug: Event"))
@@ -102,35 +181,393 @@ public class MapManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // 초기화
+    // 씬 객체 자동 연결 (Auto-bind)
     // ─────────────────────────────────────────────
 
-private void InitializeMap()
+    public bool AutoBindSceneReferences()
     {
-        // 폰트 로드
+        if (mainFont == null)
+        {
+            mainFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Main_Fonts");
+        }
+
+        Canvas canvas = FindObjectOfType<Canvas>();
+        if (canvas == null) return false;
+
+        Transform parentTransform = customCanvasTransform != null ? customCanvasTransform : canvas.transform;
+
+        if (mapContainer == null)
+        {
+            Transform content = parentTransform.Find("MapScrollView/Viewport/MapContent");
+            if (content == null)
+            {
+                var allRects = parentTransform.GetComponentsInChildren<RectTransform>(true);
+                foreach (var r in allRects)
+                {
+                    if (r.name == "MapContent") { content = r; break; }
+                }
+            }
+            if (content != null)
+            {
+                mapContainer = content.GetComponent<RectTransform>();
+            }
+        }
+
+        Transform infoPanel = parentTransform.Find("InfoPanel");
+        if (infoPanel != null)
+        {
+            var labels = infoPanel.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true);
+            foreach (var lbl in labels)
+            {
+                string txt = lbl.text ?? "";
+                string n = lbl.name;
+                if (n == "TurnLabel" || txt.StartsWith("Turn"))
+                {
+                    turnInfoText = lbl;
+                }
+                else if (n == "FloorLabel" || txt.StartsWith("Floor"))
+                {
+                    floorInfoText = lbl;
+                }
+                else if (n == "WarningLabel" || (lbl.color.r > 0.8f && lbl.color.g < 0.5f))
+                {
+                    collapseWarningText = lbl;
+                }
+            }
+        }
+
+        if (lineRenderer == null)
+        {
+            lineRenderer = GetComponent<MapLineRenderer>();
+        }
+
+#if UNITY_EDITOR
+        if (combatNodeSprite == null) combatNodeSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Map/node_battle.png");
+        if (eliteNodeSprite == null) eliteNodeSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Map/node_elite.png");
+        if (eventNodeSprite == null) eventNodeSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Map/node_event.png");
+        if (restNodeSprite == null) restNodeSprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Map/node_rest.png");
+        if (startNodeSprite == null || startNodeSprite.name == "Node_Start")
+        {
+            var loadedStart = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Map/node_start.png");
+            if (loadedStart != null) startNodeSprite = loadedStart;
+        }
+        if (bossNodeSprite == null) bossNodeSprite = Resources.Load<Sprite>("UI/Node_Boss_1");
+#endif
+
+        return mapContainer != null;
+    }
+
+    // ─────────────────────────────────────────────
+    // 에디터 씬 UI 구축 & 미리보기 관리
+    // ─────────────────────────────────────────────
+
+    /// <summary>
+    /// 에디터 씬 화면에서 인게임 UI 계층 구조 전체를 생성/배치하고 15층 미리보기 맵을 띄웁니다.
+    /// </summary>
+    public void BuildUIInEditor(bool generatePreview = true)
+    {
+        mainFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Main_Fonts");
+
+        // 1. Camera
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            GameObject camObj = new GameObject("Main Camera");
+            cam = camObj.AddComponent<Camera>();
+            camObj.tag = "MainCamera";
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.08f, 0.08f, 0.12f, 1f);
+            cam.orthographic = true;
+            cam.orthographicSize = 5f;
+            camObj.transform.position = new Vector3(0, 0, -10f);
+        }
+
+        // 2. EventSystem
+        var es = FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
+        if (es == null)
+        {
+            GameObject esObj = new GameObject("EventSystem");
+            esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        }
+
+        // 3. Canvas
+        Canvas canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
+        {
+            GameObject canvasObj = new GameObject("MapCanvas");
+            canvas = canvasObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 10;
+            canvasObj.AddComponent<CanvasScaler>();
+            canvasObj.AddComponent<GraphicRaycaster>();
+
+            CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = 0.5f;
+        }
+
+        Transform parentTransform = customCanvasTransform != null ? customCanvasTransform : canvas.transform;
+
+        // 4. Background (Canvas 직속 자식 최하단에 배치하여 항상 뒤에 그려짐)
+        Transform bgTransform = parentTransform.Find("StaticBackground");
+        if (bgTransform == null)
+        {
+            Sprite bgSprite = Resources.Load<Sprite>("Map/MapBackground");
+            GameObject bgObj = new GameObject("StaticBackground");
+            bgObj.transform.SetParent(parentTransform, false);
+            bgObj.transform.SetAsFirstSibling();
+
+            Image bgImage = bgObj.AddComponent<Image>();
+            if (bgSprite != null) bgImage.sprite = bgSprite;
+            bgImage.preserveAspect = false;
+            bgImage.raycastTarget = false;
+
+            RectTransform bgRect = bgObj.GetComponent<RectTransform>();
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.offsetMin = Vector2.zero;
+            bgRect.offsetMax = Vector2.zero;
+        }
+
+        // 5. Scroll View & Viewport & MapContent
+        Transform scrollTransform = parentTransform.Find("MapScrollView");
+        if (scrollTransform == null)
+        {
+            GameObject scrollObj = new GameObject("MapScrollView");
+            scrollObj.transform.SetParent(parentTransform, false);
+            ScrollRect scrollRect = scrollObj.AddComponent<ScrollRect>();
+            Image scrollBg = scrollObj.AddComponent<Image>();
+            scrollBg.color = new Color(0, 0, 0, 0);
+
+            RectTransform scrollRectTransform = scrollObj.GetComponent<RectTransform>();
+            scrollRectTransform.anchorMin = Vector2.zero;
+            scrollRectTransform.anchorMax = Vector2.one;
+            scrollRectTransform.offsetMin = new Vector2(0, 60);
+            scrollRectTransform.offsetMax = new Vector2(0, -90);
+
+            // Viewport
+            GameObject viewportObj = new GameObject("Viewport");
+            viewportObj.transform.SetParent(scrollObj.transform, false);
+            RectTransform viewportRect = viewportObj.AddComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.offsetMin = Vector2.zero;
+            viewportRect.offsetMax = Vector2.zero;
+            Image viewportMask = viewportObj.AddComponent<Image>();
+            viewportMask.color = Color.white;
+            Mask mask = viewportObj.AddComponent<Mask>();
+            mask.showMaskGraphic = false;
+
+            // Content
+            GameObject contentObj = new GameObject("MapContent");
+            contentObj.transform.SetParent(viewportObj.transform, false);
+            mapContainer = contentObj.AddComponent<RectTransform>();
+            mapContainer.anchorMin = new Vector2(0f, 0.5f);
+            mapContainer.anchorMax = new Vector2(0f, 0.5f);
+            mapContainer.pivot = new Vector2(0f, 0.5f);
+
+            scrollRect.content = mapContainer;
+            scrollRect.viewport = viewportRect;
+            scrollRect.horizontal = true;
+            scrollRect.vertical = false;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        }
+        else
+        {
+            Transform content = scrollTransform.Find("Viewport/MapContent");
+            if (content != null) mapContainer = content.GetComponent<RectTransform>();
+        }
+
+        // 6. InfoPanel
+        Transform infoTransform = parentTransform.Find("InfoPanel");
+        if (infoTransform == null)
+        {
+            CreateInfoPanel(parentTransform);
+        }
+
+        // 7. ResourcePanel (상단 바)
+        Transform resTransform = parentTransform.Find("ResourcePanel");
+        if (resTransform == null)
+        {
+            var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
+            if (resourceUI == null) resourceUI = gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();
+            resourceUI.Initialize(parentTransform);
+        }
+
+        // 8. Buttons
+        if (parentTransform.Find("TrainManageButton") == null)
+        {
+            CreateTrainManagementButton(parentTransform);
+        }
+        if (parentTransform.Find("DebugConsumableButton") == null)
+        {
+            CreateDebugConsumableButton(parentTransform);
+        }
+        if (parentTransform.Find("DebugRelicButton") == null)
+        {
+            CreateDebugRelicButton(parentTransform);
+        }
+
+        // 9. LineRenderer 컴포넌트
+        lineRenderer = GetComponent<MapLineRenderer>();
+        if (lineRenderer == null)
+        {
+            lineRenderer = gameObject.AddComponent<MapLineRenderer>();
+        }
+        if (mapContainer != null)
+        {
+            lineRenderer.Initialize(mapContainer);
+        }
+
+        AutoBindSceneReferences();
+
+        // 10. 미리보기 맵 생성
+        if (generatePreview)
+        {
+            GeneratePreviewMap(previewSeed);
+        }
+    }
+
+    /// <summary>
+    /// 에디터 씬 뷰에서 15층 미리보기 맵을 생성하여 노드, 선, 기차 아이콘을 실시간으로 확인합니다.
+    /// </summary>
+    public void GeneratePreviewMap(int seed = -1)
+    {
+        if (mapContainer == null)
+        {
+            AutoBindSceneReferences();
+            if (mapContainer == null)
+            {
+                Debug.LogWarning("[MapManager] mapContainer가 없어 미리보기를 생성할 수 없습니다. BuildUIInEditor()를 먼저 실행하세요.");
+                return;
+            }
+        }
+
+        ClearPreviewNodes();
+
+        if (seed < 0) seed = previewSeed;
+        if (seed < 0) seed = 12345;
+
+        mainFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Main_Fonts");
+
+        if (lineRenderer == null) lineRenderer = GetComponent<MapLineRenderer>();
+        if (lineRenderer == null) lineRenderer = gameObject.AddComponent<MapLineRenderer>();
+        lineRenderer.Initialize(mapContainer);
+
+        mapData = MapGenerator.Generate(seed);
+        if (mapData != null)
+        {
+            int floor = Mathf.Clamp(previewFloor, 1, mapData.totalFloors);
+            var floorNodes = mapData.GetFloorNodes(floor);
+            mapData.currentNode = floorNodes.Count > 0 ? floorNodes[0] : mapData.GetFloorNodes(1)[0];
+            mapData.currentNode.isVisited = true;
+            mapData.currentNodeId = mapData.currentNode.id;
+
+            LayoutNodes();
+            DrawConnections();
+            UpdateAllVisuals();
+            UpdateInfoPanel();
+            ScrollToCurrentNode();
+            Debug.Log($"[MapManager] 에디터 미리보기 맵 생성 완료 (시드: {seed}, 현재 위치: {mapData.currentNode.floor}층)");
+        }
+    }
+
+    /// <summary>
+    /// 생성된 미리보기 노드 및 연결선을 씬에서 정리합니다.
+    /// </summary>
+    public void ClearPreviewNodes()
+    {
+        if (mapContainer != null)
+        {
+            // 1. LineContainer 내부의 모든 연결선 완전히 제거
+            Transform lineCont = mapContainer.Find("LineContainer");
+            if (lineCont != null)
+            {
+                for (int i = lineCont.childCount - 1; i >= 0; i--)
+                {
+                    Transform lineChild = lineCont.GetChild(i);
+                    lineChild.gameObject.SetActive(false);
+                    SafeDestroy(lineChild.gameObject);
+                }
+            }
+
+            // 2. mapContainer 직속 자식 노드 및 잔여 선 제거
+            List<GameObject> toDestroy = new List<GameObject>();
+            for (int i = 0; i < mapContainer.childCount; i++)
+            {
+                Transform child = mapContainer.GetChild(i);
+                if (child.name.StartsWith("Node_") || child.name == "TrainIndicator" || child.name.StartsWith("Line_"))
+                {
+                    // 즉시 비활성화하여 같은 프레임에서 이중으로 렌더링되거나 겹쳐 보이는 현상 방지
+                    child.gameObject.SetActive(false);
+                    toDestroy.Add(child.gameObject);
+                }
+            }
+            foreach (var go in toDestroy)
+            {
+                SafeDestroy(go);
+            }
+        }
+
+        nodeUIMap.Clear();
+        nodePositions.Clear();
+
+        if (lineRenderer == null) lineRenderer = GetComponent<MapLineRenderer>();
+        if (lineRenderer != null)
+        {
+            if (mapContainer != null) lineRenderer.Initialize(mapContainer);
+            lineRenderer.ClearAllLines();
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // 게임 런타임 초기화
+    // ─────────────────────────────────────────────
+
+    private void InitializeMap()
+    {
         mainFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Main_Fonts");
         if (mainFont == null)
             Debug.LogWarning("[MapManager] Main_Fonts를 찾을 수 없습니다.");
 
+        AutoBindSceneReferences();
+
         if (mapContainer == null)
         {
-            SetupDefaultUI();
+            BuildUIInEditor(false);
         }
-
-        // 붕괴 매니저 초기화 (이벤트 연결)
-        collapseManager = new CollapseManager();
-        collapseManager.OnCollapseWarning += OnCollapseWarning;
-        collapseManager.OnFloorCollapsed += OnFloorCollapsed;
-        collapseManager.OnGameOver += OnGameOver;
-        collapseManager.OnTurnChanged += OnTurnChanged;
+        else
+        {
+            // 에디터 미리보기 노드가 남아있다면 런타임 노드 생성을 위해 정리
+            ClearPreviewNodes();
+        }
 
         // RunManager 연동 (전역 데이터 로드)
         RunManager rm = RunManager.Instance;
+
+        // 에디터에서 MapScene 직접 테스트 실행 중 이전 세션의 구버전 맵(최대 3개 노드 맵)이 잔존하는 경우 새 맵으로 갱신
+        if (rm.CurrentMap != null && Application.isEditor)
+        {
+            int maxNodesInSaved = 0;
+            for (int f = 1; f <= rm.CurrentMap.totalFloors; f++)
+            {
+                maxNodesInSaved = Mathf.Max(maxNodesInSaved, rm.CurrentMap.GetFloorNodes(f).Count);
+            }
+            if (maxNodesInSaved <= 3)
+            {
+                Debug.Log("[MapManager] 이전 세션의 구버전(최대 3개) 맵 데이터가 감지되어 새로운 3~5개 노드 맵으로 재생성합니다.");
+                rm.CurrentMap = null;
+                rm.CurrentNode = null;
+            }
+        }
+
         if (rm.CurrentMap != null)
         {
             // 기존 맵 데이터 복원
             mapData = rm.CurrentMap;
-            collapseManager.turnCount = rm.CurrentTurn;
+            currentTurn = rm.CurrentTurn;
 
             // 저장된 위치가 없으면 1층의 Start 노드로 설정
             if (rm.CurrentNode == null)
@@ -145,7 +582,7 @@ private void InitializeMap()
             mapData.currentNode.isVisited = true;
             mapData.currentNodeId = mapData.currentNode.id;
 
-            Debug.Log($"[MapManager] RunManager에서 맵 데이터를 복원했습니다. 현재 층: {mapData.currentNode.floor}, 턴: {collapseManager.turnCount}");
+            Debug.Log($"[MapManager] RunManager에서 맵 데이터를 복원했습니다. 현재 층: {mapData.currentNode.floor}, 턴: {currentTurn}");
         }
         else
         {
@@ -159,12 +596,14 @@ private void InitializeMap()
 
             rm.CurrentNode = mapData.currentNode;
             rm.CurrentTurn = 0;
+            currentTurn = 0;
 
             Debug.Log("[MapManager] 새 맵을 생성했습니다.");
         }
 
         // 라인 렌더러 초기화
-        lineRenderer = gameObject.AddComponent<MapLineRenderer>();
+        if (lineRenderer == null) lineRenderer = GetComponent<MapLineRenderer>();
+        if (lineRenderer == null) lineRenderer = gameObject.AddComponent<MapLineRenderer>();
         lineRenderer.Initialize(mapContainer);
 
         // UI 배치
@@ -180,20 +619,27 @@ private void InitializeMap()
             Canvas canvas = FindObjectOfType<Canvas>();
             if (canvas != null)
             {
-                Transform existingRes = canvas.transform.Find("ResourcePanel");
+                Transform parentTransform = customCanvasTransform != null ? customCanvasTransform : canvas.transform;
+                Transform existingRes = parentTransform.Find("ResourcePanel");
                 if (existingRes == null)
                 {
                     var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
                     if (resourceUI == null) resourceUI = gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();
-                    resourceUI.Initialize(canvas.transform);
+                    resourceUI.Initialize(parentTransform);
                 }
                 
-                // 디버그 버튼 생성
-                Transform existingDebugBtn = canvas.transform.Find("DebugConsumableButton");
-                if (existingDebugBtn == null)
+                if (parentTransform.Find("TrainManageButton") == null)
                 {
-                    CreateDebugConsumableButton(canvas.transform);
-                    CreateDebugRelicButton(canvas.transform);
+                    CreateTrainManagementButton(parentTransform);
+                }
+
+                if (parentTransform.Find("DebugConsumableButton") == null)
+                {
+                    CreateDebugConsumableButton(parentTransform);
+                }
+                if (parentTransform.Find("DebugRelicButton") == null)
+                {
+                    CreateDebugRelicButton(parentTransform);
                 }
             }
         }
@@ -337,119 +783,9 @@ private void InitializeMap()
     /// <summary>
     /// Canvas와 Container가 없을 때 자동 생성합니다.
     /// </summary>
-/// <summary>
-    /// Canvas와 Container가 없을 때 자동 생성합니다.
-    /// </summary>
     private void SetupDefaultUI()
     {
-        // Camera
-        Camera cam = Camera.main;
-        if (cam == null)
-        {
-            GameObject camObj = new GameObject("Main Camera");
-            cam = camObj.AddComponent<Camera>();
-            camObj.tag = "MainCamera";
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.08f, 0.08f, 0.12f, 1f);
-        }
-
-        // EventSystem
-        UnityEngine.EventSystems.EventSystem es = FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
-        if (es == null)
-        {
-            GameObject esObj = new GameObject("EventSystem");
-            esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
-        }
-
-        // Canvas
-        Canvas canvas = FindObjectOfType<Canvas>();
-        if (canvas == null)
-        {
-            GameObject canvasObj = new GameObject("MapCanvas");
-            canvas = canvasObj.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 10;
-            canvasObj.AddComponent<CanvasScaler>();
-            canvasObj.AddComponent<GraphicRaycaster>();
-
-            CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
-
-        Transform parentTransform = customCanvasTransform != null ? customCanvasTransform : canvas.transform;
-
-        // Scroll View (가로 스크롤)
-        GameObject scrollObj = new GameObject("MapScrollView");
-        scrollObj.transform.SetParent(parentTransform, false);
-        ScrollRect scrollRect = scrollObj.AddComponent<ScrollRect>();
-        Image scrollBg = scrollObj.AddComponent<Image>();
-        scrollBg.color = new Color(0, 0, 0, 0); // 배경 완전 투명하게 처리 (뒤에 Canvas 배경 보임)
-
-        RectTransform scrollRectTransform = scrollObj.GetComponent<RectTransform>();
-        scrollRectTransform.anchorMin = Vector2.zero;
-        scrollRectTransform.anchorMax = Vector2.one;
-        scrollRectTransform.offsetMin = new Vector2(0, 60);
-        scrollRectTransform.offsetMax = new Vector2(0, -90); // 상단바(높이 80) 아래 영역으로 제한하여 노드 잘림 방지
-
-        // Viewport
-        GameObject viewportObj = new GameObject("Viewport");
-        viewportObj.transform.SetParent(scrollObj.transform, false);
-        RectTransform viewportRect = viewportObj.AddComponent<RectTransform>();
-        viewportRect.anchorMin = Vector2.zero;
-        viewportRect.anchorMax = Vector2.one;
-        viewportRect.offsetMin = Vector2.zero;
-        viewportRect.offsetMax = Vector2.zero;
-        Image viewportMask = viewportObj.AddComponent<Image>();
-        viewportMask.color = Color.white;
-        Mask mask = viewportObj.AddComponent<Mask>();
-        mask.showMaskGraphic = false;
-
-        // Content (가로 레이아웃: 왼쪽에서 오른쪽으로)
-        GameObject contentObj = new GameObject("MapContent");
-        contentObj.transform.SetParent(viewportObj.transform, false);
-        mapContainer = contentObj.AddComponent<RectTransform>();
-        mapContainer.anchorMin = new Vector2(0f, 0.5f);
-        mapContainer.anchorMax = new Vector2(0f, 0.5f);
-        mapContainer.pivot = new Vector2(0f, 0.5f);
-
-        // 배경 이미지 (ScrollRect 뒤에 그려지도록 Canvas 정적인 영역에 배치)
-        Sprite bgSprite = Resources.Load<Sprite>("Map/MapBackground");
-        if (bgSprite != null)
-        {
-            GameObject bgObj = new GameObject("StaticBackground");
-            // Canvas 직속 자식으로 넣어서 ScrollRect와 분리하여 스크롤되지 않도록 설정
-            bgObj.transform.SetParent(parentTransform, false);
-            bgObj.transform.SetAsFirstSibling(); // 모든 UI(스크롤, 패널 등) 뒤에 그려지게
-
-            Image bgImage = bgObj.AddComponent<Image>();
-            bgImage.sprite = bgSprite;
-            bgImage.preserveAspect = false; // 화면 비율에 맞추어 확대(stretch)
-            bgImage.raycastTarget = false;
-
-            RectTransform bgRect = bgObj.GetComponent<RectTransform>();
-            bgRect.anchorMin = Vector2.zero; // 화면 전체 채우기
-            bgRect.anchorMax = Vector2.one;
-            bgRect.offsetMin = Vector2.zero;
-            bgRect.offsetMax = Vector2.zero;
-
-            Debug.Log("[MapManager] 배경 이미지 로드 성공 (고정 배경 처리)!");
-        }
-        else
-        {
-            Debug.LogWarning("[MapManager] 배경 이미지를 찾을 수 없습니다. Resources/Map/MapBackground 경로를 확인하세요.");
-        }
-
-        scrollRect.content = mapContainer;
-        scrollRect.viewport = viewportRect;
-        scrollRect.horizontal = true;
-        scrollRect.vertical = false; // 상하 드래그 완전히 금지 (좌우로만 스크롤 가능)
-        scrollRect.movementType = ScrollRect.MovementType.Clamped;
-
-        // Info Panel (하단)
-        CreateInfoPanel(parentTransform);
+        BuildUIInEditor(false);
     }
 
     /// <summary>
@@ -479,10 +815,15 @@ private void InitializeMap()
 
         // 턴 정보
         turnInfoText = CreateInfoLabel(panelObj.transform, "Turn: 0");
+        turnInfoText.gameObject.name = "TurnLabel";
+
         // 층 정보
         floorInfoText = CreateInfoLabel(panelObj.transform, "Floor: 1");
+        floorInfoText.gameObject.name = "FloorLabel";
+
         // 경고 텍스트
         collapseWarningText = CreateInfoLabel(panelObj.transform, "");
+        collapseWarningText.gameObject.name = "WarningLabel";
         collapseWarningText.color = new Color(1f, 0.3f, 0.2f);
     }
 
@@ -513,11 +854,14 @@ tmp.color = Color.white;
         nodePositions.Clear();
 
         // 가로 방향 X축 = 층 차이, Y축 = 같은 층의 노드 배치
-        float totalWidth = (mapData.totalFloors) * mapSpacingX + 400f; // 양옆 여백 추가
-        float maxHeight = MapGenerator.MAX_NODES_PER_FLOOR * mapSpacingY + 400f; // 위아래 여백 추가
+        float totalWidth = (mapData.totalFloors) * mapSpacingX + 600f; // 양옆 여백 추가
+        float maxHeight = MapGenerator.MAX_NODES_PER_FLOOR * mapSpacingY + 600f; // 위아래 여백 추가
 
         // Content 크기 설정 (화면보다 훨씬 크게)
         mapContainer.sizeDelta = new Vector2(totalWidth, maxHeight);
+
+        // 상하 안전 범위: 상하단 기어 바 및 UI 패널과의 충돌을 원천 방지 (최대 ±240px)
+        const float maxSafeY = 240f;
 
         for (int floor = 1; floor <= mapData.totalFloors; floor++)
         {
@@ -525,23 +869,27 @@ tmp.color = Color.white;
             int count = floorNodes.Count;
 
             // X 좌표: 왼쪽(1층)에서 오른쪽(15층)으로
-            float x = (floor - 1) * mapSpacingX + 200f;
+            float x = (floor - 1) * mapSpacingX + 300f;
 
-            // Y 좌표: 중앙 정렬
-            float totalHeight = (count - 1) * mapSpacingY;
+            // Y 간격: 노드 수가 많을 경우 안전 범위 내에 쏙 들어가도록 비례 압축
+            float effectiveSpacingY = count > 1 ? Mathf.Min(mapSpacingY, (maxSafeY * 2f) / (count - 1)) : 0f;
+            float totalHeight = (count - 1) * effectiveSpacingY;
             float startY = -totalHeight / 2f;
 
             for (int i = 0; i < count; i++)
             {
                 MapNode node = floorNodes[i];
-                float y = startY + i * mapSpacingY;
+                float y = startY + i * effectiveSpacingY;
 
-                // 랜덤 오프셋 추가 (1층과 15층 제외) - 상하 잘림 방지를 위해 Y 범위를 조절
+                // 랜덤 오프셋 추가 (1층과 15층 제외) - 상하단 바 침범 방지를 위해 Y 흔들림을 최소화
                 if (floor > 1 && floor < mapData.totalFloors)
                 {
-                    x += Random.Range(-30f, 30f);
-                    y += Random.Range(-25f, 25f);
+                    x += Random.Range(-35f, 35f);
+                    y += Random.Range(-8f, 8f);
                 }
+
+                // 상하단 바를 절대 뚫지 못하도록 Y 위치를 안전 경계 안으로 클램핑
+                y = Mathf.Clamp(y, -maxSafeY, maxSafeY);
 
                 Vector2 position = new Vector2(x, y);
 
@@ -550,12 +898,12 @@ tmp.color = Color.white;
                 nodePositions[node.id] = position;
 
                 // X를 원래 값으로 복원 (다음 노드를 위해)
-                x = (floor - 1) * mapSpacingX + 200f;
+                x = (floor - 1) * mapSpacingX + 300f;
             }
         }
     }
 
-private MapNodeUI CreateNodeUI(MapNode node, Vector2 position)
+    private MapNodeUI CreateNodeUI(MapNode node, Vector2 position)
     {
         // 노드 루트
         GameObject nodeObj = new GameObject($"Node_{node.id}_F{node.floor}");
@@ -569,18 +917,31 @@ private MapNodeUI CreateNodeUI(MapNode node, Vector2 position)
         rect.anchoredPosition = position;
         rect.sizeDelta = new Vector2(nodeSize, nodeSize);
 
-        Button button = nodeObj.AddComponent<Button>();
+        // [핵심 개선] 루트 오브젝트에 넉넉한 85x85 완전 투명 히트박스 Image 추가
+        // 아이콘 내부 투명도나 비율과 무관하게 노드 영역 전체가 마우스 클릭을 100% 수신
+        Image hitBoxImage = nodeObj.AddComponent<Image>();
+        hitBoxImage.color = new Color(0f, 0f, 0f, 0f);
+        hitBoxImage.raycastTarget = true;
 
-        // 글로우 이펙트
+        Button button = nodeObj.AddComponent<Button>();
+        button.transition = Selectable.Transition.None;
+        button.targetGraphic = hitBoxImage;
+        Navigation nav = new Navigation();
+        nav.mode = Navigation.Mode.None;
+        button.navigation = nav;
+
+        // 글로우 이펙트 (현재 위치 주변에 은은하게 퍼지는 푸른색 원형 아우라)
         GameObject glowObj = new GameObject("Glow");
         glowObj.transform.SetParent(nodeObj.transform, false);
         RectTransform glowRect = glowObj.AddComponent<RectTransform>();
         glowRect.anchorMin = Vector2.zero;
         glowRect.anchorMax = Vector2.one;
-        glowRect.offsetMin = new Vector2(-10, -10);
-        glowRect.offsetMax = new Vector2(10, 10);
+        glowRect.offsetMin = new Vector2(-15, -15);
+        glowRect.offsetMax = new Vector2(15, 15);
         Image glowImage = glowObj.AddComponent<Image>();
-        glowImage.color = new Color(1, 1, 1, 0.3f);
+        glowImage.sprite = MapNodeUI.GetOrCreateCircleGlowSprite();
+        glowImage.color = new Color(0.20f, 0.70f, 1.0f, 0.22f);
+        glowImage.raycastTarget = false;
         glowObj.SetActive(false);
 
         // 아이콘
@@ -593,6 +954,8 @@ private MapNodeUI CreateNodeUI(MapNode node, Vector2 position)
         iconRect.offsetMax = Vector2.zero;
         Image iconImage = iconObj.AddComponent<Image>();
         iconImage.color = Color.white;
+        iconImage.preserveAspect = true;
+        iconImage.raycastTarget = false; // 부모 hitBoxImage가 단일하게 이벤트를 수신하도록 false
 
         // 경고 이펙트
         GameObject warningObj = new GameObject("Warning");
@@ -604,6 +967,7 @@ private MapNodeUI CreateNodeUI(MapNode node, Vector2 position)
         warningRect.offsetMax = new Vector2(5, 5);
         Image warningImage = warningObj.AddComponent<Image>();
         warningImage.color = new Color(1, 0.2f, 0.1f, 0.5f);
+        warningImage.raycastTarget = false;
         warningObj.SetActive(false);
 
         // 라벨
@@ -617,19 +981,13 @@ private MapNodeUI CreateNodeUI(MapNode node, Vector2 position)
         TMPro.TextMeshProUGUI label = labelObj.AddComponent<TMPro.TextMeshProUGUI>();
         label.fontSize = 24;
         label.alignment = TMPro.TextAlignmentOptions.Center;
+        label.raycastTarget = false; // 클릭 이벤트 가로챔 방지
         if (mainFont != null) label.font = mainFont;
-
-        
-label.color = Color.white;
-
-        button.targetGraphic = iconImage;
-        Navigation nav = new Navigation();
-        nav.mode = Navigation.Mode.None;
-        button.navigation = nav;
+        label.color = Color.white;
 
         MapNodeUI nodeUI = nodeObj.AddComponent<MapNodeUI>();
 
-        // MapNodeUI의 필드들이 public이므로 직접 할당
+        // MapNodeUI의 필드들 직접 할당
         nodeUI.nodeIcon = iconImage;
         nodeUI.glowEffect = glowImage;
         nodeUI.warningEffect = warningImage;
@@ -638,6 +996,24 @@ label.color = Color.white;
         nodeUI.Setup(node, this);
 
         return nodeUI;
+    }
+
+    /// <summary>
+    /// 현재 위치 노드를 클릭했을 때 호출됩니다.
+    /// 이동 가능한 다음 층 노드들을 펄스 강조하여 유저를 시각적으로 유도합니다.
+    /// </summary>
+    public void NotifyCurrentNodeClicked()
+    {
+        if (mapData == null || mapData.currentNode == null) return;
+
+        var accessible = mapData.GetAccessibleNodes();
+        foreach (var n in accessible)
+        {
+            if (nodeUIMap.TryGetValue(n.id, out var ui) && ui != null)
+            {
+                ui.TriggerPulseHighlight();
+            }
+        }
     }
 
     /// <summary>
@@ -666,6 +1042,7 @@ label.color = Color.white;
     private void DrawConnections()
     {
         HashSet<string> drawnPairs = new HashSet<string>();
+        float nodeRadius = nodeSize * 0.5f;
 
         foreach (var node in mapData.allNodes)
         {
@@ -686,7 +1063,8 @@ label.color = Color.white;
                 lineRenderer.CreateLine(
                     node, connected,
                     nodePositions[node.id],
-                    nodePositions[connected.id]
+                    nodePositions[connected.id],
+                    nodeRadius
                 );
             }
         }
@@ -698,34 +1076,17 @@ label.color = Color.white;
 
     /// <summary>
     /// MapNodeUI에서 노드 클릭 시 호출됩니다.
+    /// 바로 다음 층(floor + 1)으로만 전진 이동이 가능합니다.
     /// </summary>
     public void OnNodeSelected(MapNode targetNode)
     {
         if (isReadOnly || targetNode == null) return;
 
-        // 이동 가능 여부 확인
+        // 이동 가능 여부 확인 (오직 바로 다음 층으로만 전진 가능)
         if (!targetNode.IsAccessibleFrom(mapData.currentNode))
         {
-            Debug.Log($"[MapManager] 이동 불가: {targetNode} (연결되지 않음 또는 붕괴됨)");
+            Debug.Log($"[MapManager] 이동 불가: {targetNode} (다음 층으로만 전진 가능)");
             return;
-        }
-
-        // 이동 안전성 검증
-        MoveValidation validation = collapseManager.ValidateMove(targetNode);
-
-        switch (validation)
-        {
-            case MoveValidation.Blocked_Collapsed:
-                Debug.Log($"[MapManager] 이동 불가: {targetNode.floor}층은 이미 붕괴됨");
-                return;
-
-            case MoveValidation.Risky_WillCollapse:
-                Debug.LogWarning($"[MapManager] [경고] 위험! {targetNode.floor}층은 다음 턴에 붕괴됩니다!");
-                // 경고를 표시하지만 이동은 허용 (위험 감수)
-                break;
-
-            case MoveValidation.Safe:
-                break;
         }
 
         // 이동 실행
@@ -734,9 +1095,12 @@ label.color = Color.white;
         mapData.currentNode = targetNode;
         mapData.currentNodeId = targetNode.id;
         targetNode.isVisited = true;
+        currentTurn++;
 
-        // 턴 처리
-        CollapseResult result = collapseManager.ProcessTurn(mapData);
+        if (RunManager.Instance != null)
+        {
+            RunManager.Instance.CurrentTurn = currentTurn;
+        }
 
         // 기차 내구도 감소
         if (TheLastArk.Managers.TrainManager.Instance != null)
@@ -748,30 +1112,7 @@ label.color = Color.white;
         UpdateAllVisuals();
         UpdateInfoPanel();
 
-        // 결과 처리
-        HandleCollapseResult(result, targetNode);
-    }
-
-private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
-    {
-        switch (result)
-        {
-            case CollapseResult.GameOver:
-                Debug.Log("[MapManager] [게임 오버]");
-                // TODO: 게임 오버 UI 표시
-                break;
-
-            case CollapseResult.Collapsed:
-                Debug.Log($"[MapManager] 붕괴 발생 후 {arrivedNode.nodeType} 노드 도착!");
-                HandleNodeArrival(arrivedNode);
-                break;
-
-            case CollapseResult.Warning:
-            case CollapseResult.Normal:
-                Debug.Log($"[MapManager] {arrivedNode.nodeType} 노드 도착!");
-                HandleNodeArrival(arrivedNode);
-                break;
-        }
+        HandleNodeArrival(targetNode);
     }
 
     /// <summary>
@@ -804,66 +1145,8 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
         else
         {
             // 그 외: 씬 전환
-            RunManager.Instance.GoToNodeScene(node, collapseManager.turnCount);
+            RunManager.Instance.GoToNodeScene(node, currentTurn);
         }
-    }
-
-    // ─────────────────────────────────────────────
-    // 붕괴 이벤트 핸들러
-    // ─────────────────────────────────────────────
-
-    private void OnCollapseWarning(int floor)
-    {
-        Debug.Log($"[MapManager] UI 경고 연출: {floor}층");
-
-        // 경고 대상 층의 노드들에 경고 이펙트
-        foreach (var node in mapData.GetFloorNodes(floor))
-        {
-            if (nodeUIMap.ContainsKey(node.id))
-            {
-                nodeUIMap[node.id].PlayWarningPulse();
-            }
-        }
-
-        if (collapseWarningText != null)
-        {
-            collapseWarningText.text = $"[WARNING] {floor}층 붕괴 임박!";
-        }
-    }
-
-    private void OnFloorCollapsed(int floor)
-    {
-        Debug.Log($"[MapManager] UI 붕괴 연출: {floor}층");
-
-        // 붕괴된 층의 노드들에 붕괴 이펙트
-        foreach (var node in mapData.GetFloorNodes(floor))
-        {
-            if (nodeUIMap.ContainsKey(node.id))
-            {
-                nodeUIMap[node.id].PlayCollapseEffect();
-            }
-        }
-
-        if (collapseWarningText != null)
-        {
-            collapseWarningText.text = "";
-        }
-    }
-
-    private void OnGameOver()
-    {
-        Debug.Log("[MapManager] 게임 오버 UI 처리");
-        // TODO: 게임 오버 UI 오버레이 표시
-        if (collapseWarningText != null)
-        {
-            collapseWarningText.text = "GAME OVER";
-            collapseWarningText.fontSize = 32;
-        }
-    }
-
-    private void OnTurnChanged(int turn, int remaining)
-    {
-        UpdateInfoPanel();
     }
 
     // ─────────────────────────────────────────────
@@ -881,54 +1164,7 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
         // 연결선 색상 갱신
         if (lineRenderer != null)
         {
-            lineRenderer.UpdateLineColors(mapData.currentNode, collapseManager);
-        }
-
-        // 기차 위치 갱신
-        UpdateTrainPosition();
-    }
-
-    private void CreateTrainIndicator()
-    {
-        GameObject trainObj = new GameObject("TrainIndicator");
-        trainObj.transform.SetParent(mapContainer, false);
-        trainIndicator = trainObj.AddComponent<RectTransform>();
-        
-        // 노드와 동일한 앵커/피벗 설정 (왼쪽 중앙 기준)
-        trainIndicator.anchorMin = new Vector2(0f, 0.5f);
-        trainIndicator.anchorMax = new Vector2(0f, 0.5f);
-        trainIndicator.pivot = new Vector2(0.5f, 0.5f);
-        
-        trainIndicator.sizeDelta = new Vector2(130f, 130f);
-        Image trainImg = trainObj.AddComponent<Image>();
-        trainImg.sprite = Resources.Load<Sprite>("UI/Train");
-        
-        if (trainImg.sprite == null) 
-        {
-            // 임시로 눈에 띄게 노란색 네모 표시 (Train 이미지가 없을 경우)
-            trainImg.color = Color.yellow;
-            Debug.LogWarning("[MapManager] 기차 이미지(UI/Train)를 찾을 수 없어 노란색 사각형으로 대체합니다.");
-        }
-        else
-        {
-            trainImg.color = Color.white;
-        }
-    }
-
-    private void UpdateTrainPosition()
-    {
-        if (trainIndicator == null) 
-        {
-            CreateTrainIndicator();
-        }
-
-        if (mapData != null && mapData.currentNode != null && nodePositions.ContainsKey(mapData.currentNode.id))
-        {
-            Vector2 targetPos = nodePositions[mapData.currentNode.id];
-            
-            // 위치 업데이트 및 항상 가장 위에 렌더링되게 설정
-            trainIndicator.anchoredPosition = targetPos;
-            trainIndicator.SetAsLastSibling();
+            lineRenderer.UpdateLineColors(mapData.currentNode);
         }
     }
 
@@ -936,16 +1172,15 @@ private void HandleCollapseResult(CollapseResult result, MapNode arrivedNode)
     {
         if (turnInfoText != null)
         {
-            int remaining = collapseManager.GetTurnsUntilNextCollapse();
-            turnInfoText.text = $"Turn: {collapseManager.turnCount}  |  붕괴까지: {remaining}턴";
+            turnInfoText.text = $"Turn: {currentTurn}";
         }
 
-        if (floorInfoText != null && mapData.currentNode != null)
+        if (floorInfoText != null && mapData != null && mapData.currentNode != null)
         {
             floorInfoText.text = $"Floor: {mapData.currentNode.floor}  |  {mapData.currentNode.nodeType}";
         }
 
-        if (collapseWarningText != null && !collapseManager.isWarning)
+        if (collapseWarningText != null)
         {
             collapseWarningText.text = "";
         }

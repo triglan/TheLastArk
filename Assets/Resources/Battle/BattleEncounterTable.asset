@@ -15,18 +15,16 @@ MonoBehaviour:
   regions:
   - regionId: temp
     pools:
-    - {fileID: 11400000, guid: 5a421485ffc6f9c458683eb9f0c069cb, type: 2}
-    - {fileID: 11400000, guid: 1a895e21797c43846b4496c195dc51c4, type: 2}
-    - {fileID: 11400000, guid: 18d68bfb76ceb034582e94cace80c164, type: 2}
-    - {fileID: 11400000, guid: e47ded7157ae09540b7ac4d58895e70b, type: 2}
     - {fileID: 11400000, guid: af642843ac97046468c0532575a97b74, type: 2}
     - {fileID: 11400000, guid: a6476acef72b2764bb92dc0d219b0f09, type: 2}
+    - {fileID: 11400000, guid: de32e5dcbf0809449a4d0f8cab0ed55c, type: 2}
+    - {fileID: 11400000, guid: fc40c287d991dde4b8e0056f8d4d87e9, type: 2}
+    - {fileID: 11400000, guid: c16f8a34152534c4685679c4d46b82d5, type: 2}
+    - {fileID: 11400000, guid: 441124cc479280e49838fd094658e2c3, type: 2}
+    - {fileID: 11400000, guid: 777969249ebebbb4fb4980c5d22a2fbf, type: 2}
+    - {fileID: 11400000, guid: 30d3c34423675994f96a579f74c71cd1, type: 2}
   - regionId: temp2
     pools: []
   pools:
-  - {fileID: 11400000, guid: 5a421485ffc6f9c458683eb9f0c069cb, type: 2}
-  - {fileID: 11400000, guid: 1a895e21797c43846b4496c195dc51c4, type: 2}
-  - {fileID: 11400000, guid: 18d68bfb76ceb034582e94cace80c164, type: 2}
-  - {fileID: 11400000, guid: e47ded7157ae09540b7ac4d58895e70b, type: 2}
   - {fileID: 11400000, guid: af642843ac97046468c0532575a97b74, type: 2}
   - {fileID: 11400000, guid: a6476acef72b2764bb92dc0d219b0f09, type: 2}

@@ -53,14 +53,50 @@ namespace TheLastArk.UI
 
             CreateDivider(panelObj.transform);
 
-            // 골드 UI
+            // 골드 UI (아이콘 + 수치 컨테이너)
+            GameObject goldContainer = new GameObject("GoldContainer");
+            goldContainer.transform.SetParent(panelObj.transform, false);
+
+            HorizontalLayoutGroup goldLayout = goldContainer.AddComponent<HorizontalLayoutGroup>();
+            goldLayout.spacing = 8;
+            goldLayout.childAlignment = TextAnchor.MiddleLeft;
+            goldLayout.childControlWidth = false;
+            goldLayout.childControlHeight = false;
+            goldLayout.childForceExpandWidth = false;
+            goldLayout.childForceExpandHeight = false;
+
+            ContentSizeFitter goldFitter = goldContainer.AddComponent<ContentSizeFitter>();
+            goldFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            goldFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            // 골드 아이콘
+            GameObject goldIconObj = new GameObject("GoldIcon");
+            goldIconObj.transform.SetParent(goldContainer.transform, false);
+            RectTransform goldIconRect = goldIconObj.AddComponent<RectTransform>();
+            goldIconRect.sizeDelta = new Vector2(34, 34);
+
+            Image iconImg = goldIconObj.AddComponent<Image>();
+            iconImg.preserveAspect = true;
+            Sprite goldIconSprite = LoadGoldIcon();
+            if (goldIconSprite != null)
+            {
+                iconImg.sprite = goldIconSprite;
+                iconImg.color = Color.white;
+            }
+            else
+            {
+                iconImg.color = new Color(1f, 0.85f, 0.2f, 1f);
+            }
+
+            // 골드 텍스트 (아이콘이 있으므로 G 접미사 없이 숫자만 표시)
             GameObject goldObj = new GameObject("GoldText");
-            goldObj.transform.SetParent(panelObj.transform, false);
+            goldObj.transform.SetParent(goldContainer.transform, false);
             goldText = goldObj.AddComponent<TextMeshProUGUI>();
-            goldText.fontSize = 30;
-            goldText.color = Color.yellow;
-            goldText.text = "0 G";
+            goldText.fontSize = 28;
+            goldText.color = new Color(1f, 0.92f, 0.4f, 1f);
+            goldText.text = "0";
             goldText.alignment = TextAlignmentOptions.Left;
+            goldText.enableWordWrapping = false;
             if (mainFont != null) goldText.font = mainFont;
 
             CreateDivider(panelObj.transform);
@@ -90,10 +126,10 @@ namespace TheLastArk.UI
 
                 GameObject iconObj = new GameObject("Icon");
                 iconObj.transform.SetParent(slotObj.transform, false);
-                RectTransform iconRect = iconObj.AddComponent<RectTransform>();
-                iconRect.anchorMin = Vector2.zero;
-                iconRect.anchorMax = Vector2.one;
-                iconRect.sizeDelta = Vector2.zero;
+                RectTransform slotIconRect = iconObj.AddComponent<RectTransform>();
+                slotIconRect.anchorMin = Vector2.zero;
+                slotIconRect.anchorMax = Vector2.one;
+                slotIconRect.sizeDelta = Vector2.zero;
                 
                 Image iconImage = iconObj.AddComponent<Image>();
                 iconImage.color = new Color(1, 1, 1, 0); // 처음엔 투명하게
@@ -306,11 +342,27 @@ namespace TheLastArk.UI
             }
         }
 
+        private Sprite LoadGoldIcon()
+        {
+            Sprite sprite = Resources.Load<Sprite>("Map/icon_gold");
+            if (sprite == null)
+            {
+                sprite = Resources.Load<Sprite>("UI/icon_gold");
+            }
+#if UNITY_EDITOR
+            if (sprite == null)
+            {
+                sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Map/icon_gold.png");
+            }
+#endif
+            return sprite;
+        }
+
         private void UpdateGold()
         {
             if (goldText != null && ResourceManager.Instance != null)
             {
-                goldText.text = $"{ResourceManager.Instance.Gold} G";
+                goldText.text = $"{ResourceManager.Instance.Gold:N0}";
             }
         }
 

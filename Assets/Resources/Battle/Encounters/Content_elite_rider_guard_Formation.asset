@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c6e0c7fef8f43039138dafafdd11ec5, type: 3}
+  m_Name: Content_elite_rider_guard_Formation
+  m_EditorClassIdentifier: 
+  encounterId: content_elite_rider_guard
+  displayName: "\uC5D8\uB9AC\uD2B8 - \uAE30\uC218 \uD638\uC704"
+  enemySlots:
+  - {fileID: 11400000, guid: 2a200c992aabfc045b2369fb61963900, type: 2}
+  - {fileID: 11400000, guid: 8f4d2ad6211fb1844932edb96d1e2bd5, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}

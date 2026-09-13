@@ -13,7 +13,7 @@ public static class MapGenerator
 
     public const int TOTAL_FLOORS = 15;
     public const int MIN_NODES_PER_FLOOR = 3;
-    public const int MAX_NODES_PER_FLOOR = 5;
+    public const int MAX_NODES_PER_FLOOR = 5; // 최대 5개 노드까지 다채롭게 등장 (3~5개)
     public const int ELITE_FORCED_FLOOR = 9;
 
     private static readonly int[] REST_GUARANTEED_FLOORS = { 5, 14 };
@@ -51,7 +51,7 @@ public static class MapGenerator
     }
 
     // ─────────────────────────────────────────────
-    // Step 1: 노드 배치
+    // Step 1: 노드 배치 (층당 3~5개로 풍성하게 구성)
     // ─────────────────────────────────────────────
 
     private static void GenerateNodes(MapData mapData, ref int nextId)
@@ -59,9 +59,10 @@ public static class MapGenerator
         for (int floor = 1; floor <= TOTAL_FLOORS; floor++)
         {
             int nodeCount;
-            if (floor == 1) nodeCount = 1;
-            else if (floor == TOTAL_FLOORS) nodeCount = 1;
-            else nodeCount = Random.Range(MIN_NODES_PER_FLOOR, MAX_NODES_PER_FLOOR + 1);
+            if (floor == 1) nodeCount = 1;                        // 시작 노드 1개
+            else if (floor == TOTAL_FLOORS) nodeCount = 1;        // 보스 노드 1개
+            else if (floor == TOTAL_FLOORS - 1) nodeCount = Random.Range(2, 4); // 보스 직전 2~3개 수렴
+            else nodeCount = Random.Range(MIN_NODES_PER_FLOOR, MAX_NODES_PER_FLOOR + 1); // 3~5개 노드 (4~5개 빈번 등장)
 
             for (int i = 0; i < nodeCount; i++)
             {
@@ -72,10 +73,10 @@ public static class MapGenerator
     }
 
     // ─────────────────────────────────────────────
-    // Step 2: 간선 연결 (1~2개 제한, 교차 방지)
+    // Step 2: 간선 연결 (존재하는 노드에만 정확히 1:1 대응 연결)
     // ─────────────────────────────────────────────
 
-private static void WireEdges(MapData mapData)
+    private static void WireEdges(MapData mapData)
     {
         for (int floor = 1; floor < TOTAL_FLOORS; floor++)
         {
@@ -87,40 +88,59 @@ private static void WireEdges(MapData mapData)
             curFloor.Sort((a, b) => a.indexInFloor.CompareTo(b.indexInFloor));
             nxtFloor.Sort((a, b) => a.indexInFloor.CompareTo(b.indexInFloor));
 
-            // 1) 기본 연결: 각 노드에서 다음 층으로 1개 보장
+            // [중요] 1층 시작점 등 단일 노드 층인 경우:
+            // 다음 층에 실제로 생성된 노드 개수(nxtFloor.Count)만큼만 정확하게 1개씩 연결
+            // 다음 층 노드가 3개면 오직 3개만, 5개면 5개만 연결되어 허공으로 선이 뻗지 않음
+            if (curFloor.Count == 1)
+            {
+                foreach (var nxt in nxtFloor)
+                {
+                    curFloor[0].ConnectTo(nxt);
+                }
+                continue;
+            }
+
+            // 다음 층이 1개(예: 보스 층)인 경우:
+            // 현재 층의 모든 노드가 보스 노드로 1개씩 연결
+            if (nxtFloor.Count == 1)
+            {
+                foreach (var cur in curFloor)
+                {
+                    cur.ConnectTo(nxtFloor[0]);
+                }
+                continue;
+            }
+
+            // 1) 기본 전진 연결: 각 현재 노드에서 가장 인접한 다음 층 노드로 1개 연결
             foreach (var node in curFloor)
             {
                 MapNode target = FindClosestByRatio(node, curFloor, nxtFloor);
                 node.ConnectTo(target);
             }
 
-            // 2) 다음 층에서 연결 없는 노드 구제
+            // 2) 다음 층에서 연결이 없는 고립 노드 구제 (교차 방지 및 분기 수 제한 적용)
             foreach (var node in nxtFloor)
             {
-                if (node.connectedNodes.Count == 0)
+                bool hasIncoming = false;
+                foreach (var cur in curFloor)
                 {
-                    MapNode target = FindClosestByRatio(node, nxtFloor, curFloor);
-                    node.ConnectTo(target);
+                    if (cur.IsConnectedTo(node)) { hasIncoming = true; break; }
+                }
+
+                if (!hasIncoming)
+                {
+                    MapNode target = FindBestSourceForOrphan(node, curFloor, nxtFloor);
+                    if (target != null)
+                    {
+                        target.ConnectTo(node);
+                    }
                 }
             }
 
-            // 3) 크로스 레인 연결 (인접 레인만, 2칸 건너뛰기 금지)
-            //    1개 확정 + 40% 확률로 +1, 10% 확률로 +2
-            if (curFloor.Count >= 2 && nxtFloor.Count >= 2)
+            // 3) 교차하지 않는 선택지 분기 추가 (과도한 거미줄 방지: 층당 최대 1개, 35% 확률, 최대 2개 분기까지만)
+            if (curFloor.Count >= 2 && nxtFloor.Count >= 2 && Random.value < 0.35f)
             {
-                int crossCount = 1; // 확정 1개
-
-                float roll = Random.value;
-                if (roll < 0.10f)
-                    crossCount += 2;     // 10%: 총 3개
-                else if (roll < 0.50f)
-                    crossCount += 1;     // 40%: 총 2개
-                // 나머지 50%: 총 1개
-
-                for (int i = 0; i < crossCount; i++)
-                {
-                    AddCrossLaneEdge(curFloor, nxtFloor);
-                }
+                AddOneNonCrossingEdge(curFloor, nxtFloor);
             }
         }
     }
@@ -153,6 +173,56 @@ private static void WireEdges(MapData mapData)
         return best;
     }
 
+    private static MapNode FindBestSourceForOrphan(MapNode orphan, List<MapNode> curFloor, List<MapNode> nxtFloor)
+    {
+        if (curFloor.Count == 1) return curFloor[0];
+
+        float targetRatio = (float)orphan.indexInFloor / Mathf.Max(1, nxtFloor.Count - 1);
+        MapNode best = null;
+        float bestScore = float.MaxValue;
+
+        foreach (var cur in curFloor)
+        {
+            float curRatio = (float)cur.indexInFloor / Mathf.Max(1, curFloor.Count - 1);
+            float dist = Mathf.Abs(curRatio - targetRatio);
+
+            // 이미 연결된 선과 교차하는지 검사
+            bool crosses = false;
+            foreach (var other in curFloor)
+            {
+                if (other == cur) continue;
+                foreach (var conn in other.connectedNodes)
+                {
+                    if (nxtFloor.Contains(conn))
+                    {
+                        if (EdgesCross(cur.indexInFloor, orphan.indexInFloor, other.indexInFloor, conn.indexInFloor))
+                        {
+                            crosses = true;
+                            break;
+                        }
+                    }
+                }
+                if (crosses) break;
+            }
+
+            if (crosses) continue;
+
+            // 이미 다음 층으로 2개 이상 분기된 노드는 피함
+            int forwardCount = 0;
+            foreach (var conn in cur.connectedNodes)
+                if (nxtFloor.Contains(conn)) forwardCount++;
+
+            float score = dist + forwardCount * 2.0f;
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = cur;
+            }
+        }
+
+        return best != null ? best : FindClosestByRatio(orphan, nxtFloor, curFloor);
+    }
+
     private static void AddOneNonCrossingEdge(List<MapNode> curFloor, List<MapNode> nxtFloor)
     {
         List<System.Tuple<int, int>> existing = new List<System.Tuple<int, int>>();
@@ -161,10 +231,15 @@ private static void WireEdges(MapData mapData)
                 if (nxtFloor.Contains(conn))
                     existing.Add(new System.Tuple<int, int>(node.indexInFloor, conn.indexInFloor));
 
-        // 인접한(인덱스 차이 1) 미연결 쌍만 후보
+        // 인접한 미연결 쌍이면서, 분기 수가 1개 이하인 노드만 후보로 등록
         List<System.Tuple<MapNode, MapNode>> candidates = new List<System.Tuple<MapNode, MapNode>>();
         foreach (var cur in curFloor)
         {
+            int forwardCount = 0;
+            foreach (var conn in cur.connectedNodes)
+                if (nxtFloor.Contains(conn)) forwardCount++;
+            if (forwardCount >= 2) continue; // 이미 2개 분기된 노드는 추가 분기 금지
+
             foreach (var nxt in nxtFloor)
             {
                 if (cur.IsConnectedTo(nxt)) continue;

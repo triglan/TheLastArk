@@ -164,6 +164,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
 
     [HideInInspector] public bool hasResurrectedThisStage = false;
     public event System.Action<BattleCharacter> MentalDepleted;
+    public event System.Action<DamageResult> DamageResolved;
 
     public float ReceiveDamage(float amount, BattleCharacter attacker)
     {
@@ -302,16 +303,13 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             if (counter != null)
             {
                 status.ConsumeStatusCharge(EffectType.Counter);
-                attacker.ReceiveDamage(status.FinalAttack, this, DamageType.Physical, false);
+                attacker.ReceiveDamage(status.FinalAttack + counter.damagePerTurn, this, DamageType.Physical, false);
             }
 
             var reflect = status.GetStatus(EffectType.Reflect);
             if (reflect != null && attacker.status.currentHp > 0f)
             {
-                float reflectedStat = damageType == DamageType.Magical
-                    ? attacker.status.FinalSpellPower
-                    : attacker.status.FinalAttack;
-                float reflectedDamage = reflectedStat * Mathf.Max(0f, reflect.damagePerTurn) * 0.01f;
+                float reflectedDamage = resolvedDamage * Mathf.Max(0f, reflect.damagePerTurn) * 0.01f;
                 status.ConsumeStatusCharge(EffectType.Reflect);
                 if (reflectedDamage > 0f)
                     attacker.ReceiveDamage(reflectedDamage, this, damageType, false);
@@ -323,7 +321,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         if (status.currentHp <= 0f)
             GetComponent<EnemyBattleCharacter>()?.ClaimDefeatReward();
 
-        return new DamageResult(
+        var result = new DamageResult(
             amount,
             defense,
             resolvedDamage,
@@ -331,6 +329,8 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             appliedHealthDamage,
             this,
             status.currentHp <= 0f);
+        DamageResolved?.Invoke(result);
+        return result;
     }
 
     private BattleCharacter FindTaunter()

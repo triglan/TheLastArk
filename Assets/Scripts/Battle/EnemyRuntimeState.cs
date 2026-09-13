@@ -9,6 +9,8 @@ public sealed class EnemyRuntimeState
     public CharacterData Source { get; }
     public BattleCharacter RememberedTarget { get; private set; }
     public bool HasFled { get; private set; }
+    public BattleCharacter TrackedTarget { get; private set; }
+    public float TrackedDamage { get; private set; }
 
     public EnemyRuntimeState(CharacterData source)
     {
@@ -58,6 +60,28 @@ public sealed class EnemyRuntimeState
     public void MarkFled()
     {
         HasFled = true;
+    }
+
+    public void BeginDamageCheck(BattleCharacter target)
+    {
+        if (TrackedTarget != null) TrackedTarget.DamageResolved -= OnTrackedDamage;
+        TrackedTarget = target;
+        TrackedDamage = 0f;
+        if (TrackedTarget != null) TrackedTarget.DamageResolved += OnTrackedDamage;
+    }
+
+    public float EndDamageCheck()
+    {
+        if (TrackedTarget != null) TrackedTarget.DamageResolved -= OnTrackedDamage;
+        float result = TrackedDamage;
+        TrackedTarget = null;
+        TrackedDamage = 0f;
+        return result;
+    }
+
+    private void OnTrackedDamage(DamageResult result)
+    {
+        TrackedDamage += result.HealthDamage + result.ShieldDamage;
     }
 
     private static int Clamp(EnemyRuntimeVariableDefinition definition, int value)

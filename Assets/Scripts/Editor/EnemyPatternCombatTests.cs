@@ -984,4 +984,48 @@ public class EnemyPatternCombatTests
             Object.DestroyImmediate(enemyData);
         }
     }
+
+    [Test]
+    public void EnemyViewCreatesDefenseValuesBelowHealthBar()
+    {
+        var root = new GameObject("Enemy_Defense_UI_Test", typeof(RectTransform));
+        var data = ScriptableObject.CreateInstance<CharacterData>();
+
+        try
+        {
+            new GameObject("Standing Illust", typeof(RectTransform), typeof(CanvasRenderer), typeof(UnityEngine.UI.Image)).transform.SetParent(root.transform, false);
+            var hp = new GameObject("HP Bar", typeof(RectTransform), typeof(UnityEngine.UI.Slider));
+            hp.transform.SetParent(root.transform, false);
+            var mental = new GameObject("Mental Bar", typeof(RectTransform), typeof(UnityEngine.UI.Slider));
+            mental.transform.SetParent(root.transform, false);
+            var hpText = new GameObject("HP Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TMPro.TextMeshProUGUI)).GetComponent<TMPro.TextMeshProUGUI>();
+            hpText.transform.SetParent(root.transform, false);
+            var mentalText = new GameObject("Mental Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TMPro.TextMeshProUGUI)).GetComponent<TMPro.TextMeshProUGUI>();
+            mentalText.transform.SetParent(root.transform, false);
+
+            var bars = root.AddComponent<BarUI>();
+            bars.hpSlider = hp.GetComponent<UnityEngine.UI.Slider>();
+            bars.mentalSlider = mental.GetComponent<UnityEngine.UI.Slider>();
+            bars.hpText = hpText;
+            bars.mentalText = mentalText;
+            var view = root.AddComponent<CharacterView>();
+            view.barUI = bars;
+
+            data.isEnemy = true;
+            data.armor = 7f;
+            data.magicResist = 5f;
+            view.UpdateVisual(new CharacterStatus(data));
+
+            Transform defense = root.transform.Find("Defense Stats");
+            Assert.IsNotNull(defense);
+            var values = defense.GetComponentsInChildren<TMPro.TextMeshProUGUI>();
+            Assert.IsTrue(System.Array.Exists(values, text => text.text == "7"));
+            Assert.IsTrue(System.Array.Exists(values, text => text.text == "5"));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(data);
+        }
+    }
 }

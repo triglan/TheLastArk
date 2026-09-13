@@ -1,0 +1,399 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
+  m_Name: "\uC7AC\uC758 \uC778\uB3C4\uC790_Data"
+  m_EditorClassIdentifier: 
+  characterId: 
+  characterName: "\uC7AC\uC758 \uC778\uB3C4\uC790"
+  jobName: 
+  synergies: 
+  isEnemy: 1
+  regionId: temp
+  standingSprite: {fileID: 0}
+  portraitSprite: {fileID: 0}
+  maxHp: 42
+  maxMental: 60
+  baseAttack: 5
+  spellPower: 0
+  armor: 0
+  magicResist: 4
+  critRate: 0
+  levelStatMultipliers:
+  - 0
+  - 0.2
+  - 0.5
+  - 1
+  - 2
+  passiveSkill:
+    skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  activeSkills:
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      targetType: 0
+      customVfxName: 
+      effects: []
+  enemyRoleDescription: "\uC885\uC9C0\uAE30\uB97C \uC18C\uD658\uD558\uACE0 \uC544\uAD70
+    \uCCB4\uB825\uC744 \uC758\uC2DD\uC73C\uB85C \uBC14\uAFBC\uB2E4."
+  damageBonusPerCycle: 0
+  bleedBonusPerCycle: 0
+  enemyPatterns:
+  - patternName: "\uC885\uC9C0\uAE30 \uC18C\uD658"
+    targetType: 0
+    targetSelection: 0
+    customVfxName: 
+    effects: []
+    actions:
+    - actionType: 8
+      intentIcon: {fileID: 0}
+      targetType: 0
+      targetSelection: 0
+      usePreparedTarget: 0
+      effect:
+        type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: 
+      hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
+      runtimeVariableId: summoned
+      runtimeValue: 0
+      setRuntimeValue: 0
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames:
+      - "\uC885\uB9D0\uC758 \uC885\uC9C0\uAE30"
+      limit: 2
+      percent: 0
+      divisor: 1
+      maxBonus: 0
+      chargesVariableId: 
+      additionalValueVariableId: 
+      conditionVariableId: 
+      condition: 0
+      conditionValue: 0
+    - actionType: 0
+      intentIcon: {fileID: 0}
+      targetType: 6
+      targetSelection: 0
+      usePreparedTarget: 0
+      effect:
+        type: 11
+        damageType: 0
+        multiplier: 0
+        fixedValue: 0
+        useActualResult: 0
+        value: 1
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 2
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: 
+      hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
+      runtimeVariableId: 
+      runtimeValue: 0
+      setRuntimeValue: 0
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames:
+      - "\uC885\uB9D0\uC758 \uC885\uC9C0\uAE30"
+      limit: 0
+      percent: 0
+      divisor: 1
+      maxBonus: 0
+      chargesVariableId: 
+      additionalValueVariableId: 
+      conditionVariableId: summoned
+      condition: 3
+      conditionValue: 0
+  - patternName: "\uC7AC\uC758 \uC758\uC2DD"
+    targetType: 6
+    targetSelection: 0
+    customVfxName: 
+    effects: []
+    actions:
+    - actionType: 9
+      intentIcon: {fileID: 0}
+      targetType: 6
+      targetSelection: 0
+      usePreparedTarget: 0
+      effect:
+        type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: 
+      hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
+      runtimeVariableId: ritual
+      runtimeValue: 0
+      setRuntimeValue: 0
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames: []
+      limit: 0
+      percent: 20
+      divisor: 1
+      maxBonus: 0
+      chargesVariableId: 
+      additionalValueVariableId: 
+      conditionVariableId: 
+      condition: 0
+      conditionValue: 0
+  - patternName: "\uC758\uC2DD \uBC29\uCD9C"
+    targetType: 4
+    targetSelection: 0
+    customVfxName: 
+    effects: []
+    actions:
+    - actionType: 0
+      intentIcon: {fileID: 0}
+      targetType: 4
+      targetSelection: 0
+      usePreparedTarget: 0
+      effect:
+        type: 25
+        damageType: 0
+        multiplier: 0
+        fixedValue: 3
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: ritual
+      hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
+      runtimeVariableId: 
+      runtimeValue: 0
+      setRuntimeValue: 0
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames: []
+      limit: 0
+      percent: 0
+      divisor: 3
+      maxBonus: 5
+      chargesVariableId: 
+      additionalValueVariableId: mental_bonus
+      conditionVariableId: 
+      condition: 0
+      conditionValue: 0
+    - actionType: 1
+      intentIcon: {fileID: 0}
+      targetType: 0
+      targetSelection: 0
+      usePreparedTarget: 0
+      effect:
+        type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: 
+      hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
+      runtimeVariableId: mental_bonus
+      runtimeValue: 1
+      setRuntimeValue: 0
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames: []
+      limit: 0
+      percent: 0
+      divisor: 1
+      maxBonus: 0
+      chargesVariableId: 
+      additionalValueVariableId: 
+      conditionVariableId: 
+      condition: 0
+      conditionValue: 0
+    - actionType: 1
+      intentIcon: {fileID: 0}
+      targetType: 0
+      targetSelection: 0
+      usePreparedTarget: 0
+      effect:
+        type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: 
+      hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
+      runtimeVariableId: ritual
+      runtimeValue: 0
+      setRuntimeValue: 1
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames: []
+      limit: 0
+      percent: 0
+      divisor: 1
+      maxBonus: 0
+      chargesVariableId: 
+      additionalValueVariableId: 
+      conditionVariableId: 
+      condition: 0
+      conditionValue: 0
+  enemyRuntimeVariables:
+  - id: summoned
+    displayName: "\uC18C\uD658 \uC131\uACF5"
+    displayDescription: 
+    displayIcon: {fileID: 0}
+    initialValue: 0
+    hasMaxValue: 0
+    maxValue: 0
+    showInUi: 1
+  - id: ritual
+    displayName: "\uC758\uC2DD"
+    displayDescription: 
+    displayIcon: {fileID: 0}
+    initialValue: 0
+    hasMaxValue: 0
+    maxValue: 0
+    showInUi: 1
+  - id: mental_bonus
+    displayName: "\uC815\uC2E0 \uD53C\uD574"
+    displayDescription: 
+    displayIcon: {fileID: 0}
+    initialValue: 0
+    hasMaxValue: 0
+    maxValue: 0
+    showInUi: 1
+  enemyEnhancementIcon: {fileID: 0}
+  defeatGoldBonus: 0
+  returnStolenGoldOnDefeat: 0
+  stolenGoldVariableId: 

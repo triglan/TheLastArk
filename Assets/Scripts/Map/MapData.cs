@@ -75,14 +75,17 @@ public class MapData
 
     /// <summary>
     /// 현재 노드에서 이동 가능한 노드 목록을 반환합니다.
-    /// (연결되어 있고, 붕괴되지 않은 노드만)
+    /// (연결되어 있고 바로 다음 층인 노드만)
     /// </summary>
     public List<MapNode> GetAccessibleNodes()
     {
-        if (currentNode == null) return new List<MapNode>();
+        if (currentNode == null)
+        {
+            return GetFloorNodes(1);
+        }
 
         return currentNode.connectedNodes
-            .Where(n => !n.isCollapsed)
+            .Where(n => n.floor == currentNode.floor + 1)
             .ToList();
     }
 

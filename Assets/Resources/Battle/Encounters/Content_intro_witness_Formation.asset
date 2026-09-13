@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c6e0c7fef8f43039138dafafdd11ec5, type: 3}
+  m_Name: Content_intro_witness_Formation
+  m_EditorClassIdentifier: 
+  encounterId: content_intro_witness
+  displayName: "\uC911\uAC04 \uC785\uBB38 - \uBAA9\uACA9\uC790"
+  enemySlots:
+  - {fileID: 11400000, guid: f2b1e58cbfd905441b0929d19f2c57ea, type: 2}
+  - {fileID: 11400000, guid: 7fb85152f847adf4d83548ce8c83e61e, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}

@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c6e0c7fef8f43039138dafafdd11ec5, type: 3}
+  m_Name: Content_late_blood_Formation
+  m_EditorClassIdentifier: 
+  encounterId: content_late_blood
+  displayName: "\uD6C4\uBC18 - \uD53C\uC640 \uB3C5"
+  enemySlots:
+  - {fileID: 11400000, guid: ab13e992a8c29e5469472cb7962fb38f, type: 2}
+  - {fileID: 11400000, guid: 3feb8f60aef19a348a4b32b1a80daf4e, type: 2}
+  - {fileID: 11400000, guid: 30dd5329b5744074b90d3cd7d6a0181b, type: 2}
+  - {fileID: 0}

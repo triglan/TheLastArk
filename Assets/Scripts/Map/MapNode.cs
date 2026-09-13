@@ -75,15 +75,21 @@ public class MapNode
 
     /// <summary>
     /// 이 노드로 이동이 가능한지 확인합니다.
-    /// 붕괴되지 않았고, 현재 노드와 연결되어 있어야 합니다.
+    /// 현재 노드와 연결되어 있고, 반드시 바로 다음 층(floor == currentNode.floor + 1)이어야 합니다.
+    /// (붕괴 시스템 제거에 따라 뒤로 가기 및 같은 층 이동 불가)
     /// </summary>
     public bool IsAccessibleFrom(MapNode currentNode)
     {
-        return !isCollapsed && IsConnectedTo(currentNode);
+        if (currentNode == null)
+        {
+            return floor == 1;
+        }
+
+        return floor == currentNode.floor + 1 && IsConnectedTo(currentNode);
     }
 
     public override string ToString()
     {
-        return $"[Node {id}] Floor:{floor} Index:{indexInFloor} Type:{nodeType} Collapsed:{isCollapsed} Connections:{connectedNodes.Count}";
+        return $"[Node {id}] Floor:{floor} Index:{indexInFloor} Type:{nodeType} Connections:{connectedNodes.Count}";
     }
 }

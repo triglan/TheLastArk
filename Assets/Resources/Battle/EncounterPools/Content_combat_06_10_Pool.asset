@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7be2352431c4803b64f370729afee39, type: 3}
+  m_Name: Content_combat_06_10_Pool
+  m_EditorClassIdentifier: 
+  poolId: content_combat_06_10
+  displayName: "\uC77C\uBC18 6~10\uCE35"
+  regionId: temp
+  nodeType: 1
+  minFloor: 6
+  maxFloor: 10
+  minCombatCount: 0
+  maxCombatCount: 99
+  priority: 100
+  encounters:
+  - {fileID: 11400000, guid: 2fd47654ee733d14595a5bb209bc5683, type: 2}
+  - {fileID: 11400000, guid: a79e681e8f48d8143958b34a006ec06c, type: 2}
+  - {fileID: 11400000, guid: 826b5e261aad6fa4b87db3585c2e3a8f, type: 2}
+  - {fileID: 11400000, guid: 14170bc7409bfaf48bbf245987432f4f, type: 2}
+  - {fileID: 11400000, guid: 1e09b92792bba82499a7b915ef6c9251, type: 2}
+  - {fileID: 11400000, guid: 8811366adb44a2a49b1ed6147998d8b9, type: 2}
+  rewardStageId: easy
+  legacyRewardStage: 1

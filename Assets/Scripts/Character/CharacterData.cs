@@ -173,9 +173,23 @@ public class EnemyPatternAction
     public string valueVariableId;
     [Tooltip("피해 또는 정신 피해의 타격 횟수에 더할 전투 변수 ID입니다.")]
     public string hitCountVariableId;
+    public bool useHitCountVariableAsTotal;
     public string runtimeVariableId;
     public int runtimeValue;
     public bool setRuntimeValue;
+    public string runtimeValueVariableId;
+    [Header("특수 행동")]
+    public string enemyName;
+    public string[] enemyNames;
+    [Min(0)] public int limit;
+    [Min(0f)] public float percent;
+    [Min(0f)] public float divisor = 1f;
+    public int maxBonus;
+    public string chargesVariableId;
+    public string additionalValueVariableId;
+    public string conditionVariableId;
+    public EnemyRuntimeComparison condition = EnemyRuntimeComparison.Always;
+    public int conditionValue;
 }
 
 public enum TargetType
@@ -195,7 +209,13 @@ public enum TargetType
 public enum EnemyTargetSide { User, Enemy, Self }
 public enum EnemyTargetSelection { Random, Leader, LowestHp, HighestHp, Remembered }
 public enum EnemyTargetRange { Single, Left, Right, Adjacent, All }
-public enum EnemyPatternActionType { Effect, ModifyRuntimeVariable, RememberTarget, StealGold, Flee }
+public enum EnemyPatternActionType
+{
+    Effect, ModifyRuntimeVariable, RememberTarget, StealGold, Flee,
+    BreakShield, RemoveStatus, TriggerStatus, Summon, SacrificeAllies,
+    BeginDamageCheck, ResolveDamageCheck
+}
+public enum EnemyRuntimeComparison { Always, Less, LessOrEqual, Equal, GreaterOrEqual, Greater }
 public enum EffectType
 {
     Damage = 0, Heal = 1,

@@ -16,7 +16,13 @@ public class CharacterView : MonoBehaviour
     public BarUI barUI;
     [SerializeField] private TextMeshProUGUI statusText;
     [SerializeField] private GameObject enemyTargetMarkerPrefab;
+    [Header("Enemy Defense Icons")]
+    [SerializeField] private Sprite armorIcon;
+    [SerializeField] private Sprite magicResistIcon;
     private GameObject enemyTargetMarker;
+    private RectTransform defenseRoot;
+    private TextMeshProUGUI armorText;
+    private TextMeshProUGUI magicResistText;
     private RectTransform statusIconRoot;
     private readonly List<Image> statusIcons = new List<Image>();
 
@@ -54,6 +60,7 @@ public class CharacterView : MonoBehaviour
             // 강화 배율이 적용된 최종 체력과 정신력을 바에 표시합니다.
             barUI.UpdateAllBars(status.currentHp, status.FinalMaxHp,
                                status.currentMental, status.FinalMaxMental);
+            UpdateDefense(status);
         }
 
         UpdateStatusEffects(status);
@@ -102,6 +109,9 @@ public class CharacterView : MonoBehaviour
         }
 
         int rows = Mathf.CeilToInt(sprites.Count / 5f);
+        float defenseOffset = status?.origin != null && status.origin.isEnemy ? 34f : 0f;
+        RectTransform sourceRect = barUI.mentalText.rectTransform;
+        statusIconRoot.anchoredPosition = sourceRect.anchoredPosition + new Vector2(0f, -24f - defenseOffset);
         statusIconRoot.sizeDelta = new Vector2(180f, rows * 30f);
         for (int i = 0; i < statusIcons.Count; i++)
         {
@@ -116,8 +126,75 @@ public class CharacterView : MonoBehaviour
         }
 
         statusIconRoot.gameObject.SetActive(sprites.Count > 0);
-        RectTransform sourceRect = barUI.mentalText.rectTransform;
-        statusText.rectTransform.anchoredPosition = sourceRect.anchoredPosition + new Vector2(0f, -24f - rows * 30f);
+        statusText.rectTransform.anchoredPosition = sourceRect.anchoredPosition + new Vector2(0f, -24f - defenseOffset - rows * 30f);
+    }
+
+    private void UpdateDefense(CharacterStatus status)
+    {
+        bool visible = status?.origin != null && status.origin.isEnemy;
+        if (!visible)
+        {
+            if (defenseRoot != null) defenseRoot.gameObject.SetActive(false);
+            return;
+        }
+
+        EnsureDefenseUI();
+        if (defenseRoot == null) return;
+
+        defenseRoot.gameObject.SetActive(true);
+        armorText.text = Mathf.Max(0f, status.FinalArmor).ToString("0.#");
+        magicResistText.text = Mathf.Max(0f, status.FinalMagicResist).ToString("0.#");
+    }
+
+    private void EnsureDefenseUI()
+    {
+        if (defenseRoot != null || barUI == null || barUI.hpSlider == null) return;
+
+        GameObject root = new GameObject("Defense Stats", typeof(RectTransform));
+        root.transform.SetParent(barUI.hpSlider.transform.parent, false);
+        defenseRoot = root.GetComponent<RectTransform>();
+        defenseRoot.anchorMin = defenseRoot.anchorMax = defenseRoot.pivot = new Vector2(0.5f, 0.5f);
+        defenseRoot.anchoredPosition = barUI.hpSlider.GetComponent<RectTransform>().anchoredPosition + new Vector2(0f, -44f);
+        defenseRoot.sizeDelta = new Vector2(72f, 30f);
+
+        Sprite placeholder = Resources.Load<Sprite>("Icons/Enemy/temp_icon");
+        armorText = CreateDefenseSlot("Armor", -18f, armorIcon != null ? armorIcon : Resources.Load<Sprite>("Icons/Enemy/Armor") ?? placeholder);
+        magicResistText = CreateDefenseSlot("Magic Resist", 18f, magicResistIcon != null ? magicResistIcon : Resources.Load<Sprite>("Icons/Enemy/MagicResist") ?? placeholder);
+    }
+
+    private TextMeshProUGUI CreateDefenseSlot(string name, float x, Sprite sprite)
+    {
+        GameObject slot = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(UnityEngine.UI.Image));
+        slot.transform.SetParent(defenseRoot, false);
+        RectTransform slotRect = slot.GetComponent<RectTransform>();
+        slotRect.anchorMin = slotRect.anchorMax = slotRect.pivot = new Vector2(0.5f, 0.5f);
+        slotRect.anchoredPosition = new Vector2(x, 0f);
+        slotRect.sizeDelta = new Vector2(28f, 28f);
+
+        UnityEngine.UI.Image image = slot.GetComponent<UnityEngine.UI.Image>();
+        image.sprite = sprite;
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+
+        GameObject label = new GameObject("Value", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        label.transform.SetParent(slot.transform, false);
+        TextMeshProUGUI text = label.GetComponent<TextMeshProUGUI>();
+        text.font = barUI.hpText != null ? barUI.hpText.font : null;
+        text.fontSize = 13f;
+        text.fontStyle = FontStyles.Bold;
+        text.alignment = TextAlignmentOptions.BottomRight;
+        text.color = Color.white;
+        text.outlineColor = Color.black;
+        text.outlineWidth = 0.2f;
+        text.raycastTarget = false;
+        TMPFontManager.ApplyFont(text);
+
+        RectTransform textRect = text.rectTransform;
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+        return text;
     }
 
     private void EnsureStatusText()

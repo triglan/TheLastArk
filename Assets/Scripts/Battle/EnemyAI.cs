@@ -67,8 +67,7 @@ public class EnemyAI : MonoBehaviour
             foreach (EnemyPatternAction action in _preparedPattern.actions)
             {
                 if (action == null) continue;
-                List<BattleCharacter> targets = action.actionType == EnemyPatternActionType.Effect
-                    || action.actionType == EnemyPatternActionType.RememberTarget
+                List<BattleCharacter> targets = NeedsTargets(action.actionType)
                     ? GetExecutionTargets(action)
                     : new List<BattleCharacter>();
                 EnemyActionExecutor.Execute(action, new EnemyActionExecutionContext(
@@ -159,8 +158,15 @@ public class EnemyAI : MonoBehaviour
     {
         if (pattern.actions == null) return null;
         return pattern.actions.Find(action => action != null
-            && (action.actionType == EnemyPatternActionType.Effect
-                || action.actionType == EnemyPatternActionType.RememberTarget));
+            && NeedsTargets(action.actionType));
+    }
+
+    private static bool NeedsTargets(EnemyPatternActionType type)
+    {
+        return type == EnemyPatternActionType.Effect || type == EnemyPatternActionType.RememberTarget
+            || type == EnemyPatternActionType.BreakShield || type == EnemyPatternActionType.RemoveStatus
+            || type == EnemyPatternActionType.TriggerStatus || type == EnemyPatternActionType.SacrificeAllies
+            || type == EnemyPatternActionType.BeginDamageCheck || type == EnemyPatternActionType.ResolveDamageCheck;
     }
 
     private List<BattleCharacter> GetExecutionTargets(EnemyPatternAction action)
@@ -268,8 +274,15 @@ public class EnemyAI : MonoBehaviour
             };
         }
 
+        int valueBonus = GetIntentVariable(action.valueVariableId, previewValues);
+        if (action.divisor > 1f) valueBonus = Mathf.CeilToInt(valueBonus / action.divisor);
+        if (action.maxBonus > 0) valueBonus = Mathf.Min(valueBonus, action.maxBonus);
+        valueBonus += GetIntentVariable(action.additionalValueVariableId, previewValues);
         EnemyIntentEffectData result = BuildIntentEffect(action.effect, action.targetType, action.targetSelection,
-            action.valueVariableId, action.hitCountVariableId, previewValues);
+            null, null, previewValues);
+        result.Value = CalculateIntentValue(action.effect, valueBonus);
+        int hitVariable = GetIntentVariable(action.hitCountVariableId, previewValues);
+        result.HitCount = Mathf.Max(1, action.useHitCountVariableAsTotal ? hitVariable : action.effect.hitCount + hitVariable);
         result.Icon = action.intentIcon != null ? action.intentIcon
             : action.effect?.statusIcon != null ? action.effect.statusIcon : CombatIconLibrary.FindIcon(result.EffectType);
         return result;

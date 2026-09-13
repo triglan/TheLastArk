@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7be2352431c4803b64f370729afee39, type: 3}
+  m_Name: Content_combat_11_15_Pool
+  m_EditorClassIdentifier: 
+  poolId: content_combat_11_15
+  displayName: "\uC77C\uBC18 11~15\uCE35"
+  regionId: temp
+  nodeType: 1
+  minFloor: 11
+  maxFloor: 15
+  minCombatCount: 0
+  maxCombatCount: 99
+  priority: 100
+  encounters:
+  - {fileID: 11400000, guid: 3124c51d336e670479a33324ac8a71da, type: 2}
+  - {fileID: 11400000, guid: 667d72c993e38d441b7b31a395fa577f, type: 2}
+  - {fileID: 11400000, guid: fde5223d8b29bd445ac69f5d295821f7, type: 2}
+  - {fileID: 11400000, guid: 76c3d7de1b4020d4d9f1f84b138cb40f, type: 2}
+  - {fileID: 11400000, guid: 8c917d61f7337fa41973bf324089134b, type: 2}
+  - {fileID: 11400000, guid: 218bf2ad8d923d043b08ba2f199c3adf, type: 2}
+  - {fileID: 11400000, guid: c3c00e8abc5dd814d8d3565559673f2b, type: 2}
+  rewardStageId: easy
+  legacyRewardStage: 1

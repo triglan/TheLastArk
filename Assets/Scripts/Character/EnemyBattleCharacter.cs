@@ -101,6 +101,14 @@ public class EnemyBattleCharacter : MonoBehaviour
         Debug.Log($"[EnemyBattleCharacter] {enemyData.characterName} 적 전투 데이터 초기화 완료", this);
     }
 
+    public void AssignAndInitialize(CharacterData data)
+    {
+        enemyData = data;
+        _initialized = false;
+        gameObject.SetActive(true);
+        InitializeForBattle();
+    }
+
     public void FleeBattle()
     {
         if (_hasFled) return;
