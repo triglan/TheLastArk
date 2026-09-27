@@ -7,6 +7,7 @@
 - Unity가 생성하는 `.meta` 파일은 에셋과 함께 유지한다. 에셋을 이동하거나 이름을 바꿀 때는 해당 `.meta`도 함께 처리한다.
 - `.sln`과 `*.csproj`는 Unity가 생성하므로 직접 수정하지 않는다.
 - `Assets/Plugins`, `Assets/External Assets`, `Assets/Alebardium`의 서드파티 코드는 버그 수정이 꼭 필요한 경우가 아니면 수정하지 않는다.
+- 공개 재배포 허가가 확인되지 않은 라이선스 에셋은 Git에 올리지 않는다. 사용 전 에셋과 `.meta` 경로를 `.gitignore`에 추가하고, 이미 추적 중이면 과거 커밋 이력에서도 제거한다.
 
 ## 코드 작성과 수정
 
