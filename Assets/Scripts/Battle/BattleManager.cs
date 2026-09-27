@@ -7,10 +7,23 @@ using TheLastArk.UI;
 using TheLastArk.Managers;
 using TheLastArk.Battle;
 using TheLastArk.Data;
+using TheLastArk.Skills;
 
 public class BattleManager : MonoBehaviour
 {
     private const string SkillFirstTargetingKey = "Battle.SkillFirstTargeting";
+    private const string AutoEndDiceTurnKey = "Battle.AutoEndDiceTurn";
+
+    public static bool AutoEndDiceTurn
+    {
+        get => PlayerPrefs.GetInt(AutoEndDiceTurnKey, 0) == 1;
+        set
+        {
+            PlayerPrefs.SetInt(AutoEndDiceTurnKey, value ? 1 : 0);
+            PlayerPrefs.Save();
+            FindObjectOfType<BattleManager>()?.TryAutoEndDiceTurn();
+        }
+    }
 
     public static bool SkillFirstTargeting
     {
@@ -59,6 +72,13 @@ public class BattleManager : MonoBehaviour
     private bool _canOverloadThisTurn = true;
     private int _skillsUsedThisBattle = 0;
     private readonly BattleSelectionState _selection = new BattleSelectionState();
+    private readonly ActionDicePool _dicePool = new ActionDicePool();
+    private readonly List<int> _selectedDiceIds = new List<int>();
+    private SkillInfo _pendingDiceSkill;
+    private BattleCharacter _pendingDiceActor;
+    private readonly HashSet<(BattleCharacter, SkillInfo)> _usedDiceSkills = new HashSet<(BattleCharacter, SkillInfo)>();
+    private readonly Dictionary<(BattleCharacter, SkillInfo), int> _diceCharge = new Dictionary<(BattleCharacter, SkillInfo), int>();
+    private BattleDiceUI _diceUI;
 
     private int _gambleRolledAP = -1;
     private int _limitRolledAP = -1;
@@ -71,7 +91,179 @@ public class BattleManager : MonoBehaviour
     private bool _limitRetainAllSkillsThisTurn = false;
 
     public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerTurn;
+    public bool UsesDice => TheLastArk.Managers.TrainManager.IsInitialized
+        && TheLastArk.Managers.TrainManager.Instance.nexusCar != null
+        && TheLastArk.Data.NexusModuleDatabase.GetModule(TheLastArk.Managers.TrainManager.Instance.nexusCar.installedModuleId)?.moduleId
+            == TheLastArk.Data.NexusModuleDatabase.OriginId;
     public BattleConfig Config => battleConfig;
+
+    public bool CanUseDiceSkill(BattleCharacter actor, SkillInfo skill)
+    {
+        return GetDiceSkillUnavailableReason(actor, skill) == null;
+    }
+
+    public string GetDiceSkillUnavailableReason(BattleCharacter actor, SkillInfo skill)
+    {
+        if (!UsesDice) return null;
+        if (actor?.status == null || skill == null) return "사용 불가";
+        if (_usedDiceSkills.Contains((actor, skill))) return "사용 완료";
+        if (actor.status.GetStatus(EffectType.Stun) != null) return "기절";
+        if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
+            return "피로";
+        int slot = actor.status.dynamicActiveSkill.IndexOf(skill);
+        if (actor.status.activeStatusEffects.Exists(e => e.effectType == EffectType.Blockade
+            && e.IsActive && (e.skillSlot < 0 || e.skillSlot == slot))) return "봉쇄";
+
+        DiceInputRule rule = GetDiceRule(skill, actor);
+        int matching = 0;
+        int available = 0;
+        foreach (ActionDie die in _dicePool.Dice)
+        {
+            if (!die.IsAvailable) continue;
+            available++;
+            if (rule.AcceptsValue(die.Value)) matching++;
+        }
+        int needed = Mathf.Max(1, rule.diceCount);
+        if (available < needed) return "주사위 부족";
+        if (matching < needed) return "눈 조건 불충족";
+        return null;
+    }
+
+    public int GetDiceCharge(BattleCharacter actor, SkillInfo skill)
+    {
+        return _diceCharge.TryGetValue((actor, skill), out int charge) ? charge : 0;
+    }
+
+    public void DropDieOnSkill(int dieId, SkillInfo skill, BattleCharacter actor)
+    {
+        if (!UsesDice || !IsPlayerTurn || skill == null || actor?.status == null || targetHandler == null) return;
+        string unavailableReason = GetDiceSkillUnavailableReason(actor, skill);
+        if (unavailableReason != null)
+        {
+            NotificationManager.Instance?.ShowMessage($"스킬 사용 불가: {unavailableReason}", Color.red);
+            return;
+        }
+        ActionDie die = _dicePool.Find(dieId);
+        if (die == null || !die.IsAvailable) return;
+
+        BattleCharacter target = targetHandler.target != null
+            ? targetHandler.target.GetComponent<BattleCharacter>() : null;
+        if (target == null)
+        {
+            NotificationManager.Instance?.ShowMessage("먼저 대상을 지정하세요.", Color.yellow);
+            return;
+        }
+        if (skill.levels == null || skill.levels.Length == 0) return;
+        SkillLevelData level = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
+        if (level == null || !(level.targetType == TargetType.Self
+            ? target == actor
+            : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty)))
+        {
+            NotificationManager.Instance?.ShowMessage("이 스킬에 맞는 대상이 아닙니다.", Color.red);
+            return;
+        }
+
+        if (_pendingDiceSkill != skill || _pendingDiceActor != actor)
+            _selectedDiceIds.Clear();
+        _pendingDiceSkill = skill;
+        _pendingDiceActor = actor;
+        if (_selectedDiceIds.Contains(dieId)) return;
+        _selectedDiceIds.Add(dieId);
+        DiceInputRule rule = GetDiceRule(skill, actor);
+        if (_selectedDiceIds.Count < Mathf.Max(1, rule.diceCount))
+        {
+            RefreshDiceUI();
+            return;
+        }
+
+        SelectSkill(skill, actor);
+        _selection.Clear();
+        _selectedDiceIds.Clear();
+        _pendingDiceSkill = null;
+        _pendingDiceActor = null;
+        RefreshDiceUI();
+    }
+
+    public int RollAdditionalDice(int count, int sides = 6)
+    {
+        if (!UsesDice || !IsPlayerTurn) return 0;
+        int rolled = _dicePool.Roll(count, sides);
+        if (rolled > 0)
+        {
+            _selectedDiceIds.RemoveAll(id => _dicePool.Find(id)?.IsAvailable != true);
+            RefreshDiceUI();
+            RefreshSkillSlots();
+        }
+        return rolled;
+    }
+
+    public void RefreshDiceBlockade()
+    {
+        if (!UsesDice || !IsPlayerTurn) return;
+        RefreshSkillSlots();
+    }
+
+    private DiceInputRule GetDiceRule(SkillInfo skill, BattleCharacter actor)
+    {
+        if (skill?.levels == null || skill.levels.Length == 0) return new DiceInputRule();
+        int index = Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1);
+        return skill.levels[index]?.diceInput ?? new DiceInputRule();
+    }
+
+    private bool TryGetSelectedDice(DiceInputRule rule, out List<int> values)
+    {
+        values = new List<int>(_selectedDiceIds.Count);
+        if (_selectedDiceIds.Count != Mathf.Max(1, rule.diceCount)) return false;
+        foreach (int id in _selectedDiceIds)
+        {
+            ActionDie die = _dicePool.Find(id);
+            if (die == null || !die.IsAvailable) return false;
+            values.Add(die.Value);
+        }
+        return rule.Accepts(values);
+    }
+
+    private void EnsureDiceUI()
+    {
+        if (_diceUI != null) return;
+        GameObject canvas = GameObject.Find("TopBarCanvas");
+        if (canvas == null) return;
+        _diceUI = gameObject.GetComponent<BattleDiceUI>();
+        if (_diceUI == null) _diceUI = gameObject.AddComponent<BattleDiceUI>();
+        _diceUI.Initialize(this, canvas.transform);
+    }
+
+    private void RefreshDiceUI()
+    {
+        EnsureDiceUI();
+        _diceUI?.Refresh(_dicePool.Dice, _selectedDiceIds);
+        UpdateAPUI();
+    }
+
+    private void RefreshSkillSlots()
+    {
+        FindObjectOfType<BattleSkillManager>()?.LinkSkillsToUI();
+    }
+
+    private bool TryCommitDiceSkill(BattleCharacter actor, SkillInfo skill)
+    {
+        if (!CanUseDiceSkill(actor, skill)) return false;
+        DiceInputRule rule = GetDiceRule(skill, actor);
+        if (!TryGetSelectedDice(rule, out List<int> values))
+        {
+            NotificationManager.Instance?.ShowMessage($"주사위 조건을 확인하세요: {rule.Describe()}", Color.red);
+            return false;
+        }
+        if (rule.chargeTarget > 0 && GetDiceCharge(actor, skill) + rule.ChargeFrom(values) < rule.chargeTarget)
+            return false;
+        if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
+        if (rule.chargeTarget > 0) _diceCharge.Remove((actor, skill));
+        _usedDiceSkills.Add((actor, skill));
+        _selectedDiceIds.Clear();
+        RefreshDiceUI();
+        RefreshSkillSlots();
+        return true;
+    }
 
     public int MaxAP
     {
@@ -134,7 +326,11 @@ public class BattleManager : MonoBehaviour
     public void InitializeAP()
     {
         Debug.Log("[Battle] InitializeAP() 호출 - 전투 시작.");
-        if (TheLastArk.Managers.TrainManager.IsInitialized &&
+        if (UsesDice)
+        {
+            currentAP = 0;
+        }
+        else if (TheLastArk.Managers.TrainManager.IsInitialized &&
             TheLastArk.Managers.TrainManager.Instance.nexusCar != null &&
             TheLastArk.Managers.TrainManager.Instance.nexusCar.installedModuleId == TheLastArk.Data.NexusModuleDatabase.GambleId)
         {
@@ -311,8 +507,6 @@ public class BattleManager : MonoBehaviour
             topBarCanvasObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
         }
 
-        Transform existingResourcePanel = topBarCanvasObj.transform.Find("ResourcePanel");
-        if (existingResourcePanel == null)
         {
             var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
             if (resourceUI == null)
@@ -349,10 +543,11 @@ public class BattleManager : MonoBehaviour
             rect.anchorMin = new Vector2(0.5f, 1f);
             rect.anchorMax = new Vector2(0.5f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -20f); // 화면 최상단 중앙 위치
-            rect.sizeDelta = new Vector2(250f, 50f);
+            rect.anchoredPosition = new Vector2(0f, -16f);
+            rect.sizeDelta = new Vector2(140f, 40f);
 
-            turnCountText.fontSize = 32;
+            turnCountText.fontSize = 24;
+            turnCountText.raycastTarget = false;
             turnCountText.alignment = TextAlignmentOptions.Center;
             turnCountText.color = Color.white;
             turnCountText.fontStyle = FontStyles.Bold;
@@ -366,6 +561,7 @@ public class BattleManager : MonoBehaviour
         Debug.Log($"[Battle] 페이즈 전환: {_currentPhase} -> {next}");
         _currentPhase = next;
         UpdateTurnEndButtonState();
+        if (_diceUI != null) _diceUI.Refresh(_dicePool.Dice, _selectedDiceIds);
 
         switch (next)
         {
@@ -396,6 +592,47 @@ public class BattleManager : MonoBehaviour
     {
         if (!IsPlayerTurn) return;
 
+        if (UsesDice)
+        {
+            if (actor.status.GetStatus(EffectType.Stun) != null)
+            {
+                NotificationManager.Instance?.ShowMessage("[기절] 행동할 수 없습니다.", Color.red);
+                return;
+            }
+            if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
+            {
+                NotificationManager.Instance?.ShowMessage("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
+                return;
+            }
+            if (!CanUseDiceSkill(actor, skill))
+            {
+                NotificationManager.Instance?.ShowMessage("이번 턴에 이미 사용한 스킬칸입니다.", Color.red);
+                return;
+            }
+            DiceInputRule rule = GetDiceRule(skill, actor);
+            if (!TryGetSelectedDice(rule, out List<int> values))
+            {
+                NotificationManager.Instance?.ShowMessage($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
+                return;
+            }
+            if (rule.chargeTarget > 0)
+            {
+                int nextCharge = Mathf.Min(rule.chargeTarget, GetDiceCharge(actor, skill) + rule.ChargeFrom(values));
+                if (nextCharge < rule.chargeTarget)
+                {
+                    if (!_dicePool.TrySpend(_selectedDiceIds)) return;
+                    _diceCharge[(actor, skill)] = nextCharge;
+                    _selectedDiceIds.Clear();
+                    RefreshDiceUI();
+                    RefreshSkillSlots();
+                    actor.ResolveActionStatusEffects();
+                    NotificationManager.Instance?.ShowMessage($"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
+                    TryAutoEndDiceTurn();
+                    return;
+                }
+            }
+        }
+
         if (SkillFirstTargeting && _selection.Skill == skill && _selection.Actor == actor)
         {
             CancelPendingSelection();
@@ -404,6 +641,12 @@ public class BattleManager : MonoBehaviour
 
         _selection.Clear();
         _selection.Set(skill, actor);
+
+        if (UsesDice)
+        {
+            PerformSkill();
+            return;
+        }
 
         if (SkillFirstTargeting)
         {
@@ -465,7 +708,7 @@ public class BattleManager : MonoBehaviour
         }
         int selectedSkillSlot = actor.status.dynamicActiveSkill.IndexOf(skill);
         bool isBlocked = actor.status.activeStatusEffects.Exists(e => e.effectType == EffectType.Blockade
-            && e.remainingTurns > 0 && (e.skillSlot < 0 || e.skillSlot == selectedSkillSlot));
+            && e.IsActive && (e.skillSlot < 0 || e.skillSlot == selectedSkillSlot));
         if (isBlocked)
         {
             NotificationManager.Instance.ShowMessage("[봉쇄] 해당 스킬칸을 사용할 수 없습니다.", Color.red);
@@ -529,7 +772,14 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        int cost = levelData.overrideCost != -1 ? levelData.overrideCost : skill.baseCost;
+        int cost = 0;
+        if (UsesDice)
+        {
+            if (!TryCommitDiceSkill(actor, skill)) return;
+        }
+        else
+        {
+        cost = levelData.overrideCost != -1 ? levelData.overrideCost : skill.baseCost;
 
         // [황제 / 오만] 모든 스킬 비용 0 고정
         if (_arcanaState.isEmperorActiveThisTurn || (_sinState.currentSin == TheLastArk.Battle.SinType.Pride && !_sinState.isIndulgedCurrentSin))
@@ -605,6 +855,7 @@ public class BattleManager : MonoBehaviour
 
         currentAP -= cost;
         UpdateAPUI();
+        }
 
         _sinState.skillsUsedThisTurn++;
 
@@ -756,7 +1007,7 @@ public class BattleManager : MonoBehaviour
         }
 
         // [한 잔 더!] 유물: 비용이 0인 스킬을 사용할 때 행동력 1 회복
-        if (cost == 0 && TheLastArk.Managers.ResourceManager.Instance != null &&
+        if (!UsesDice && cost == 0 && TheLastArk.Managers.ResourceManager.Instance != null &&
             TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.OneMoreDrink))
         {
             currentAP = Mathf.Min(MaxAP, currentAP + 1);
@@ -773,10 +1024,23 @@ public class BattleManager : MonoBehaviour
         }
 
         _selection.Clear();
-        if (SkillFirstTargeting && targetHandler != null) targetHandler.Deselect(false);
+        if (targetHandler != null) targetHandler.Deselect(false);
         if (TryEndBattleIfPartyWiped()) return;
 
-        if (currentAP <= 0) EndPlayerTurn();
+        if (UsesDice)
+        {
+            RefreshSkillSlots();
+            TryAutoEndDiceTurn();
+        }
+        else if (currentAP <= 0) EndPlayerTurn();
+    }
+
+    private void TryAutoEndDiceTurn()
+    {
+        if (!UsesDice || !IsPlayerTurn || !AutoEndDiceTurn || _dicePool.CreatedThisTurn == 0) return;
+        foreach (ActionDie die in _dicePool.Dice)
+            if (die.IsAvailable) return;
+        EndPlayerTurn();
     }
 
     private void ConsumeTauntForAttack(TargetType targetType, List<BattleCharacter> targets)
@@ -852,7 +1116,7 @@ public class BattleManager : MonoBehaviour
         if (resMgr != null) resMgr.RemoveConsumable(_selection.ConsumableIndex);
 
         _selection.Clear();
-        if (SkillFirstTargeting && targetHandler != null) targetHandler.Deselect(false);
+        if (targetHandler != null) targetHandler.Deselect(false);
     }
 
     private void OnTargetSelected(GameObject selectedTarget)
@@ -865,6 +1129,13 @@ public class BattleManager : MonoBehaviour
     public void CancelPendingSelection()
     {
         _selection.Clear();
+        if (UsesDice)
+        {
+            _selectedDiceIds.Clear();
+            _pendingDiceSkill = null;
+            _pendingDiceActor = null;
+            RefreshDiceUI();
+        }
         if (targetHandler != null) targetHandler.Deselect(false);
     }
 
@@ -880,9 +1151,14 @@ public class BattleManager : MonoBehaviour
             Debug.LogWarning($"[Battle] 턴 종료 입력 무시: 현재 페이즈가 플레이어 턴이 아닙니다. CurrentPhase: {_currentPhase}");
             return;
         }
+        if (UsesDice)
+        {
+            _selectedDiceIds.Clear();
+            RefreshDiceUI();
+        }
 
         // [에너지 저장소] 미사용 행동력 최대 3까지 다음 턴으로 이월 저장
-        if (TheLastArk.Managers.TrainManager.IsInitialized && TheLastArk.Managers.TrainManager.Instance.nexusCar != null &&
+        if (!UsesDice && TheLastArk.Managers.TrainManager.IsInitialized && TheLastArk.Managers.TrainManager.Instance.nexusCar != null &&
             TheLastArk.Managers.TrainManager.Instance.nexusCar.HasPartEffect(TheLastArk.Data.TrainPartEffectType.EnergyStorage))
         {
             _carriedOverAP = Mathf.Clamp(currentAP, 0, 3);
@@ -1620,30 +1896,45 @@ public class BattleManager : MonoBehaviour
 
     private void ApplyPlayerTurnStartAP()
     {
-        currentAP = MaxAP;
-
-        // [에너지 저장소] 이월 행동력 추가
-        if (_carriedOverAP > 0)
+        if (UsesDice)
         {
-            currentAP += _carriedOverAP;
-            NotificationManager.Instance?.ShowMessage($"[에너지 저장소] 이월 행동력 +{_carriedOverAP} 추가!", Color.cyan);
-            _carriedOverAP = 0;
-        }
-
-        // [과부하 모듈] 잠금 처리
-        if (_nextTurnLockedAP > 0)
-        {
-            int locked = _nextTurnLockedAP;
-            currentAP = Mathf.Max(0, currentAP - locked);
-            NotificationManager.Instance?.ShowMessage($"[과부하 모듈] 이전 턴 과부하로 행동력 -{locked} 잠김! (이번 턴 과부하 불가)", Color.red);
-            _nextTurnLockedAP = 0;
-            _canOverloadThisTurn = false;
+            int level = TheLastArk.Managers.TrainManager.Instance.nexusCar.level;
+            _dicePool.BeginTurn(Mathf.Clamp(level + 2, 0, ActionDicePool.MaxDicePerTurn));
+            _selectedDiceIds.Clear();
+            _pendingDiceSkill = null;
+            _pendingDiceActor = null;
+            _usedDiceSkills.Clear();
+            currentAP = 0;
+            RefreshDiceUI();
+            RefreshSkillSlots();
         }
         else
         {
-            _canOverloadThisTurn = true;
+            currentAP = MaxAP;
+
+            // [에너지 저장소] 이월 행동력 추가
+            if (_carriedOverAP > 0)
+            {
+                currentAP += _carriedOverAP;
+                NotificationManager.Instance?.ShowMessage($"[에너지 저장소] 이월 행동력 +{_carriedOverAP} 추가!", Color.cyan);
+                _carriedOverAP = 0;
+            }
+
+            // [과부하 모듈] 잠금 처리
+            if (_nextTurnLockedAP > 0)
+            {
+                int locked = _nextTurnLockedAP;
+                currentAP = Mathf.Max(0, currentAP - locked);
+                NotificationManager.Instance?.ShowMessage($"[과부하 모듈] 이전 턴 과부하로 행동력 -{locked} 잠김! (이번 턴 과부하 불가)", Color.red);
+                _nextTurnLockedAP = 0;
+                _canOverloadThisTurn = false;
+            }
+            else
+            {
+                _canOverloadThisTurn = true;
+            }
+            _overloadedThisTurn = false;
         }
-        _overloadedThisTurn = false;
 
         UpdateAPUI();
         CancelPendingSelection();
@@ -2000,7 +2291,15 @@ public class BattleManager : MonoBehaviour
         if (apText == null) return;
 
         TMPFontManager.ApplyFont(apText);
-        apText.text = $"행동력 {currentAP} / {MaxAP}";
+        if (UsesDice)
+        {
+            int available = 0;
+            foreach (ActionDie die in _dicePool.Dice)
+                if (die.IsAvailable) available++;
+            apText.text = $"주사위 {available}<size=55%><color=#8CAFC8> / {_dicePool.CreatedThisTurn}</color></size>";
+            return;
+        }
+        apText.text = $"{currentAP}<size=55%><color=#8CAFC8> / {MaxAP}</color></size>";
     }
 
     private void SetEnemyTargetMarkers(IEnumerable<BattleCharacter> targets, bool visible)

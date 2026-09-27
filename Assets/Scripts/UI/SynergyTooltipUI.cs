@@ -151,7 +151,7 @@ namespace TheLastArk.UI
         {
             if (tooltipPanel != null) return;
 
-            Canvas canvas = FindObjectOfType<Canvas>();
+            Canvas canvas = HudCanvasUtility.FindOverlayCanvas();
             if (canvas == null)
             {
                 GameObject cObj = new GameObject("SynergyTooltipCanvas");

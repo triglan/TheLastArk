@@ -6,7 +6,7 @@ using TheLastArk.Managers;
 
 namespace TheLastArk.UI
 {
-    public class ExplorationResourceUI : MonoBehaviour
+    public partial class ExplorationResourceUI : MonoBehaviour
     {
         private TextMeshProUGUI trainHpText;
         private TextMeshProUGUI goldText;
@@ -16,6 +16,7 @@ namespace TheLastArk.UI
 
         public void Initialize(Transform parent)
         {
+            if (TryBindMapHud(parent)) return;
             // 상단 자원 패널 생성
             GameObject panelObj = new GameObject("ResourcePanel");
             panelObj.transform.SetParent(parent, false);
@@ -362,7 +363,7 @@ namespace TheLastArk.UI
         {
             if (goldText != null && ResourceManager.Instance != null)
             {
-                goldText.text = $"{ResourceManager.Instance.Gold:N0}";
+                goldText.text = $"{ResourceManager.Instance.Gold:N0} G";
             }
         }
 

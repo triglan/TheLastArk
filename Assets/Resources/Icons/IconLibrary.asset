@@ -10,18 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0332c3e82232c5143a09b5b6aadcd169, type: 3}
-  m_Name: CombatIconLibrary
+  m_Name: IconLibrary
   m_EditorClassIdentifier: 
   commonEnhancementIcon: {fileID: 0}
+  armorIcon: {fileID: 21300000, guid: c1aecc481563e2c4685e5c4387145ba4, type: 3}
+  magicResistIcon: {fileID: 21300000, guid: d0d34965aad26db43b487d7dc12f8bfc, type: 3}
   entries:
   - effectType: 0
     icon: {fileID: 0}
   - effectType: 1
     icon: {fileID: 0}
   - effectType: 3
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: d58777b2613086044bf4e57a2a708b00, type: 3}
   - effectType: 4
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: c41a368f50f1e8944a63a491c911e58e, type: 3}
   - effectType: 5
     icon: {fileID: 0}
   - effectType: 6
@@ -31,27 +33,27 @@ MonoBehaviour:
   - effectType: 8
     icon: {fileID: 0}
   - effectType: 9
-    icon: {fileID: 21300000, guid: dc32eb208eea64143b7e6537ffa22b3e, type: 3}
+    icon: {fileID: 21300000, guid: 1f6e5b395d0eb094cbfed00fb98ce8d8, type: 3}
   - effectType: 10
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: b0f5876a867f8cf488efc6c5439ece5d, type: 3}
   - effectType: 11
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: dbc8784635f40f84c96fa8bc8e0d53ef, type: 3}
   - effectType: 12
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 4e9623a9f90df764594da0911d40f53e, type: 3}
   - effectType: 13
     icon: {fileID: 0}
   - effectType: 14
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 93c5518b3616a4646bc1724802d40238, type: 3}
   - effectType: 15
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 533ac610a2b645d4a8fa1816416f702a, type: 3}
   - effectType: 16
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 1faf4018739bb68439fea32fc7c79b36, type: 3}
   - effectType: 17
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: efbb854079dd18142baffaaf72ce1ff2, type: 3}
   - effectType: 18
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 944194a0e4c6ef44cb71ecd85293c305, type: 3}
   - effectType: 19
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 47b7f608ec3d31b418362964ce4dde73, type: 3}
   - effectType: 20
     icon: {fileID: 0}
   - effectType: 21

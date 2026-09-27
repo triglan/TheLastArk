@@ -71,7 +71,7 @@ namespace TheLastArk.UI
                         : $"{definition.displayDescription} ({value:+#;-#;0})");
                     Sprite icon = definition.displayIcon != null ? definition.displayIcon
                         : source.enemyEnhancementIcon != null ? source.enemyEnhancementIcon
-                        : CombatIconLibrary.FindEnhancementIcon();
+                        : IconLibrary.FindEnhancementIcon();
                     if (icon != null) displayIcons.Add(icon);
                 }
             }
@@ -81,7 +81,7 @@ namespace TheLastArk.UI
                 foreach (ActiveStatusEffect effect in GetComponent<BattleCharacter>().status.activeStatusEffects)
                 {
                     if (effect == null || !effect.IsActive || effect.durationType != StatusDurationType.Permanent) continue;
-                    Sprite icon = source.enemyEnhancementIcon != null ? source.enemyEnhancementIcon : CombatIconLibrary.FindEnhancementIcon();
+                    Sprite icon = source.enemyEnhancementIcon != null ? source.enemyEnhancementIcon : IconLibrary.FindEnhancementIcon();
                     if (icon != null) displayIcons.Add(icon);
                     string name = ActiveStatusEffect.GetDisplayName(effect.effectType);
                     labels.Add($"{name} {effect.damagePerTurn:+#;-#;0}");

@@ -1,0 +1,77 @@
+var menu = UnityEngine.Object.FindObjectOfType<TheLastArk.UI.MainMenuUI>();
+if (menu == null || UnityEditor.EditorApplication.isPlaying) return "Requires MainMenu in edit mode";
+var header = menu.characterSelectionPanel.transform.Find("TrainCustomizationHeader");
+var train = header.Find("TrainImage");
+var cars = train.Cast<UnityEngine.Transform>().Where(t => t.name.StartsWith("CarSlot_")).ToArray();
+if (cars.Length != 4) return "Expected exactly four existing car slots";
+UnityEditor.Undo.RegisterFullObjectHierarchyUndo(header.gameObject, "Style ark train header");
+UnityEditor.AssetDatabase.Refresh();
+string root = "Assets/Sprites/UI/Train/";
+foreach (string file in new [] { "ArkLocomotive.png", "ArkCarriage.png", "ArkExpansionCar.png" }) {
+    var importer = (UnityEditor.TextureImporter)UnityEditor.AssetImporter.GetAtPath(root + file);
+    importer.textureType = UnityEditor.TextureImporterType.Sprite;
+    importer.spriteImportMode = UnityEditor.SpriteImportMode.Single;
+    importer.spritePixelsPerUnit = 100;
+    importer.alphaIsTransparency = true;
+    importer.mipmapEnabled = false;
+    importer.maxTextureSize = 2048;
+    importer.textureCompression = UnityEditor.TextureImporterCompression.Uncompressed;
+    importer.SaveAndReimport();
+}
+System.Action<UnityEngine.RectTransform,float,float,float,float> anchor = (r,x0,y0,x1,y1) => {
+    r.anchorMin = new UnityEngine.Vector2(x0,y0); r.anchorMax = new UnityEngine.Vector2(x1,y1);
+    r.pivot = new UnityEngine.Vector2(.5f,.5f); r.offsetMin = UnityEngine.Vector2.zero; r.offsetMax = UnityEngine.Vector2.zero;
+};
+System.Func<UnityEngine.Transform,string,UnityEngine.GameObject> child = (parent,name) => {
+    var existing = parent.Find(name); if (existing != null) return existing.gameObject;
+    var go = new UnityEngine.GameObject(name,typeof(UnityEngine.RectTransform));
+    UnityEditor.Undo.RegisterCreatedObjectUndo(go,"Create train decoration"); go.transform.SetParent(parent,false); return go;
+};
+System.Func<UnityEngine.Transform,string,string,float,float,float,float,float,UnityEngine.Color,TMPro.TextMeshProUGUI> label = (parent,name,text,x0,y0,x1,y1,size,color) => {
+    var go=child(parent,name); var tmp=go.GetComponent<TMPro.TextMeshProUGUI>(); if(tmp==null) tmp=go.AddComponent<TMPro.TextMeshProUGUI>();
+    anchor((UnityEngine.RectTransform)go.transform,x0,y0,x1,y1); tmp.text=text; tmp.font=menu.mainFont;
+    tmp.fontSize=size; tmp.color=color; tmp.alignment=TMPro.TextAlignmentOptions.Center; tmp.raycastTarget=false;
+    tmp.enableWordWrapping=false; tmp.overflowMode=TMPro.TextOverflowModes.Ellipsis; return tmp;
+};
+var gold = new UnityEngine.Color(.91f,.75f,.43f,1);
+header.GetComponent<UnityEngine.UI.Image>().color = new UnityEngine.Color(.025f,.05f,.075f,.40f);
+header.GetComponent<UnityEngine.UI.Image>().raycastTarget=false;
+header.GetComponent<UnityEngine.UI.Outline>().enabled=false;
+var title = header.Find("TitleText").GetComponent<TMPro.TextMeshProUGUI>();
+anchor(title.rectTransform,.014f,.81f,.55f,.99f); title.text="방주 열차  /  편성 & 커스텀";
+title.fontSize=21; title.color=gold; title.alignment=TMPro.TextAlignmentOptions.MidlineLeft;
+var hint=label(header,"TrainHint","각 칸을 선택하여 커스텀",.65f,.81f,.986f,.99f,15,new UnityEngine.Color(.72f,.81f,.85f,.9f));
+hint.alignment=TMPro.TextAlignmentOptions.MidlineRight;
+anchor((UnityEngine.RectTransform)train,.01f,.02f,.99f,.83f);
+train.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>().enabled=false;
+train.GetComponent<UnityEngine.UI.Image>().color=UnityEngine.Color.clear;
+train.GetComponent<UnityEngine.UI.Image>().raycastTarget=false;
+var engine=child(train,"Locomotive"); anchor((UnityEngine.RectTransform)engine.transform,0,0,.19f,1);
+var engineImage=engine.GetComponent<UnityEngine.UI.Image>(); if(engineImage==null) engineImage=engine.AddComponent<UnityEngine.UI.Image>();
+engineImage.sprite=UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Sprite>(root+"ArkLocomotive.png"); engineImage.color=UnityEngine.Color.white; engineImage.raycastTarget=false;
+label(engine.transform,"EngineName","<b>THE LAST ARK</b>",.27f,.28f,.93f,.46f,18,gold);
+string[] titles={"01  넥서스 칸","02  승무원실","03  선택 칸 #1","04  선택 칸 #2"};
+string[] subtitles={"엔진 모듈","거주구","미건설 / 확장","미건설 / 확장"};
+for(int i=0;i<4;i++) {
+    var car=cars[i]; anchor((UnityEngine.RectTransform)car,.19f+i*.2025f,0,.19f+(i+1)*.2025f,1);
+    var img=car.GetComponent<UnityEngine.UI.Image>(); img.sprite=UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Sprite>(root+(i<2?"ArkCarriage.png":"ArkExpansionCar.png"));
+    img.type=UnityEngine.UI.Image.Type.Simple; img.preserveAspect=false; img.color=UnityEngine.Color.white; img.raycastTarget=true;
+    car.GetComponent<UnityEngine.UI.Outline>().enabled=false;
+    var btn=car.GetComponent<UnityEngine.UI.Button>(); btn.targetGraphic=img; btn.transition=UnityEngine.UI.Selectable.Transition.ColorTint;
+    var colors=btn.colors; colors.normalColor=UnityEngine.Color.white; colors.highlightedColor=new UnityEngine.Color(1.22f,1.25f,1.28f,1);
+    colors.selectedColor=new UnityEngine.Color(1.15f,1.21f,1.25f,1); colors.pressedColor=new UnityEngine.Color(.8f,.88f,.95f,1); colors.fadeDuration=.12f; btn.colors=colors;
+    var text=car.Find("Text").GetComponent<TMPro.TextMeshProUGUI>(); anchor(text.rectTransform,.06f,.34f,.80f,.50f);
+    if(i>=2) anchor(text.rectTransform,.06f,.36f,.94f,.54f);
+    text.text=titles[i]; text.fontSize=19; text.fontStyle=TMPro.FontStyles.Bold; text.alignment=TMPro.TextAlignmentOptions.Center;
+    text.color=i<2?new UnityEngine.Color(.88f,.94f,.97f,1):new UnityEngine.Color(.73f,.80f,.83f,1);
+    text.raycastTarget=false; text.enableWordWrapping=false;
+    var sub=label(car,"CarStatus",subtitles[i],.08f,.25f,i<2?.8f:.92f,.40f,12,i<2?new UnityEngine.Color(.50f,.76f,.81f,1):gold);
+}
+var rail=child(header,"TrackLine"); anchor((UnityEngine.RectTransform)rail.transform,.018f,.052f,.985f,.056f);
+var railImage=rail.GetComponent<UnityEngine.UI.Image>(); if(railImage==null) railImage=rail.AddComponent<UnityEngine.UI.Image>();
+railImage.color=new UnityEngine.Color(.55f,.69f,.76f,.30f); railImage.raycastTarget=false;
+rail.transform.SetAsFirstSibling();
+menu.AutoBindSceneReferences();
+UnityEngine.Canvas.ForceUpdateCanvases();
+UnityEditor.EditorUtility.SetDirty(header.gameObject);
+return "Train header styled; existing four button identities retained.";

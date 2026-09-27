@@ -157,7 +157,7 @@ public static class EffectEngine
                     ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.ShadowVeil))
                 {
                     var bm = Object.FindObjectOfType<BattleManager>();
-                    if (bm != null)
+                    if (bm != null && !bm.UsesDice)
                     {
                         bm.currentAP = Mathf.Min(bm.MaxAP, bm.currentAP + 3);
                         bm.UpdateAPUI();
@@ -378,6 +378,8 @@ public static class EffectEngine
                 target.status.ApplyStatusEffect(effect.type, effect.value,
                     Mathf.Max(1, effect.duration > 0 ? effect.duration : 3),
                     effect.secondaryValue, 0, effect.skillSlot, actor, effect.durationType);
+                if (effect.type == EffectType.Blockade)
+                    Object.FindObjectOfType<BattleManager>()?.RefreshDiceBlockade();
                 lastCalculatedValue = effect.value;
                 break;
 

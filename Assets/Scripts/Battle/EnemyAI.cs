@@ -217,7 +217,7 @@ public class EnemyAI : MonoBehaviour
             {
                 if (effect == null) continue;
                 EnemyIntentEffectData effectIntent = BuildIntentEffect(effect, pattern.targetType, pattern.targetSelection, null, null);
-                effectIntent.Icon = effect.statusIcon != null ? effect.statusIcon : CombatIconLibrary.FindIcon(effect.type);
+                effectIntent.Icon = effect.statusIcon != null ? effect.statusIcon : IconLibrary.FindIcon(effect.type);
                 intent.Effects.Add(effectIntent);
             }
         }
@@ -257,7 +257,7 @@ public class EnemyAI : MonoBehaviour
             return new EnemyIntentEffectData
             {
                 ActionType = action.actionType,
-                Icon = action.intentIcon != null ? action.intentIcon : CombatIconLibrary.FindEnhancementIcon(),
+                Icon = action.intentIcon != null ? action.intentIcon : IconLibrary.FindEnhancementIcon(),
                 RuntimeVariableId = action.runtimeVariableId,
                 RuntimeDisplayName = GetRuntimeVariableName(action.runtimeVariableId),
                 RuntimeValue = action.runtimeValue
@@ -284,7 +284,7 @@ public class EnemyAI : MonoBehaviour
         int hitVariable = GetIntentVariable(action.hitCountVariableId, previewValues);
         result.HitCount = Mathf.Max(1, action.useHitCountVariableAsTotal ? hitVariable : action.effect.hitCount + hitVariable);
         result.Icon = action.intentIcon != null ? action.intentIcon
-            : action.effect?.statusIcon != null ? action.effect.statusIcon : CombatIconLibrary.FindIcon(result.EffectType);
+            : action.effect?.statusIcon != null ? action.effect.statusIcon : IconLibrary.FindIcon(result.EffectType);
         return result;
     }
 
@@ -294,7 +294,7 @@ public class EnemyAI : MonoBehaviour
         if (definition == null) return null;
         return definition.displayIcon != null ? definition.displayIcon
             : GetRuntimeState().Source.enemyEnhancementIcon != null ? GetRuntimeState().Source.enemyEnhancementIcon
-            : CombatIconLibrary.FindEnhancementIcon();
+            : IconLibrary.FindEnhancementIcon();
     }
 
     private string GetRuntimeVariableName(string id)

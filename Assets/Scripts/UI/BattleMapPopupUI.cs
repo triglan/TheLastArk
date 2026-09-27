@@ -53,7 +53,7 @@ namespace TheLastArk.UI
 
         private void CreatePopupUI()
         {
-            Canvas canvas = FindObjectOfType<Canvas>();
+            Canvas canvas = HudCanvasUtility.FindOverlayCanvas();
             if (canvas == null)
             {
                 Debug.LogWarning("[BattleMapPopupUI] Canvas를 찾을 수 없습니다.");

@@ -1,0 +1,23 @@
+root = true
+
+# 모든 텍스트 파일의 공통 규칙
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Unity 게임 및 에디터 C# 코드
+[*.cs]
+indent_style = space
+indent_size = 4
+tab_width = 4
+
+# Unity 직렬화/설정 파일은 기본적으로 2칸 들여쓰기를 사용한다.
+[*.{json,asmdef,asmref,yml,yaml,uxml,uss}]
+indent_style = space
+indent_size = 2
+
+# Markdown의 두 칸 줄바꿈은 의미가 있을 수 있다.
+[*.md]
+trim_trailing_whitespace = false

@@ -620,8 +620,6 @@ public class MapManager : MonoBehaviour
             if (canvas != null)
             {
                 Transform parentTransform = customCanvasTransform != null ? customCanvasTransform : canvas.transform;
-                Transform existingRes = parentTransform.Find("ResourcePanel");
-                if (existingRes == null)
                 {
                     var resourceUI = gameObject.GetComponent<TheLastArk.UI.ExplorationResourceUI>();
                     if (resourceUI == null) resourceUI = gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();

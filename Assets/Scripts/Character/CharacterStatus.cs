@@ -409,7 +409,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
                 : Mathf.Max(existing.damagePerTurn, value);
         }
 
-        if (existing.displayIcon == null) existing.displayIcon = CombatIconLibrary.FindIcon(type);
+        if (existing.displayIcon == null) existing.displayIcon = IconLibrary.FindIcon(type);
         existing.secondaryValue = secondaryValue;
         existing.remainingCharges = Mathf.Max(existing.remainingCharges, charges);
         existing.skillSlot = skillSlot;

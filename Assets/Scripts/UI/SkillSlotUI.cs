@@ -6,7 +6,7 @@ using TheLastArk.UI;
 
 namespace UI
 {
-    public class SkillSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    public class SkillSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IDropHandler
     {
         [Header("UI Component References")]
         public Image iconImage;
@@ -40,8 +40,9 @@ namespace UI
                     else if (tmp.name.ToLower().Contains("name") || tmp.name.ToLower().Contains("title")) nameText = tmp;
                 }
 
-                if (nameText == null && tmps.Length > 0) nameText = tmps[0];
-                if (costText == null && tmps.Length > 1) costText = tmps[1];
+                // Icon-only slots have a cost label but no visible skill name.
+                if (costText == null && tmps.Length == 1) costText = tmps[0];
+                if (nameText == costText) nameText = null;
             }
         }
 
@@ -56,6 +57,8 @@ namespace UI
             {
                 button.onClick.RemoveAllListeners();
                 button.onClick.AddListener(OnClickSlot);
+                BattleManager manager = FindObjectOfType<BattleManager>();
+                button.interactable = manager == null || manager.CanUseDiceSkill(actor, skill);
             }
 
             if (skill != null)
@@ -71,14 +74,33 @@ namespace UI
                 {
                     nameText.text = skill.skillName;
                     nameText.font = TMPFontManager.MainKoreanFont;
-                    nameText.color = Color.white;
+                    BattleManager manager = FindObjectOfType<BattleManager>();
+                    nameText.color = manager != null && manager.GetDiceSkillUnavailableReason(actor, skill) != null
+                        ? new Color(1f, 0.6f, 0.55f) : Color.white;
                 }
 
                 if (costText != null)
                 {
-                    costText.text = $"{cost}";
+                    BattleManager manager = FindObjectOfType<BattleManager>();
+                    var rule = skill.levels != null && skill.levels.Length > skillLevelIdx
+                        ? skill.levels[skillLevelIdx]?.diceInput : null;
+                    if (manager != null && manager.UsesDice)
+                    {
+                        string condition = rule?.ShortLabel() ?? "1개 · 자유";
+                        if (rule != null && rule.chargeTarget > 0)
+                            condition += $" · {manager.GetDiceCharge(actor, skill)}/{rule.chargeTarget}";
+                        string reason = manager.GetDiceSkillUnavailableReason(actor, skill);
+                        costText.text = reason == null ? condition : $"{condition}\n{reason}";
+                        costText.color = reason == null ? Color.white : new Color(1f, 0.6f, 0.55f);
+                        costText.enableAutoSizing = true;
+                        costText.fontSizeMin = 10;
+                    }
+                    else
+                    {
+                        costText.text = $"{cost}";
+                        costText.color = Color.white;
+                    }
                     costText.font = TMPFontManager.MainKoreanFont;
-                    costText.color = Color.yellow;
                 }
 
                 if (iconImage != null)
@@ -106,10 +128,20 @@ namespace UI
                 var bm = FindObjectOfType<BattleManager>();
                 if (bm != null)
                 {
+                    if (bm.UsesDice) return;
                     if (BattleManager.SkillFirstTargeting && button != null) button.Select();
                     bm.SelectSkill(currentSkill, currentActor);
                 }
             }
+        }
+
+        public void OnDrop(PointerEventData eventData)
+        {
+            if (currentSkill == null || currentActor == null || eventData.pointerDrag == null) return;
+            var source = eventData.pointerDrag.GetComponent<DiceDragSource>();
+            var battle = FindObjectOfType<BattleManager>();
+            if (source != null && battle != null)
+                battle.DropDieOnSkill(source.DieId, currentSkill, currentActor);
         }
 
         public void OnPointerEnter(PointerEventData eventData)

@@ -3,39 +3,41 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-public sealed class CombatIconEntry
+public sealed class IconEntry
 {
     public EffectType effectType;
     public Sprite icon;
 }
 
-[CreateAssetMenu(fileName = "CombatIconLibrary", menuName = "Battle/Combat Icon Library")]
-public sealed class CombatIconLibrary : ScriptableObject
+[CreateAssetMenu(fileName = "IconLibrary", menuName = "The Last Ark/Icon Library")]
+public sealed class IconLibrary : ScriptableObject
 {
     public Sprite commonEnhancementIcon;
-    public List<CombatIconEntry> entries = new List<CombatIconEntry>();
+    public Sprite armorIcon;
+    public Sprite magicResistIcon;
+    public List<IconEntry> entries = new List<IconEntry>();
 
-    private static CombatIconLibrary cached;
+    private static IconLibrary cached;
 
     private void OnValidate()
     {
-        if (entries == null) entries = new List<CombatIconEntry>();
+        if (entries == null) entries = new List<IconEntry>();
         EnsureEffectEntries();
     }
 
     public Sprite GetIcon(EffectType effectType)
     {
-        foreach (CombatIconEntry entry in entries)
+        foreach (IconEntry entry in entries)
             if (entry != null && entry.effectType == effectType) return entry.icon;
         return null;
     }
 
     public void SetIcon(EffectType effectType, Sprite icon)
     {
-        CombatIconEntry entry = entries.Find(item => item != null && item.effectType == effectType);
+        IconEntry entry = entries.Find(item => item != null && item.effectType == effectType);
         if (entry == null)
         {
-            entry = new CombatIconEntry { effectType = effectType };
+            entry = new IconEntry { effectType = effectType };
             entries.Add(entry);
         }
         entry.icon = icon;
@@ -46,20 +48,32 @@ public sealed class CombatIconLibrary : ScriptableObject
         foreach (EffectType type in Enum.GetValues(typeof(EffectType)))
         {
             bool exists = entries.Exists(entry => entry != null && entry.effectType == type);
-            if (!exists) entries.Add(new CombatIconEntry { effectType = type });
+            if (!exists) entries.Add(new IconEntry { effectType = type });
         }
     }
 
     public static Sprite FindIcon(EffectType effectType)
     {
-        if (cached == null) cached = Resources.Load<CombatIconLibrary>("CombatIconLibrary");
+        if (cached == null) cached = Resources.Load<IconLibrary>("Icons/IconLibrary");
         return cached != null ? cached.GetIcon(effectType) : null;
     }
 
     public static Sprite FindEnhancementIcon()
     {
-        if (cached == null) cached = Resources.Load<CombatIconLibrary>("CombatIconLibrary");
+        if (cached == null) cached = Resources.Load<IconLibrary>("Icons/IconLibrary");
         return cached != null ? cached.commonEnhancementIcon : null;
+    }
+
+    public static Sprite FindArmorIcon()
+    {
+        if (cached == null) cached = Resources.Load<IconLibrary>("Icons/IconLibrary");
+        return cached != null ? cached.armorIcon : null;
+    }
+
+    public static Sprite FindMagicResistIcon()
+    {
+        if (cached == null) cached = Resources.Load<IconLibrary>("Icons/IconLibrary");
+        return cached != null ? cached.magicResistIcon : null;
     }
 
     public static string GetDisplayName(EffectType type)

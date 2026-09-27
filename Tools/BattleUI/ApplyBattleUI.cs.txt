@@ -1,0 +1,55 @@
+var bm = UnityEngine.Object.FindObjectOfType<BattleManager>();
+var sourceCanvas = GameObject.Find("Canvas").GetComponent<Canvas>();
+UnityEditor.Undo.RegisterFullObjectHierarchyUndo(sourceCanvas.gameObject,"Refine battle HUD");
+System.Func<string,Transform,RectTransform> rect = (name,parent) => { var g=new GameObject(name,typeof(RectTransform));g.transform.SetParent(parent,false);return (RectTransform)g.transform; };
+System.Action<RectTransform,Vector2,Vector2,Vector2> place = (r,anchor,pos,size) => {r.anchorMin=r.anchorMax=anchor;r.pivot=new Vector2(.5f,.5f);r.anchoredPosition=pos;r.sizeDelta=size;r.localScale=Vector3.one;};
+System.Func<RectTransform,Color,UnityEngine.UI.Image> fill = (r,color) => {var im=r.GetComponent<UnityEngine.UI.Image>();if(im==null)im=r.gameObject.AddComponent<UnityEngine.UI.Image>();im.color=color;im.raycastTarget=false;return im;};
+System.Func<string,Transform,string,float,TMPro.TextMeshProUGUI> label = (name,parent,content,size) => {var r=rect(name,parent);var t=r.gameObject.AddComponent<TMPro.TextMeshProUGUI>();t.font=TheLastArk.UI.TMPFontManager.MainKoreanFont;t.fontSize=size;t.text=content;t.color=new Color(.84f,.9f,.94f);t.alignment=TMPro.TextAlignmentOptions.Center;t.raycastTarget=false;return t;};
+var navy=new Color(.035f,.065f,.10f,.84f);var blue=new Color(.12f,.49f,.78f,1);var gold=new Color(.94f,.77f,.4f,1);
+var circle=UnityEditor.AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+var top=new GameObject("TopBarCanvas",typeof(Canvas),typeof(UnityEngine.UI.CanvasScaler),typeof(UnityEngine.UI.GraphicRaycaster));
+var tc=top.GetComponent<Canvas>();tc.renderMode=RenderMode.ScreenSpaceOverlay;tc.sortingOrder=100;
+var scaler=top.GetComponent<UnityEngine.UI.CanvasScaler>();scaler.uiScaleMode=UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1920,1080);scaler.matchWidthOrHeight=.5f;
+var prefab=UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/UI/ExplorationHUD.prefab");
+var shared=(GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(prefab,top.transform);shared.name="ExplorationHUD";
+var tray=rect("BattleSkillTray",top.transform);place(tray,new Vector2(1,0),new Vector2(-614,252),new Vector2(1164,296));fill(tray,navy).raycastTarget=true;
+var trim=rect("TrayAccent",tray);place(trim,new Vector2(.5f,1),new Vector2(0,-1),new Vector2(1164,2));fill(trim,new Color(.4f,.65f,.76f,.5f));
+var grid=GameObject.Find("SkillGrid").GetComponent<RectTransform>();grid.SetParent(tray,false);place(grid,new Vector2(0,.5f),new Vector2(475,0),new Vector2(914,252));
+var layout=grid.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>();layout.spacing=18;layout.padding=new RectOffset(0,0,0,0);layout.childControlWidth=false;layout.childControlHeight=false;layout.childForceExpandWidth=false;layout.childForceExpandHeight=false;layout.childAlignment=TextAnchor.MiddleLeft;
+int groupIndex=0;
+foreach(var group in grid.GetComponentsInChildren<UI.SkillGroupUI>(true))
+{
+    UnityEditor.PrefabUtility.UnpackPrefabInstance(group.gameObject,UnityEditor.PrefabUnpackMode.Completely,UnityEditor.InteractionMode.AutomatedAction);
+    var gr=group.GetComponent<RectTransform>();gr.sizeDelta=new Vector2(215,252);
+    var gl=group.GetComponent<UnityEngine.UI.GridLayoutGroup>();gl.constraint=UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount;gl.constraintCount=2;gl.cellSize=new Vector2(96,96);gl.spacing=new Vector2(12,12);gl.padding=new RectOffset(5,0,42,0);gl.childAlignment=TextAnchor.UpperLeft;
+    var name=label("CharacterName",gr,"승무원 "+(++groupIndex),18);place(name.rectTransform,new Vector2(.5f,1),new Vector2(0,-16),new Vector2(210,30));name.alignment=TMPro.TextAlignmentOptions.Left;name.gameObject.AddComponent<UnityEngine.UI.LayoutElement>().ignoreLayout=true;group.charNameText=name;group.portraitImage=null;
+    var line=rect("GroupAccent",gr);place(line,new Vector2(0,1),new Vector2(104,-34),new Vector2(204,1));fill(line,new Color(.4f,.6f,.7f,.25f));line.gameObject.AddComponent<UnityEngine.UI.LayoutElement>().ignoreLayout=true;
+    foreach(var slot in group.GetComponentsInChildren<UI.SkillSlotUI>(true))
+    {
+        slot.nameText=null;var sr=slot.GetComponent<RectTransform>();sr.sizeDelta=new Vector2(96,96);
+        var outline=slot.GetComponent<UnityEngine.UI.Outline>();if(outline!=null)UnityEngine.Object.DestroyImmediate(outline);
+        var icon=slot.transform.Find("Icon").GetComponent<UnityEngine.UI.Image>();icon.rectTransform.anchorMin=Vector2.zero;icon.rectTransform.anchorMax=Vector2.one;icon.rectTransform.offsetMin=Vector2.zero;icon.rectTransform.offsetMax=Vector2.zero;icon.color=Color.white;icon.preserveAspect=false;icon.raycastTarget=true;slot.iconImage=icon;
+        var button=slot.GetComponent<UnityEngine.UI.Button>();slot.button=button;button.targetGraphic=icon;var cb=button.colors;cb.normalColor=Color.white;cb.highlightedColor=new Color(.70f,.90f,1);cb.pressedColor=new Color(.4f,.7f,.9f);cb.selectedColor=new Color(.65f,.85f,1);cb.disabledColor=new Color(.3f,.35f,.4f,.55f);button.colors=cb;
+        var costbg=slot.transform.Find("CostBackground").GetComponent<UnityEngine.UI.Image>();costbg.sprite=circle;costbg.color=blue;costbg.raycastTarget=false;place(costbg.rectTransform,new Vector2(0,1),new Vector2(14,-14),new Vector2(32,32));
+        var cost=slot.costText!=null?slot.costText:slot.GetComponentInChildren<TMPro.TextMeshProUGUI>(true);cost.name="CostText";cost.transform.SetParent(costbg.transform,false);place(cost.rectTransform,new Vector2(.5f,.5f),Vector2.zero,new Vector2(30,30));cost.color=Color.white;cost.fontSize=19;cost.fontStyle=TMPro.FontStyles.Bold;cost.alignment=TMPro.TextAlignmentOptions.Center;cost.raycastTarget=false;cost.text="3";slot.costText=cost;
+    }
+}
+var divider=rect("CommandDivider",tray);place(divider,new Vector2(1,.5f),new Vector2(-208,0),new Vector2(1,240));fill(divider,new Color(.4f,.65f,.76f,.25f));
+var apPanel=rect("ActionPoints",tray);place(apPanel,new Vector2(1,1),new Vector2(-106,-65),new Vector2(176,65));fill(apPanel,new Color(.07f,.17f,.25f,.8f)).raycastTarget=true;
+var energy=rect("EnergyIcon",apPanel);place(energy,new Vector2(0,.5f),new Vector2(28,0),new Vector2(32,44));var eg=energy.gameObject.AddComponent<TheLastArk.UI.BattleHudGlyph>();eg.symbol=TheLastArk.UI.BattleHudGlyph.Symbol.Energy;eg.color=new Color(.4f,.8f,1);eg.raycastTarget=false;
+bm.apText.transform.SetParent(apPanel,false);place(bm.apText.rectTransform,new Vector2(.5f,.5f),new Vector2(22,0),new Vector2(112,54));bm.apText.fontSize=38;bm.apText.color=Color.white;bm.apText.fontStyle=TMPro.FontStyles.Bold;bm.apText.alignment=TMPro.TextAlignmentOptions.Center;bm.apText.raycastTarget=false;bm.apText.text="4<size=55%><color=#8CAFC8> / 4</color></size>";
+var end=GameObject.Find("TurnEndButton").GetComponent<UnityEngine.UI.Button>();end.transform.SetParent(tray,false);place(end.GetComponent<RectTransform>(),new Vector2(1,0),new Vector2(-106,91),new Vector2(110,110));
+foreach(var t in end.GetComponentsInChildren<TMPro.TMP_Text>(true))t.gameObject.SetActive(false);
+var endImage=end.GetComponent<UnityEngine.UI.Image>();endImage.sprite=circle;endImage.color=new Color(.11f,.22f,.28f,.96f);endImage.raycastTarget=true;end.targetGraphic=endImage;
+var endGlyph=rect("EndTurnIcon",end.transform);place(endGlyph,new Vector2(.5f,.5f),Vector2.zero,new Vector2(72,72));var glyph=endGlyph.gameObject.AddComponent<TheLastArk.UI.BattleHudGlyph>();glyph.symbol=TheLastArk.UI.BattleHudGlyph.Symbol.EndTurn;glyph.color=gold;glyph.raycastTarget=false;bm.turnEndButton=end;
+var turn=bm.turnCountText!=null?bm.turnCountText:GameObject.Find("TurnCountText").GetComponent<TMPro.TextMeshProUGUI>();turn.transform.SetParent(top.transform,false);place(turn.rectTransform,new Vector2(.5f,1),new Vector2(0,-36),new Vector2(140,40));turn.text="1턴";turn.fontSize=24;turn.raycastTarget=false;bm.turnCountText=turn;
+var map=rect("BattleMapButton",top.transform);place(map,new Vector2(0,1),new Vector2(799,-65),new Vector2(60,60));var mapImage=fill(map,new Color(.13f,.18f,.20f,1));mapImage.raycastTarget=true;var mapBtn=map.gameObject.AddComponent<UnityEngine.UI.Button>();mapBtn.targetGraphic=mapImage;
+var mapGlyph=rect("MapIcon",map);place(mapGlyph,new Vector2(.5f,.5f),Vector2.zero,new Vector2(32,32));var mg=mapGlyph.gameObject.AddComponent<TheLastArk.UI.BattleHudGlyph>();mg.symbol=TheLastArk.UI.BattleHudGlyph.Symbol.Map;mg.color=new Color(.78f,.82f,.85f);mg.raycastTarget=false;
+System.Action<Transform,string,bool> hint=(target,content,below)=>{var p=rect("Hint",target);place(p,new Vector2(.5f,below?0:1),new Vector2(0,below?-38:42),new Vector2(196,62));fill(p,new Color(.025f,.045f,.065f,.98f));var text=label("HintText",p,content,17);text.rectTransform.anchorMin=Vector2.zero;text.rectTransform.anchorMax=Vector2.one;text.rectTransform.offsetMin=new Vector2(8,4);text.rectTransform.offsetMax=new Vector2(-8,-4);target.gameObject.AddComponent<TheLastArk.UI.HudHint>().hint=p.gameObject;p.gameObject.SetActive(false);};
+hint(end.transform,"턴 종료\n적의 행동을 시작합니다",false);hint(apPanel,"행동력\n현재 / 최대",false);hint(map,"현재 여정 지도",true);
+var attack=GameObject.Find("BaseAttack");if(attack!=null)UnityEngine.Object.DestroyImmediate(attack);
+var oldSkill=GameObject.Find("Skill");if(oldSkill!=null)UnityEngine.Object.DestroyImmediate(oldSkill);
+var resource=bm.GetComponent<TheLastArk.UI.ExplorationResourceUI>();if(resource==null)resource=bm.gameObject.AddComponent<TheLastArk.UI.ExplorationResourceUI>();resource.Initialize(top.transform);
+UnityEditor.EditorUtility.SetDirty(bm);
+Canvas.ForceUpdateCanvases();
+return "Battle UI applied: 16 slots, shared map HUD, AP and end-turn icons; original managers retained";

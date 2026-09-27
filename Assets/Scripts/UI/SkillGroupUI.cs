@@ -14,8 +14,11 @@ namespace UI
 
         public void SetupGroup(List<SkillInfo> skills, BattleCharacter owner)
         {
-            if (charNameText == null) charNameText = GetComponentInChildren<TextMeshProUGUI>();
-            if (portraitImage == null) portraitImage = GetComponentInChildren<Image>();
+            // Never mistake the first skill's cost/icon for the character header.
+            if (charNameText == null && transform.Find("CharacterName") != null)
+                charNameText = transform.Find("CharacterName").GetComponent<TextMeshProUGUI>();
+            if (portraitImage == null && transform.Find("CharacterPortrait") != null)
+                portraitImage = transform.Find("CharacterPortrait").GetComponent<Image>();
 
             if (slotUIList == null || slotUIList.Count == 0)
             {

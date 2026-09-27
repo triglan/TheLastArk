@@ -16,9 +16,6 @@ public class CharacterView : MonoBehaviour
     public BarUI barUI;
     [SerializeField] private TextMeshProUGUI statusText;
     [SerializeField] private GameObject enemyTargetMarkerPrefab;
-    [Header("Enemy Defense Icons")]
-    [SerializeField] private Sprite armorIcon;
-    [SerializeField] private Sprite magicResistIcon;
     private GameObject enemyTargetMarker;
     private RectTransform defenseRoot;
     private TextMeshProUGUI armorText;
@@ -157,9 +154,8 @@ public class CharacterView : MonoBehaviour
         defenseRoot.anchoredPosition = barUI.hpSlider.GetComponent<RectTransform>().anchoredPosition + new Vector2(0f, -44f);
         defenseRoot.sizeDelta = new Vector2(72f, 30f);
 
-        Sprite placeholder = Resources.Load<Sprite>("Icons/Enemy/temp_icon");
-        armorText = CreateDefenseSlot("Armor", -18f, armorIcon != null ? armorIcon : Resources.Load<Sprite>("Icons/Enemy/Armor") ?? placeholder);
-        magicResistText = CreateDefenseSlot("Magic Resist", 18f, magicResistIcon != null ? magicResistIcon : Resources.Load<Sprite>("Icons/Enemy/MagicResist") ?? placeholder);
+        armorText = CreateDefenseSlot("Armor", -18f, IconLibrary.FindArmorIcon());
+        magicResistText = CreateDefenseSlot("Magic Resist", 18f, IconLibrary.FindMagicResistIcon());
     }
 
     private TextMeshProUGUI CreateDefenseSlot(string name, float x, Sprite sprite)

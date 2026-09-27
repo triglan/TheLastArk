@@ -27,6 +27,22 @@ namespace TheLastArk.UI
         {
             if (parent == null) return;
 
+            var existing = parent.Find("SynergyUIBar");
+            if (existing != null)
+            {
+                barRect = existing.GetComponent<RectTransform>();
+                layoutGroup = existing.GetComponent<HorizontalLayoutGroup>();
+                itemSlotPool = existing.GetComponentsInChildren<SynergyItemUI>(true).ToList();
+                prevButton = existing.Find("PrevBtn").GetComponent<Button>();
+                nextButton = existing.Find("NextBtn").GetComponent<Button>();
+                prevButton.onClick.RemoveAllListeners();
+                nextButton.onClick.RemoveAllListeners();
+                prevButton.onClick.AddListener(OnClickPrevPage);
+                nextButton.onClick.AddListener(OnClickNextPage);
+                RefreshDisplay();
+                return;
+            }
+
             GameObject barObj = new GameObject("SynergyUIBar");
             barObj.transform.SetParent(parent, false);
 

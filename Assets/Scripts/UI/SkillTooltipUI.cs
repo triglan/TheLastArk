@@ -100,7 +100,10 @@ namespace TheLastArk.UI
 
             int cost = (currentLevelData != null && currentLevelData.overrideCost >= 0) ? currentLevelData.overrideCost : skill.baseCost;
 
-            titleText.text = $"[{skill.skillName}]  <color=#FFD700>({cost} AP)</color>";
+            BattleManager manager = FindObjectOfType<BattleManager>();
+            titleText.text = manager != null && manager.UsesDice
+                ? $"[{skill.skillName}]  <color=#FFD700>({currentLevelData?.diceInput?.Describe() ?? "제한 없음"})</color>"
+                : $"[{skill.skillName}]  <color=#FFD700>({cost} AP)</color>";
             string levelTitle = status != null ? status.LevelTitle : "0강";
             int charLevel = status != null ? status.charLevel : 0;
             actorInfoText.text = $"시전: <color=#00FFCE>{charName}</color> | 강화: <color=#79FF5B>{levelTitle} ({charLevel}강)</color>";
@@ -243,7 +246,7 @@ namespace TheLastArk.UI
         {
             if (tooltipPanel != null) return;
 
-            Canvas canvas = FindObjectOfType<Canvas>();
+            Canvas canvas = HudCanvasUtility.FindOverlayCanvas();
             if (canvas == null)
             {
                 GameObject cObj = new GameObject("TooltipCanvas");

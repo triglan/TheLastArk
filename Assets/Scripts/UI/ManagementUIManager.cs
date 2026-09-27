@@ -162,7 +162,7 @@ namespace TheLastArk.UI
 
         private void CreateUI()
         {
-            Canvas canvas = FindObjectOfType<Canvas>();
+            Canvas canvas = HudCanvasUtility.FindOverlayCanvas();
             if (canvas == null)
             {
                 GameObject canvasObj = new GameObject("ManagementCanvas");
@@ -668,7 +668,7 @@ namespace TheLastArk.UI
         // ─────────────────────────────────────────────────────────────
         private void CreateCharacterDetailPopupUI()
         {
-            Canvas canvas = FindObjectOfType<Canvas>();
+            Canvas canvas = HudCanvasUtility.FindOverlayCanvas();
             charDetailPopupPanel = new GameObject("CharDetailPopup");
             charDetailPopupPanel.transform.SetParent(canvas.transform, false);
             charDetailPopupPanel.transform.SetAsLastSibling();
@@ -1024,7 +1024,7 @@ namespace TheLastArk.UI
         // ─────────────────────────────────────────────────────────────
         private void ShowEquipmentSelectModal(CharacterData charData, CharacterStatus status, int slotIndex)
         {
-            Canvas canvas = FindObjectOfType<Canvas>();
+            Canvas canvas = HudCanvasUtility.FindOverlayCanvas();
             if (equipSelectModalPanel == null)
             {
                 equipSelectModalPanel = new GameObject("EquipSelectModal");

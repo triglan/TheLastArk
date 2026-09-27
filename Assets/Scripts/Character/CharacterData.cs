@@ -110,6 +110,7 @@ public class SkillLevelData
 {
     // 스킬의 한 단계가 어떤 대상을 공격하고 어떤 효과를 주는지 정합니다.
     public int overrideCost = -1;
+    public TheLastArk.Skills.DiceInputRule diceInput = new TheLastArk.Skills.DiceInputRule();
     public TargetType targetType;
     public string customVfxName; // 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
     public List<EffectEntry> effects = new List<EffectEntry>();

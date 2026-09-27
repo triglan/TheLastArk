@@ -31,7 +31,7 @@ namespace TheLastArk.UI
     }
 
     [ExecuteAlways]
-    public class MainMenuUI : MonoBehaviour
+    public partial class MainMenuUI : MonoBehaviour
     {
         [Header("Title & Background Sprites")]
         [Tooltip("타이틀 로고 이미지 (미지정 시 Resources/UI/TitleLogo 혹은 기본 TextMeshPro 타이틀 사용)")]
@@ -640,6 +640,7 @@ namespace TheLastArk.UI
             {
                 for (int i = detailSynergiesContainer.childCount - 1; i >= 0; i--)
                 {
+                    detailSynergiesContainer.GetChild(i).gameObject.SetActive(false);
                     SafeDestroy(detailSynergiesContainer.GetChild(i).gameObject);
                 }
             }
@@ -2112,6 +2113,7 @@ namespace TheLastArk.UI
 
                 for (int i = detailSynergiesContainer.childCount - 1; i >= 0; i--)
                 {
+                    detailSynergiesContainer.GetChild(i).gameObject.SetActive(false);
                     SafeDestroy(detailSynergiesContainer.GetChild(i).gameObject);
                 }
 
@@ -2126,6 +2128,7 @@ namespace TheLastArk.UI
 
             // 4. 스킬 바인딩 (상단: 패시브 단일 / 하단: 액티브 4개 2줄 분할 배치)
             UpdateSkillsUI(data);
+            ApplyCharacterSelectionPresentation();
         }
 
         /// <summary>
@@ -2206,10 +2209,12 @@ namespace TheLastArk.UI
             // 기존 슬롯 비우기
             for (int i = passiveRow.childCount - 1; i >= 0; i--)
             {
+                passiveRow.GetChild(i).gameObject.SetActive(false);
                 SafeDestroy(passiveRow.GetChild(i).gameObject);
             }
             for (int i = activeRow.childCount - 1; i >= 0; i--)
             {
+                activeRow.GetChild(i).gameObject.SetActive(false);
                 SafeDestroy(activeRow.GetChild(i).gameObject);
             }
 
@@ -2268,7 +2273,7 @@ namespace TheLastArk.UI
             tRect.sizeDelta = Vector2.zero;
 
             TextMeshProUGUI tmp = textObj.AddComponent<TextMeshProUGUI>();
-            tmp.text = $"{emoji} {displayName}";
+            tmp.text = displayName;
             tmp.fontSize = 13;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color = Color.white;
@@ -2553,6 +2558,10 @@ namespace TheLastArk.UI
         private void UpdateDrawnRelicUI()
         {
             if (selectedStartingRelic == null) return;
+
+            Transform emptyRelic = characterSelectionPanel != null
+                ? characterSelectionPanel.transform.Find("DrawnRelicSlot/EmptyRelic") : null;
+            if (emptyRelic != null) emptyRelic.gameObject.SetActive(false);
 
             if (relicPreviewImageComponent != null && selectedStartingRelic.icon != null)
             {

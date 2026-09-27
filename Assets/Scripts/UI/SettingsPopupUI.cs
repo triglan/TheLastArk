@@ -551,6 +551,12 @@ namespace TheLastArk.UI
                 RefreshTab();
             });
 
+            CreateToggleRow("주사위를 모두 쓰면 턴 자동 종료", BattleManager.AutoEndDiceTurn, newVal =>
+            {
+                BattleManager.AutoEndDiceTurn = newVal;
+                RefreshTab();
+            });
+
             // 2. 단축키 설정 안내
             CreateActionRow("단축키 설정", "단축키 목록 보기", new Color(0.2f, 0.45f, 0.65f, 1f), () =>
             {

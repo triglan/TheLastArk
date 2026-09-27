@@ -1,4 +1,7 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+using System.Collections.Generic;
+using TheLastArk.UI;
 
 public class TargetArrow : MonoBehaviour
 {
@@ -12,6 +15,7 @@ public class TargetArrow : MonoBehaviour
     public float floatAmplitude = 10f; // 움직이는 높이 폭
 
     private Transform _cachedTargetPoint; // 현재 타겟의 화살표 위치 오브젝트
+    private readonly List<RaycastResult> _uiHits = new List<RaycastResult>();
 
     void Update()
     {
@@ -29,6 +33,7 @@ public class TargetArrow : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
+            if (IsPointerOnActionDie()) return;
             if (Camera.main == null) return;
             Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
@@ -45,6 +50,18 @@ public class TargetArrow : MonoBehaviour
                 TargetSelected?.Invoke(target);
             }
         }
+    }
+
+    private bool IsPointerOnActionDie()
+    {
+        if (EventSystem.current == null) return false;
+        _uiHits.Clear();
+        var pointer = new PointerEventData(EventSystem.current) { position = Input.mousePosition };
+        EventSystem.current.RaycastAll(pointer, _uiHits);
+        foreach (RaycastResult hit in _uiHits)
+            if (hit.gameObject != null && hit.gameObject.GetComponentInParent<DiceDragSource>() != null)
+                return true;
+        return false;
     }
     
     private void AnimateArrow()

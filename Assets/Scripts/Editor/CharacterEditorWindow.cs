@@ -3,6 +3,7 @@ using UnityEditor;
 using System.Collections.Generic;
 using System.IO;
 using TheLastArk.Map.Events;
+using TheLastArk.Skills;
 
 public class CharacterEditorWindow : EditorWindow
 {
@@ -173,27 +174,28 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUILayout.EndVertical();
 
         EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-        CombatIconLibrary library = GetOrCreateCombatIconLibrary();
+        IconLibrary library = GetOrCreateIconLibrary();
 
         EditorGUILayout.BeginHorizontal(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
         DrawCommonEffectIconPanel(library);
+        DrawCombatStatIconPanel(library);
         DrawEnhancementIconPanel(library);
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.EndVertical();
         EditorGUILayout.EndHorizontal();
     }
 
-    private void DrawCommonEffectIconPanel(CombatIconLibrary library)
+    private void DrawCommonEffectIconPanel(IconLibrary library)
     {
         EditorGUILayout.BeginVertical("helpbox", GUILayout.MinWidth(0f), GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
         EditorGUILayout.LabelField("공용 상태·의도 아이콘", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox("독은 독 상태와 독 의도에 함께 사용됩니다.", MessageType.Info);
         commonIconScroll = BeginVerticalScrollView(commonIconScroll);
         EditorGUI.BeginChangeCheck();
-        foreach (CombatIconEntry entry in library.entries)
+        foreach (IconEntry entry in library.entries)
         {
             if (entry == null) continue;
-            entry.icon = (Sprite)EditorGUILayout.ObjectField(CombatIconLibrary.GetDisplayName(entry.effectType), entry.icon, typeof(Sprite), false);
+            entry.icon = (Sprite)EditorGUILayout.ObjectField(IconLibrary.GetDisplayName(entry.effectType), entry.icon, typeof(Sprite), false);
         }
         if (EditorGUI.EndChangeCheck())
         {
@@ -204,7 +206,7 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUILayout.EndVertical();
     }
 
-    private void DrawEnhancementIconPanel(CombatIconLibrary library)
+    private void DrawEnhancementIconPanel(IconLibrary library)
     {
         EditorGUILayout.BeginVertical("helpbox", GUILayout.MinWidth(0f), GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
         EditorGUILayout.LabelField("공통·전용 강화 아이콘", EditorStyles.boldLabel);
@@ -246,6 +248,22 @@ public class CharacterEditorWindow : EditorWindow
             EditorGUILayout.HelpBox("None이면 공용 적 강화 아이콘을 사용합니다.", MessageType.None);
         }
         EndVerticalScrollView();
+        EditorGUILayout.EndVertical();
+    }
+
+    private void DrawCombatStatIconPanel(IconLibrary library)
+    {
+        EditorGUILayout.BeginVertical("helpbox", GUILayout.MinWidth(180f), GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+        EditorGUILayout.LabelField("전투 능력치 아이콘", EditorStyles.boldLabel);
+        EditorGUI.BeginChangeCheck();
+        library.armorIcon = (Sprite)EditorGUILayout.ObjectField("방어력", library.armorIcon, typeof(Sprite), false);
+        library.magicResistIcon = (Sprite)EditorGUILayout.ObjectField("마법 저항력", library.magicResistIcon, typeof(Sprite), false);
+        if (EditorGUI.EndChangeCheck())
+        {
+            EditorUtility.SetDirty(library);
+            AssetDatabase.SaveAssets();
+        }
+        EditorGUILayout.HelpBox("적 체력바 아래의 방어력·마법 저항력 표시에 사용됩니다.", MessageType.None);
         EditorGUILayout.EndVertical();
     }
 
@@ -866,7 +884,20 @@ public class CharacterEditorWindow : EditorWindow
             SkillLevelData level = skill.levels[i];
             EditorGUILayout.BeginVertical("helpbox");
             EditorGUILayout.LabelField($"{i + 1}단계", EditorStyles.miniBoldLabel);
-            if (!isPassive) level.overrideCost = EditorGUILayout.IntField("비용 변경", level.overrideCost);
+            if (!isPassive)
+            {
+                level.overrideCost = EditorGUILayout.IntField("비용 변경 (기존 AP)", level.overrideCost);
+                if (level.diceInput == null) level.diceInput = new DiceInputRule();
+                DiceInputRule dice = level.diceInput;
+                EditorGUILayout.LabelField("주사위 투입", EditorStyles.miniBoldLabel);
+                dice.diceCount = EditorGUILayout.IntSlider("필요한 주사위", dice.diceCount, 1, 10);
+                dice.condition = (DiceCondition)EditorGUILayout.EnumPopup("눈금 조건", dice.condition);
+                if (dice.condition == DiceCondition.Exact || dice.condition == DiceCondition.AtLeast || dice.condition == DiceCondition.AtMost)
+                    dice.value = EditorGUILayout.IntField("기준 눈금", dice.value);
+                dice.chargeTarget = Mathf.Max(0, EditorGUILayout.IntField("충전 목표 (0=일반)", dice.chargeTarget));
+                if (dice.chargeTarget > 0)
+                    dice.chargeByDiceCount = EditorGUILayout.Toggle("눈금 대신 개수 충전", dice.chargeByDiceCount);
+            }
             level.targetType = (TargetType)EditorGUILayout.EnumPopup("대상", level.targetType);
             DrawEffectList(level.effects);
             level.targetType = ForceSingleTauntTarget(level.targetType, level.effects);
@@ -1317,9 +1348,9 @@ public class CharacterEditorWindow : EditorWindow
 
     private static void DrawCommonEffectIconField(EffectType effectType)
     {
-        CombatIconLibrary library = GetOrCreateCombatIconLibrary();
+        IconLibrary library = GetOrCreateIconLibrary();
         EditorGUI.BeginChangeCheck();
-        Sprite icon = (Sprite)EditorGUILayout.ObjectField($"공용 {CombatIconLibrary.GetDisplayName(effectType)} 아이콘", library.GetIcon(effectType), typeof(Sprite), false);
+        Sprite icon = (Sprite)EditorGUILayout.ObjectField($"공용 {IconLibrary.GetDisplayName(effectType)} 아이콘", library.GetIcon(effectType), typeof(Sprite), false);
         if (!EditorGUI.EndChangeCheck()) return;
 
         library.SetIcon(effectType, icon);
@@ -2036,14 +2067,14 @@ public class CharacterEditorWindow : EditorWindow
     private string GetDataFolder(bool isEnemy) => isEnemy ? ENEMY_DATA_FOLDER : PLAYER_DATA_FOLDER;
     private string GetIllustFolder(bool isEnemy) => isEnemy ? ENEMY_ILLUST_FOLDER : PLAYER_ILLUST_FOLDER;
 
-    private static CombatIconLibrary GetOrCreateCombatIconLibrary()
+    private static IconLibrary GetOrCreateIconLibrary()
     {
-        const string path = "Assets/Resources/CombatIconLibrary.asset";
-        CombatIconLibrary library = AssetDatabase.LoadAssetAtPath<CombatIconLibrary>(path);
+        const string path = "Assets/Resources/Icons/IconLibrary.asset";
+        IconLibrary library = AssetDatabase.LoadAssetAtPath<IconLibrary>(path);
         if (library == null)
         {
-            Directory.CreateDirectory("Assets/Resources");
-            library = CreateInstance<CombatIconLibrary>();
+            Directory.CreateDirectory("Assets/Resources/Icons");
+            library = CreateInstance<IconLibrary>();
             library.EnsureEffectEntries();
             AssetDatabase.CreateAsset(library, path);
             AssetDatabase.SaveAssets();
@@ -2051,7 +2082,7 @@ public class CharacterEditorWindow : EditorWindow
         else
         {
             int entryCount = library.entries == null ? 0 : library.entries.Count;
-            if (library.entries == null) library.entries = new List<CombatIconEntry>();
+            if (library.entries == null) library.entries = new List<IconEntry>();
             library.EnsureEffectEntries();
             if (library.entries.Count != entryCount) EditorUtility.SetDirty(library);
         }
