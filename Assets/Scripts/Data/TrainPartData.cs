@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,11 +7,11 @@ namespace TheLastArk.Data
     public enum TrainPartEffectType
     {
         // ── 넥서스 파츠 (오리진) ──
-        HighEnergyModule,             // 고에너지 모듈: 행동력 +2
-        EnergyAccelerator,            // 에너지 가속 장치: 행동력 -2, 모든 아군 체/공/주 +25%
-        EnergyStorage,                // 에너지 저장소: 미사용 행동력 최대 3 이월
-        OverloadModule,               // 과부하 모듈: 다음 턴 행동력 최대 5 미리 사용
-        ParasiticOrgan,               // 기생형 생체 기관: 행동력 -4, 매 턴 행동력 +1 (중첩)
+        HighEnergyModule,             // 고에너지 모듈: 첫 굴림 주사위 1개 실제 값 +N
+        EnergyAccelerator,            // 에너지 가속 장치: 일반 주사위 -1, 모든 아군 체/공/주 +N%
+        EnergyStorage,                // 에너지 저장소: 미사용 행동력 최대 3 이월 (AP 방식 레거시, 오리진 제작 목록 제외)
+        OverloadModule,               // 과부하 모듈: 다음 턴 행동력 최대 5 미리 사용 (AP 방식 레거시, 오리진 제작 목록 제외)
+        ParasiticOrgan,               // 기생형 생체 기관: 일반 주사위 -N, 매 턴 +1 누적
 
         // ── 넥서스 파츠 (갬블) ──
         GambleForesight,              // 단편 미래예지 모듈: 주사위 재시도 횟수 +1
@@ -70,7 +70,11 @@ namespace TheLastArk.Data
         FateStackingModule,           // 운명 중첩 모듈: 시너지를 중복해서 선택 가능
         TraitExpander,                // 특성 확장기: 선택 가능한 시너지 +1 (중복 불가)
         MultiTalentCombiner,          // 다중 재능 연합기: 활성화된 시너지 1개당 전 아군 체/정/공/주 +4%
-        SingleTraitFocuser             // 단일 특성 집중기: (가장 높은 활성화 시너지 수치)%만큼 전 아군 체/정/공/주 증가
+        SingleTraitFocuser,            // 단일 특성 집중기: (가장 높은 활성화 시너지 수치)%만큼 전 아군 체/정/공/주 증가
+
+        // ── 넥서스 파츠 (오리진, 주사위 리워크 추가) ── 기존 값 보존을 위해 끝에 추가
+        NumberManipulator,            // 숫자 조작 장치: 보관함 주사위 1개 ±1
+        ChanceProtocol                // 기회 프로토콜: 주사위 리롤
     }
 
     [System.Serializable]
@@ -99,15 +103,34 @@ namespace TheLastArk.Data
 
     public static class TrainPartDatabase
     {
+        public const string HighEnergyId = "Part_HighEnergy";
+        public const string EnergyAcceleratorId = "Part_EnergyAccelerator";
+        public const string NumberManipulatorId = "Part_NumberManipulator";
+        public const string ChanceProtocolId = "Part_ChanceProtocol";
+        public const string ParasiticOrganId = "Part_ParasiticOrgan";
+
+        /// <summary>Origin parts: crafted with gold each run, then equipped/upgraded (levels 0–3).</summary>
+        public static readonly IReadOnlyList<string> OriginPartIds = new[]
+        {
+            HighEnergyId, EnergyAcceleratorId, NumberManipulatorId, ChanceProtocolId, ParasiticOrganId
+        };
+
+        public static bool IsOriginPart(string partId)
+        {
+            for (int i = 0; i < OriginPartIds.Count; i++)
+                if (OriginPartIds[i] == partId) return true;
+            return false;
+        }
+
         private static readonly Dictionary<string, TrainPartData> _allParts = new Dictionary<string, TrainPartData>();
 
         static TrainPartDatabase()
         {
             // ── 1. 넥서스 파츠 - 오리진 모듈 전용 (5종) ──
             Register(new TrainPartData(
-                "Part_HighEnergy",
+                HighEnergyId,
                 "고에너지 모듈",
-                "행동력이 +2 증가합니다.",
+                "턴 시작 시 처음 굴린 주사위 중 무작위 1개의 실제 값이 증가합니다.",
                 80,
                 TrainCarType.Nexus,
                 TrainPartEffectType.HighEnergyModule,
@@ -115,9 +138,9 @@ namespace TheLastArk.Data
             ));
 
             Register(new TrainPartData(
-                "Part_EnergyAccelerator",
+                EnergyAcceleratorId,
                 "에너지 가속 장치",
-                "행동력이 -2 감소하지만, 모든 아군의 체력, 공격력, 주문력이 +25% 증가합니다.",
+                "일반 주사위가 줄어드는 대신 모든 아군의 체력, 공격력, 주문력이 증가합니다.",
                 80,
                 TrainCarType.Nexus,
                 TrainPartEffectType.EnergyAccelerator,
@@ -145,12 +168,32 @@ namespace TheLastArk.Data
             ));
 
             Register(new TrainPartData(
-                "Part_ParasiticOrgan",
+                ParasiticOrganId,
                 "기생형 생체 기관",
-                "기본 행동력이 -4 감소하지만, 전투 중 매 턴마다 행동력이 +1씩 영구히 중첩 증가합니다.",
+                "일반 주사위가 줄어드는 대신 전투 중 매 턴 일반 주사위가 +1씩 누적됩니다.",
                 100,
                 TrainCarType.Nexus,
                 TrainPartEffectType.ParasiticOrgan,
+                NexusModuleDatabase.OriginId
+            ));
+
+            Register(new TrainPartData(
+                NumberManipulatorId,
+                "숫자 조작 장치",
+                "보관함의 주사위 1개를 골라 실제 값을 ±1 조정합니다.",
+                50,
+                TrainCarType.Nexus,
+                TrainPartEffectType.NumberManipulator,
+                NexusModuleDatabase.OriginId
+            ));
+
+            Register(new TrainPartData(
+                ChanceProtocolId,
+                "기회 프로토콜",
+                "보관함의 주사위를 다시 굴립니다.",
+                50,
+                TrainCarType.Nexus,
+                TrainPartEffectType.ChanceProtocol,
                 NexusModuleDatabase.OriginId
             ));
 
@@ -557,6 +600,8 @@ namespace TheLastArk.Data
                 {
                     if (carType == TrainCarType.Nexus && !string.IsNullOrEmpty(moduleId))
                     {
+                        // Origin offers exactly its five craftable parts; legacy AP parts stay registered but hidden.
+                        if (moduleId == NexusModuleDatabase.OriginId && !IsOriginPart(kvp.Key)) continue;
                         if (kvp.Value.targetModuleId == moduleId || string.IsNullOrEmpty(kvp.Value.targetModuleId))
                         {
                             list.Add(kvp.Value);

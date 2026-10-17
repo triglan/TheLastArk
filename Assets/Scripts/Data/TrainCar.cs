@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace TheLastArk.Data
@@ -19,6 +19,13 @@ namespace TheLastArk.Data
     }
 
     [System.Serializable]
+    public class PartLevelEntry
+    {
+        public string partId;
+        public int level;
+    }
+
+    [System.Serializable]
     public class TrainCar
     {
         public const int OptionalCarBuildCost = 100;
@@ -32,6 +39,9 @@ namespace TheLastArk.Data
 
         public string installedModuleId = "";
         public List<string> installedParts = new List<string>();
+        // Per-run Origin part state: craft unlocks and part levels survive unequip / module swap.
+        public List<string> craftedParts = new List<string>();
+        public List<PartLevelEntry> partLevels = new List<PartLevelEntry>();
         public List<SynergyType> selectedSynergies = new List<SynergyType>();
         public CharacterData assignedCharacter;
 
@@ -157,6 +167,59 @@ namespace TheLastArk.Data
             return installedParts != null && installedParts.Contains(partId);
         }
 
+        /// <summary>Non-Origin parts need no crafting; Origin parts must be crafted this run.</summary>
+        public bool IsPartCrafted(string partId)
+        {
+            return !TrainPartDatabase.IsOriginPart(partId) || (craftedParts != null && craftedParts.Contains(partId));
+        }
+
+        public void MarkPartCrafted(string partId)
+        {
+            if (craftedParts == null) craftedParts = new List<string>();
+            if (!craftedParts.Contains(partId)) craftedParts.Add(partId);
+        }
+
+        /// <summary>Part level (0 = 기본형). Unrecorded parts are 기본형.</summary>
+        public int GetPartLevel(string partId)
+        {
+            if (partLevels == null) return 0;
+            foreach (var entry in partLevels)
+                if (entry != null && entry.partId == partId) return entry.level;
+            return 0;
+        }
+
+        public void SetPartLevel(string partId, int level)
+        {
+            if (partLevels == null) partLevels = new List<PartLevelEntry>();
+            foreach (var entry in partLevels)
+            {
+                if (entry == null || entry.partId != partId) continue;
+                entry.level = level;
+                return;
+            }
+            partLevels.Add(new PartLevelEntry { partId = partId, level = level });
+        }
+
+        /// <summary>Level of the equipped part with this effect, or -1 when not equipped.</summary>
+        public int GetEquippedPartLevel(TrainPartEffectType effectType)
+        {
+            if (installedParts == null) return -1;
+            foreach (var pId in installedParts)
+            {
+                var partData = TrainPartDatabase.GetPart(pId);
+                if (partData != null && partData.effectType == effectType) return GetPartLevel(pId);
+            }
+            return -1;
+        }
+
+        /// <summary>New run: Origin parts are locked again, unequipped, and back to 기본형.</summary>
+        public void ResetOriginPartState()
+        {
+            installedParts?.RemoveAll(TrainPartDatabase.IsOriginPart);
+            craftedParts?.Clear();
+            partLevels?.Clear();
+        }
+
         public bool HasPartEffect(TrainPartEffectType effectType)
         {
             if (installedParts == null) return false;
@@ -182,6 +245,10 @@ namespace TheLastArk.Data
             {
                 if (partData.targetModuleId != installedModuleId) return false;
             }
+            // Origin equips only its five parts, and only after crafting.
+            if (carType == TrainCarType.Nexus && installedModuleId == NexusModuleDatabase.OriginId
+                && partData.targetModuleId == NexusModuleDatabase.OriginId && !TrainPartDatabase.IsOriginPart(partId)) return false;
+            if (!IsPartCrafted(partId)) return false;
 
             return true;
         }

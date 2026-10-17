@@ -101,6 +101,8 @@ public partial class BattleManager : MonoBehaviour
         && TheLastArk.Data.NexusModuleDatabase.GetModule(TheLastArk.Managers.TrainManager.Instance.nexusCar.installedModuleId)?.moduleId
             == TheLastArk.Data.NexusModuleDatabase.OriginId;
     public BattleConfig Config => battleConfig;
+    /// <summary>True from battle scene setup until the battle ends; train edits are blocked meanwhile.</summary>
+    public bool IsBattleOngoing => _currentPhase != BattlePhase.BattleEnd;
 
     public bool CanUseDiceSkill(BattleCharacter actor, SkillInfo skill)
     {

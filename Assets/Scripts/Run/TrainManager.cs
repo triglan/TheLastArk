@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -48,6 +48,42 @@ namespace TheLastArk.Managers
         }
 
         public int maxAdditionalCars = 3;
+
+        [Header("Origin Parts")]
+        [SerializeField] private OriginPartBalanceConfig originPartBalance;
+
+        /// <summary>Origin part design numbers. Auto-created managers load the default Resources asset.</summary>
+        public OriginPartBalanceConfig OriginPartBalance
+        {
+            get
+            {
+                if (originPartBalance == null)
+                {
+                    originPartBalance = Resources.Load<OriginPartBalanceConfig>(OriginPartBalanceConfig.ResourcePath);
+                    if (originPartBalance == null)
+                        Debug.LogError($"[TrainManager] OriginPartBalanceConfig 에셋이 없습니다: Resources/{OriginPartBalanceConfig.ResourcePath}");
+                }
+                return originPartBalance;
+            }
+            set => originPartBalance = value;
+        }
+
+        /// <summary>Train edits (craft / equip / unequip / upgrade / module swap) are blocked while a battle runs.</summary>
+        public static bool IsBattleInProgress
+        {
+            get
+            {
+                var battle = FindObjectOfType<BattleManager>();
+                return battle != null && battle.IsBattleOngoing;
+            }
+        }
+
+        private static bool RejectDuringBattle()
+        {
+            if (!IsBattleInProgress) return false;
+            UI.NotificationManager.Instance?.ShowMessage("전투 중에는 기차를 변경할 수 없습니다.", Color.red);
+            return true;
+        }
 
         // 통합 기차 체력
         public int maxTrainDurability = 100;
@@ -118,7 +154,7 @@ namespace TheLastArk.Managers
         // ── 넥서스 칸 모듈 & AP 계산 ──────────────────────────────────
         public bool TryChangeNexusModule(string newModuleId)
         {
-            if (nexusCar == null) return false;
+            if (nexusCar == null || RejectDuringBattle()) return false;
             var removedParts = nexusCar.ChangeNexusModule(newModuleId);
             if (removedParts != null && removedParts.Count > 0)
             {
@@ -392,15 +428,38 @@ namespace TheLastArk.Managers
         public float GetTrainBonusHpMultiplier()
         {
             float bonus = 0f;
-            if (nexusCar != null && nexusCar.HasPartEffect(TrainPartEffectType.EnergyAccelerator))
-            {
-                bonus += 0.25f; // [에너지 가속 장치] 체력 +25%
-            }
+            bonus += EnergyAcceleratorStatBonus(); // [에너지 가속 장치] 체력
             if (crewCar != null && crewCar.HasPartEffect(TrainPartEffectType.LuxuryCabin))
             {
                 bonus += 0.20f; // [개인 고급화 선실] 체력 +20%
             }
             return bonus;
+        }
+
+        /// <summary>Additive percent through the existing train stat path (no extra multiplier on final stats).</summary>
+        private float EnergyAcceleratorStatBonus()
+        {
+            int level = nexusCar != null ? nexusCar.GetEquippedPartLevel(TrainPartEffectType.EnergyAccelerator) : -1;
+            if (level < 0 || OriginPartBalance == null) return 0f;
+            return OriginPartBalanceConfig.At(OriginPartBalance.acceleratorStatPercent, level) / 100f;
+        }
+
+        /// <summary>
+        /// Normal D6 requested at turn start:
+        /// max(0, module level + 2 − 가속 reduction − 기생 reduction + 기생 accumulation).
+        /// </summary>
+        public static int OriginNormalDiceRequest(TrainCar car, OriginPartBalanceConfig balance, int parasiticStacks)
+        {
+            if (car == null) return 0;
+            int count = car.level + 2;
+            if (balance != null)
+            {
+                int accel = car.GetEquippedPartLevel(TrainPartEffectType.EnergyAccelerator);
+                if (accel >= 0) count -= OriginPartBalanceConfig.At(balance.acceleratorDiceReduction, accel);
+                int parasitic = car.GetEquippedPartLevel(TrainPartEffectType.ParasiticOrgan);
+                if (parasitic >= 0) count += parasiticStacks - OriginPartBalanceConfig.At(balance.parasiticDiceReduction, parasitic);
+            }
+            return Mathf.Max(0, count);
         }
 
         public float GetTrainBonusMentalMultiplier()
@@ -416,10 +475,7 @@ namespace TheLastArk.Managers
         public float GetTrainBonusAttackMultiplier()
         {
             float bonus = 0f;
-            if (nexusCar != null && nexusCar.HasPartEffect(TrainPartEffectType.EnergyAccelerator))
-            {
-                bonus += 0.25f; // [에너지 가속 장치] 공격력 +25%
-            }
+            bonus += EnergyAcceleratorStatBonus(); // [에너지 가속 장치] 공격력
             if (crewCar != null && crewCar.HasPartEffect(TrainPartEffectType.BondProof) && IsCrewAtMaxCapacity())
             {
                 bonus += 0.10f; // [유대의 증표] 승무원 수 최대일 때 공 +10%
@@ -430,10 +486,7 @@ namespace TheLastArk.Managers
         public float GetTrainBonusSpellPowerMultiplier()
         {
             float bonus = 0f;
-            if (nexusCar != null && nexusCar.HasPartEffect(TrainPartEffectType.EnergyAccelerator))
-            {
-                bonus += 0.25f; // [에너지 가속 장치] 주문력 +25%
-            }
+            bonus += EnergyAcceleratorStatBonus(); // [에너지 가속 장치] 주문력
             if (crewCar != null && crewCar.HasPartEffect(TrainPartEffectType.BondProof) && IsCrewAtMaxCapacity())
             {
                 bonus += 0.10f; // [유대의 증표] 승무원 수 최대일 때 주 +10%
@@ -481,6 +534,7 @@ namespace TheLastArk.Managers
         public bool TryUpgradeCar(TrainCar car)
         {
             if (car == null || !car.CanUpgrade) return false;
+            if (car.carType == TrainCarType.Nexus && RejectDuringBattle()) return false;
 
             int cost = GetDiscountedCost(car.UpgradeCost);
             if (ResourceManager.Instance != null && ResourceManager.Instance.TrySpendGold(cost))
@@ -496,7 +550,10 @@ namespace TheLastArk.Managers
 
         public bool TryBuyAndInstallPart(TrainCar car, string partId)
         {
-            if (car == null || !car.CanInstallPart(partId)) return false;
+            if (car == null) return false;
+            // Origin parts are crafted once per run, then equipped for free.
+            if (TrainPartDatabase.IsOriginPart(partId)) return TryEquipOriginPart(car, partId);
+            if (!car.CanInstallPart(partId)) return false;
 
             var partData = TrainPartDatabase.GetPart(partId);
             if (partData == null) return false;
@@ -513,9 +570,52 @@ namespace TheLastArk.Managers
             return false;
         }
 
+        /// <summary>Unlocks an Origin part for this run. Fails without changes when gold is short or in battle.</summary>
+        public bool TryCraftOriginPart(TrainCar car, string partId)
+        {
+            if (car == null || car.carType != TrainCarType.Nexus || !TrainPartDatabase.IsOriginPart(partId)
+                || car.IsPartCrafted(partId) || OriginPartBalance == null || RejectDuringBattle()) return false;
+            int cost = GetDiscountedCost(OriginPartBalance.CraftCost(partId));
+            if (ResourceManager.Instance == null || !ResourceManager.Instance.TrySpendGold(cost)) return false;
+            car.MarkPartCrafted(partId);
+            OnTrainCarsChanged?.Invoke();
+            return true;
+        }
+
+        public bool TryEquipOriginPart(TrainCar car, string partId)
+        {
+            if (car == null || !TrainPartDatabase.IsOriginPart(partId) || RejectDuringBattle()) return false;
+            if (!car.InstallPart(partId)) return false;
+            OnTrainCarsChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>Raises a crafted Origin part one level (max 3), independent of the module level.</summary>
+        public bool TryUpgradeOriginPart(TrainCar car, string partId)
+        {
+            if (car == null || !TrainPartDatabase.IsOriginPart(partId) || !car.IsPartCrafted(partId)
+                || OriginPartBalance == null || RejectDuringBattle()) return false;
+            int level = car.GetPartLevel(partId);
+            int baseCost = OriginPartBalance.UpgradeCost(partId, level);
+            if (baseCost < 0) return false;
+            int cost = GetDiscountedCost(baseCost);
+            if (ResourceManager.Instance == null || !ResourceManager.Instance.TrySpendGold(cost)) return false;
+            car.SetPartLevel(partId, level + 1);
+            OnTrainCarsChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>New run: Origin parts are locked, unequipped and reset to 기본형.</summary>
+        public void ResetOriginPartsForNewRun()
+        {
+            nexusCar?.ResetOriginPartState();
+            OnTrainCarsChanged?.Invoke();
+        }
+
         public bool TryUninstallPart(TrainCar car, string partId)
         {
             if (car == null) return false;
+            if (car.carType == TrainCarType.Nexus && RejectDuringBattle()) return false;
 
             if (car.UninstallPart(partId))
             {
