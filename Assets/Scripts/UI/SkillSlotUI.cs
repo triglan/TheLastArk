@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
@@ -14,10 +14,22 @@ namespace UI
         public TextMeshProUGUI nameText;
         public Button button;
 
+        private static readonly Color ReadyColor = new Color(0.55f, 0.95f, 1f);
+        private static readonly Color UsedColor = new Color(0.62f, 0.64f, 0.68f);
+        private static readonly Color NotEnoughDiceColor = new Color(1f, 0.78f, 0.4f);
+        private static readonly Color BlockedColor = new Color(1f, 0.6f, 0.55f);
+
         private SkillInfo currentSkill;
         private BattleCharacter currentActor;
         private BattleManager _battle;
         private GameObject _diceBorder;
+
+        private static Color ReasonColor(string reason)
+        {
+            return reason == BattleManager.DiceReasonUsed ? UsedColor
+                : reason == BattleManager.DiceReasonNotEnoughDice ? NotEnoughDiceColor
+                : BlockedColor;
+        }
 
         private void OnEnable()
         {
@@ -125,15 +137,16 @@ namespace UI
                     if (manager != null && manager.UsesDice)
                     {
                         string condition = rule?.ShortLabel() ?? "1개 · 자유";
-                        if (rule != null && rule.chargeTarget > 0)
-                            condition += $" · {manager.GetDiceCharge(actor, skill)}/{rule.chargeTarget}";
+                        bool chargeReady = rule != null && rule.IsCharge && manager.IsChargeReady(actor, skill);
+                        if (rule != null && rule.IsCharge)
+                            condition += chargeReady ? " · 준비 완료" : $" · 충전 {manager.GetDiceCharge(actor, skill)}/{rule.chargeTarget}";
                         string reason = manager.GetDiceSkillUnavailableReason(actor, skill);
                         // Full restrictions stay in the hover detail; the card keeps a readable short status.
                         string shortReason = reason;
                         int separator = reason?.IndexOf('·') ?? -1;
                         if (separator >= 0) shortReason = reason.Substring(0, separator).Trim();
                         costText.text = reason == null ? condition : $"{condition}\n{shortReason}";
-                        costText.color = reason == null ? Color.white : new Color(1f, 0.6f, 0.55f);
+                        costText.color = reason == null ? (chargeReady ? ReadyColor : Color.white) : ReasonColor(reason);
                         costText.enableAutoSizing = true;
                         costText.fontSizeMin = 12;
                         costText.fontSizeMax = 14;

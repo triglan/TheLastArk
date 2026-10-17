@@ -238,6 +238,17 @@ namespace TheLastArk.UI
             ShowTooltip(skill, st, cName, slotTransform);
             var battle = FindObjectOfType<BattleManager>();
             string restriction = battle != null ? battle.GetDiceSkillUnavailableReason(actor, skill) : null;
+            if (actorInfoText != null && battle != null && battle.UsesDice && actor?.status != null && skill.levels != null && skill.levels.Length > 0)
+            {
+                var rule = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)]?.diceInput;
+                if (rule != null && rule.IsCharge)
+                    actorInfoText.text += battle.IsChargeReady(actor, skill)
+                        ? "\n<color=#8CF2FF>준비 완료 · 대상 지정 후 스킬을 눌러 발동 (주사위 소모 없음)</color>"
+                        : $"\n<color=#8CF2FF>충전 {battle.GetDiceCharge(actor, skill)}/{rule.chargeTarget} · {(rule.chargeByDiceCount ? "개수" : "합계")} 누적, 초과분 소멸</color>";
+                int bonus = battle.GetDiceOnUseBonus(actor, skill);
+                if (bonus != 0) actorInfoText.text += $"\n<color=#79FF5B>사용 시 {bonus:+0;-0}</color>";
+                RefreshActorInfoHeight();
+            }
             if (actorInfoText != null && !string.IsNullOrEmpty(restriction))
             {
                 actorInfoText.text += $"\n<color=#FF998C>{restriction}</color>";

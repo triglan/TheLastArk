@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace TheLastArk.Skills
@@ -32,12 +32,16 @@ namespace TheLastArk.Skills
                 || condition == DiceCondition.Even && die % 2 == 0;
         }
 
-        public int ChargeFrom(IReadOnlyList<int> values)
+        public bool IsCharge => chargeTarget > 0;
+
+        /// <summary>Charge contribution. On-use bonus adds to sum-type contribution only;
+        /// count-type counts each die (including value 0) as 1.</summary>
+        public int ChargeFrom(IReadOnlyList<int> values, int onUseBonus = 0)
         {
             if (values == null) return 0;
             if (chargeByDiceCount) return values.Count;
             int total = 0;
-            foreach (int die in values) total += die;
+            foreach (int die in values) total += Math.Max(0, die + onUseBonus);
             return total;
         }
 

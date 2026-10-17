@@ -13,6 +13,9 @@ public partial class BattleManager : MonoBehaviour
 {
     private const string SkillFirstTargetingKey = "Battle.SkillFirstTargeting";
     private const string AutoEndDiceTurnKey = "Battle.AutoEndDiceTurn";
+    public const string DiceReasonUsed = "사용 완료";
+    public const string DiceReasonNotEnoughDice = "주사위 부족";
+    public const string DiceReasonConditionMismatch = "눈 조건 불충족";
 
     public static bool AutoEndDiceTurn
     {
@@ -111,7 +114,7 @@ public partial class BattleManager : MonoBehaviour
         if (!UsesDice) return null;
         if (actor?.status == null || skill == null) return "사용 불가";
         if (actor.status.currentHp <= 0f) return "전투 불능";
-        if (_usedDiceSkills.Contains((actor, skill))) return "사용 완료";
+        if (_usedDiceSkills.Contains((actor, skill))) return DiceReasonUsed;
         if (actor.status.GetStatus(EffectType.Stun) != null) return "기절";
         if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
             return "피로";
@@ -120,6 +123,7 @@ public partial class BattleManager : MonoBehaviour
             && e.IsActive && (e.skillSlot < 0 || e.skillSlot == slot))) return "봉쇄";
 
         DiceInputRule rule = GetDiceRule(skill, actor);
+        if (rule.IsCharge && IsChargeReady(actor, skill)) return null;
         int matching = 0;
         int available = 0;
         foreach (ActionDie die in _dicePool.Dice)
@@ -129,8 +133,8 @@ public partial class BattleManager : MonoBehaviour
             if (rule.AcceptsValue(die.Value)) matching++;
         }
         int needed = Mathf.Max(1, rule.diceCount);
-        if (available < needed) return "주사위 부족";
-        if (matching < needed) return "눈 조건 불충족";
+        if (available < needed) return DiceReasonNotEnoughDice;
+        if (matching < needed) return DiceReasonConditionMismatch;
         return null;
     }
 
@@ -138,6 +142,16 @@ public partial class BattleManager : MonoBehaviour
     {
         return _diceCharge.TryGetValue((actor, skill), out int charge) ? charge : 0;
     }
+
+    /// <summary>Charge reached its target and waits for a manual fire. Persists across turns.</summary>
+    public bool IsChargeReady(BattleCharacter actor, SkillInfo skill)
+    {
+        DiceInputRule rule = actor?.status != null ? GetDiceRule(skill, actor) : null;
+        return rule != null && rule.IsCharge && GetDiceCharge(actor, skill) >= rule.chargeTarget;
+    }
+
+    /// <summary>Character on-use dice bonus. Applies to effect calc and sum-type charge, never to input conditions.</summary>
+    public int GetDiceOnUseBonus(BattleCharacter actor, SkillInfo skill) => 0;
 
     public void DropDieOnSkill(int dieId, SkillInfo skill, BattleCharacter actor)
     {
@@ -150,7 +164,30 @@ public partial class BattleManager : MonoBehaviour
         }
         ActionDie die = _dicePool.Find(dieId);
         if (die == null || !die.IsAvailable) return;
-        if (!GetDiceRule(skill, actor).AcceptsValue(die.Value)) return;
+        DiceInputRule dropRule = GetDiceRule(skill, actor);
+        if (!dropRule.AcceptsValue(die.Value)) return;
+        if (dropRule.IsCharge)
+        {
+            if (IsChargeReady(actor, skill))
+            {
+                NotificationManager.Instance?.ShowMessage("충전 완료 — 대상을 지정하고 스킬을 눌러 발동하세요.", Color.cyan);
+                return;
+            }
+            if (_pendingDiceSkill != skill || _pendingDiceActor != actor)
+                _selectedDiceIds.Clear();
+            _pendingDiceSkill = skill;
+            _pendingDiceActor = actor;
+            if (_selectedDiceIds.Contains(dieId)) return;
+            _selectedDiceIds.Add(dieId);
+            if (_selectedDiceIds.Count >= Mathf.Max(1, dropRule.diceCount))
+            {
+                TryInsertChargeDice(actor, skill);
+                _pendingDiceSkill = null;
+                _pendingDiceActor = null;
+            }
+            RefreshDiceUI();
+            return;
+        }
 
         BattleCharacter target = targetHandler.target != null
             ? targetHandler.target.GetComponent<BattleCharacter>() : null;
@@ -190,7 +227,33 @@ public partial class BattleManager : MonoBehaviour
         RefreshDiceUI();
     }
 
-    public int RollAdditionalDice(int count, int sides = 6)
+    /// <summary>Inserts the selected dice into a charge skill. Consumes dice only on a valid insert;
+    /// overflow above the target is discarded. Charging alone is not a use.</summary>
+    private bool TryInsertChargeDice(BattleCharacter actor, SkillInfo skill)
+    {
+        DiceInputRule rule = GetDiceRule(skill, actor);
+        if (!rule.IsCharge || IsChargeReady(actor, skill) || _usedDiceSkills.Contains((actor, skill))) return false;
+        if (!TryGetSelectedDice(rule, out List<int> values))
+        {
+            NotificationManager.Instance?.ShowMessage($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
+            return false;
+        }
+        int nextCharge = Mathf.Min(rule.chargeTarget,
+            GetDiceCharge(actor, skill) + rule.ChargeFrom(values, GetDiceOnUseBonus(actor, skill)));
+        if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
+        _diceCharge[(actor, skill)] = nextCharge;
+        _selectedDiceIds.Clear();
+        RefreshDiceUI();
+        RefreshSkillSlots();
+        actor.ResolveActionStatusEffects();
+        NotificationManager.Instance?.ShowMessage(nextCharge >= rule.chargeTarget
+            ? $"{skill.skillName} 준비 완료 — 대상을 지정해 발동하세요"
+            : $"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
+        TryAutoEndDiceTurn();
+        return true;
+    }
+
+    public int RollAdditionalDice(int count, int sides = ActionDicePool.DefaultFaces)
     {
         if (!UsesDice || !IsPlayerTurn) return 0;
         int rolled = _dicePool.Roll(count, sides);
@@ -242,8 +305,15 @@ public partial class BattleManager : MonoBehaviour
     private void RefreshDiceUI()
     {
         EnsureDiceUI();
-        _diceUI?.Refresh(_dicePool.Dice, _selectedDiceIds);
+        _diceUI?.Refresh(_dicePool, _selectedDiceIds, DicePreviewHint());
         UpdateAPUI();
+    }
+
+    private string DicePreviewHint()
+    {
+        if (_pendingDiceSkill == null || _pendingDiceActor == null) return null;
+        int bonus = GetDiceOnUseBonus(_pendingDiceActor, _pendingDiceSkill);
+        return bonus != 0 ? $"{_pendingDiceSkill.skillName} · 사용 시 {bonus:+0;-0}" : null;
     }
 
     private void RefreshSkillSlots()
@@ -255,15 +325,23 @@ public partial class BattleManager : MonoBehaviour
     {
         if (!CanUseDiceSkill(actor, skill)) return false;
         DiceInputRule rule = GetDiceRule(skill, actor);
+        if (rule.IsCharge)
+        {
+            if (!IsChargeReady(actor, skill)) return false;
+            // Firing consumes no dice; afterwards the skill can't be charged or fired again this turn.
+            _diceCharge.Remove((actor, skill));
+            _usedDiceSkills.Add((actor, skill));
+            _selectedDiceIds.Clear();
+            RefreshDiceUI();
+            RefreshSkillSlots();
+            return true;
+        }
         if (!TryGetSelectedDice(rule, out List<int> values))
         {
             NotificationManager.Instance?.ShowMessage($"주사위 조건을 확인하세요: {rule.Describe()}", Color.red);
             return false;
         }
-        if (rule.chargeTarget > 0 && GetDiceCharge(actor, skill) + rule.ChargeFrom(values) < rule.chargeTarget)
-            return false;
         if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
-        if (rule.chargeTarget > 0) _diceCharge.Remove((actor, skill));
         _usedDiceSkills.Add((actor, skill));
         _selectedDiceIds.Clear();
         RefreshDiceUI();
@@ -572,7 +650,7 @@ public partial class BattleManager : MonoBehaviour
         Debug.Log($"[Battle] 페이즈 전환: {_currentPhase} -> {next}");
         _currentPhase = next;
         UpdateTurnEndButtonState();
-        if (_diceUI != null) _diceUI.Refresh(_dicePool.Dice, _selectedDiceIds);
+        if (_diceUI != null) _diceUI.Refresh(_dicePool, _selectedDiceIds, DicePreviewHint());
 
         switch (next)
         {
@@ -621,32 +699,31 @@ public partial class BattleManager : MonoBehaviour
                 NotificationManager.Instance?.ShowMessage("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
                 return;
             }
-            if (!CanUseDiceSkill(actor, skill))
+            string diceReason = GetDiceSkillUnavailableReason(actor, skill);
+            if (diceReason != null)
             {
-                NotificationManager.Instance?.ShowMessage("이번 턴에 이미 사용한 스킬칸입니다.", Color.red);
+                NotificationManager.Instance?.ShowMessage($"스킬 사용 불가: {diceReason}", Color.red);
                 return;
             }
             DiceInputRule rule = GetDiceRule(skill, actor);
-            if (!TryGetSelectedDice(rule, out List<int> values))
+            if (rule.IsCharge && !IsChargeReady(actor, skill))
+            {
+                TryInsertChargeDice(actor, skill);
+                return;
+            }
+            if (rule.IsCharge)
+            {
+                // Ready charge: the user picks a target and fires manually.
+                if (!_executingPanicSkill && (targetHandler == null || targetHandler.target == null))
+                {
+                    NotificationManager.Instance?.ShowMessage("먼저 대상을 지정한 뒤 발동하세요.", Color.yellow);
+                    return;
+                }
+            }
+            else if (!TryGetSelectedDice(rule, out _))
             {
                 NotificationManager.Instance?.ShowMessage($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
                 return;
-            }
-            if (rule.chargeTarget > 0)
-            {
-                int nextCharge = Mathf.Min(rule.chargeTarget, GetDiceCharge(actor, skill) + rule.ChargeFrom(values));
-                if (nextCharge < rule.chargeTarget)
-                {
-                    if (!_dicePool.TrySpend(_selectedDiceIds)) return;
-                    _diceCharge[(actor, skill)] = nextCharge;
-                    _selectedDiceIds.Clear();
-                    RefreshDiceUI();
-                    RefreshSkillSlots();
-                    actor.ResolveActionStatusEffects();
-                    NotificationManager.Instance?.ShowMessage($"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
-                    TryAutoEndDiceTurn();
-                    return;
-                }
             }
         }
 
@@ -1065,10 +1142,23 @@ public partial class BattleManager : MonoBehaviour
     private void TryAutoEndDiceTurn()
     {
         if (_resolvingPanicTurn) return;
-        if (!UsesDice || !IsPlayerTurn || !AutoEndDiceTurn || _dicePool.CreatedThisTurn == 0) return;
+        if (!UsesDice || !IsPlayerTurn || !AutoEndDiceTurn || _dicePool.GeneratedThisTurn == 0) return;
+        // Remaining dice that only fail conditions still block auto end; so does a fireable ready charge.
         foreach (ActionDie die in _dicePool.Dice)
             if (die.IsAvailable) return;
+        if (HasFireableReadyCharge()) return;
         EndPlayerTurn();
+    }
+
+    private bool HasFireableReadyCharge()
+    {
+        foreach (BattleCharacter actor in playerParty)
+        {
+            if (actor?.status == null) continue;
+            foreach (SkillInfo skill in actor.status.dynamicActiveSkill)
+                if (IsChargeReady(actor, skill) && CanUseDiceSkill(actor, skill)) return true;
+        }
+        return false;
     }
 
     private void ConsumeTauntForAttack(TargetType targetType, List<BattleCharacter> targets)
@@ -1182,6 +1272,9 @@ public partial class BattleManager : MonoBehaviour
         if (UsesDice)
         {
             _selectedDiceIds.Clear();
+            _pendingDiceSkill = null;
+            _pendingDiceActor = null;
+            _dicePool.EndTurn();
             RefreshDiceUI();
         }
 
@@ -1928,7 +2021,7 @@ public partial class BattleManager : MonoBehaviour
         if (UsesDice)
         {
             int level = TheLastArk.Managers.TrainManager.Instance.nexusCar.level;
-            _dicePool.BeginTurn(Mathf.Clamp(level + 2, 0, ActionDicePool.MaxDicePerTurn));
+            _dicePool.BeginTurn(Mathf.Max(0, level + 2));
             _selectedDiceIds.Clear();
             _pendingDiceSkill = null;
             _pendingDiceActor = null;
@@ -2272,6 +2365,7 @@ public partial class BattleManager : MonoBehaviour
 
     private void OnEnterBattleEnd()
     {
+        _diceCharge.Clear();
         ClearBattlePanic();
         CancelPendingSelection();
         ClearEnemyTargetMarkers();
@@ -2328,7 +2422,7 @@ public partial class BattleManager : MonoBehaviour
             int available = 0;
             foreach (ActionDie die in _dicePool.Dice)
                 if (die.IsAvailable) available++;
-            apText.text = $"주사위 {available}<size=55%><color=#8CAFC8> / {_dicePool.CreatedThisTurn}</color></size>";
+            apText.text = $"주사위 {available}<size=55%><color=#8CAFC8> / {ActionDicePool.MaxStoredDice}</color></size>";
             return;
         }
         apText.text = $"{currentAP}<size=55%><color=#8CAFC8> / {MaxAP}</color></size>";

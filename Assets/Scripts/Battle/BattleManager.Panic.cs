@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using TheLastArk.Battle;
 using TheLastArk.UI;
@@ -99,15 +99,14 @@ public partial class BattleManager
     {
         var ids = new List<int>();
         var rule = GetDiceRule(skill, actor);
+        // Charge skills only act when ready (fired without dice); panic never inserts charge dice.
+        if (rule.IsCharge) return IsChargeReady(actor, skill) ? ids : null;
         foreach (var die in _dicePool.Dice)
             if (die.IsAvailable && rule.AcceptsValue(die.Value)) ids.Add(die.Id);
-        // Highest faces let charged skills resolve whenever a valid combination exists.
         ids.Sort((a, b) => _dicePool.Find(b).Value.CompareTo(_dicePool.Find(a).Value));
         int count = Mathf.Max(1, rule.diceCount);
         if (ids.Count < count) return null;
         if (ids.Count > count) ids.RemoveRange(count, ids.Count - count);
-        var values = ids.ConvertAll(id => _dicePool.Find(id).Value);
-        if (rule.chargeTarget > 0 && GetDiceCharge(actor, skill) + rule.ChargeFrom(values) < rule.chargeTarget) return null;
         return ids;
     }
 
@@ -200,6 +199,7 @@ public partial class BattleManager
         if (!UsesDice || !IsPlayerTurn || !CanUseDiceSkill(actor, skill)) return false;
         var die = _dicePool.Find(dieId);
         if (die == null || !die.IsAvailable || !GetDiceRule(skill, actor).AcceptsValue(die.Value)) return false;
+        if (IsChargeReady(actor, skill)) return false;
         return _pendingDiceActor != actor || _pendingDiceSkill != skill || !_selectedDiceIds.Contains(dieId);
     }
 }

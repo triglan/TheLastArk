@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -69,6 +69,39 @@ public class PanicAndDiceTests
                 effects = new List<EffectEntry> { new EffectEntry { type = EffectType.Damage, multiplier = 1f } } } } };
         actor.status.dynamicActiveSkill.Add(skill);
         return skill;
+    }
+
+    /// <summary>Replaces the battle's dice pool with a deterministic one.</summary>
+    private ActionDicePool Pool(params int[] rolls)
+    {
+        int index = 0;
+        var pool = new ActionDicePool(faces => rolls[index++ % rolls.Length]);
+        typeof(BattleManager).GetField("_dicePool", Private).SetValue(_battle, pool);
+        return pool;
+    }
+
+    private SkillInfo ChargeSkill(BattleCharacter actor, int target, bool byCount = false)
+    {
+        var skill = new SkillInfo { skillName = "충전 스킬", baseCost = 1, levels = new[] {
+            new SkillLevelData { targetType = TargetType.SingleEnemy,
+                diceInput = new DiceInputRule { condition = DiceCondition.Any, chargeTarget = target, chargeByDiceCount = byCount },
+                effects = new List<EffectEntry> { new EffectEntry { type = EffectType.Damage, multiplier = 1f } } } } };
+        actor.status.dynamicActiveSkill.Add(skill);
+        return skill;
+    }
+
+    private void Select(params int[] ids)
+    {
+        var selected = (List<int>)typeof(BattleManager).GetField("_selectedDiceIds", Private).GetValue(_battle);
+        selected.Clear();
+        selected.AddRange(ids);
+    }
+
+    private void Fire(BattleCharacter actor, SkillInfo skill, BattleCharacter target)
+    {
+        var selection = (BattleSelectionState)typeof(BattleManager).GetField("_selection", Private).GetValue(_battle);
+        selection.Set(skill, actor);
+        typeof(BattleManager).GetMethod("PerformSkillOnTarget", Private).Invoke(_battle, new object[] { target });
     }
 
     private void RunPanic()
@@ -247,13 +280,8 @@ public class PanicAndDiceTests
     {
         var actor = Actor(); var skill = Skill(actor, 4);
         _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
-        var pool = (ActionDicePool)typeof(BattleManager).GetField("_dicePool", Private).GetValue(_battle);
+        var pool = Pool(3, 5, 1);
         pool.BeginTurn(10);
-        var constructor = typeof(ActionDie).GetConstructor(Private, null, new[] { typeof(int), typeof(int) }, null);
-        var die3 = (ActionDie)constructor.Invoke(new object[] { 0, 3 });
-        var die5 = (ActionDie)constructor.Invoke(new object[] { 1, 5 });
-        var dice = (List<ActionDie>)typeof(ActionDicePool).GetField("dice", Private).GetValue(pool);
-        dice[0] = die3; dice[1] = die5;
         Assert.IsTrue(_battle.CanAcceptDieOnSkill(0, actor, skill));
         Assert.IsFalse(_battle.CanAcceptDieOnSkill(1, actor, skill));
         pool.TrySpend(new[] { 0 });
@@ -307,7 +335,85 @@ public class PanicAndDiceTests
         pool.BeginTurn(2);
         RunPanic();
         Assert.Less(_battle.enemyParty[0].status.currentHp, 100);
-        Assert.AreEqual(1, new List<ActionDie>(pool.Dice).FindAll(d => d.IsSpent).Count);
+        Assert.AreEqual(1, pool.UsedThisTurn.Count);
         Assert.IsFalse(_battle.CanUseDiceSkill(actor, skill));
+    }
+
+    [Test] public void ChargeBecomesReadyAndFiresManuallyWithoutDice()
+    {
+        var actor = Actor(); var skill = ChargeSkill(actor, 5);
+        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
+        var pool = Pool(3, 4, 6, 2);
+        pool.BeginTurn(4);
+
+        Select(0);
+        _battle.SelectSkill(skill, actor);
+        Assert.AreEqual(3, _battle.GetDiceCharge(actor, skill));
+        Assert.AreEqual(3, pool.Dice.Count, "Inserted dice are consumed");
+        Assert.IsTrue(_battle.CanUseDiceSkill(actor, skill), "Charging alone is not a use");
+
+        Select(1);
+        _battle.SelectSkill(skill, actor);
+        Assert.AreEqual(5, _battle.GetDiceCharge(actor, skill), "Overflow above the target is discarded");
+        Assert.IsTrue(_battle.IsChargeReady(actor, skill));
+        Assert.AreEqual(100f, _battle.enemyParty[0].status.currentHp, "Reaching the target never auto-fires");
+
+        Select(2);
+        _battle.SelectSkill(skill, actor);
+        Assert.AreEqual(2, pool.Dice.Count, "A ready charge accepts no more dice");
+        Assert.IsFalse(_battle.CanAcceptDieOnSkill(2, actor, skill));
+
+        Fire(actor, skill, _battle.enemyParty[0]);
+        Assert.Less(_battle.enemyParty[0].status.currentHp, 100f);
+        Assert.AreEqual(2, pool.Dice.Count, "Firing consumes no dice");
+        Assert.AreEqual(0, _battle.GetDiceCharge(actor, skill));
+        Assert.IsFalse(_battle.CanUseDiceSkill(actor, skill), "No recharge or refire after firing this turn");
+        Select(2);
+        _battle.SelectSkill(skill, actor);
+        Assert.AreEqual(0, _battle.GetDiceCharge(actor, skill));
+        Assert.AreEqual(2, pool.Dice.Count);
+    }
+
+    [Test] public void ChargePersistsAcrossTurnsAndCountTypeCountsZero()
+    {
+        var actor = Actor(); var skill = ChargeSkill(actor, 3, true);
+        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
+        var pool = Pool(1);
+        pool.BeginTurn(2);
+        pool.AddModifier(0, -5);
+        Assert.AreEqual(0, pool.Find(0).Value);
+        Select(0);
+        _battle.SelectSkill(skill, actor);
+        Assert.AreEqual(1, _battle.GetDiceCharge(actor, skill), "A 0 die counts as 1 and is consumed");
+        Assert.IsNull(pool.Find(0));
+
+        typeof(BattleManager).GetMethod("ApplyPlayerTurnStartAP", Private).Invoke(_battle, null);
+        Assert.AreEqual(1, _battle.GetDiceCharge(actor, skill), "Charge progress carries to the next turn");
+        Assert.AreEqual(2, pool.Dice.Count, "Turn start rolls origin level + 2 dice");
+    }
+
+    [Test] public void AutoEndWaitsForReadyChargeAndMismatchedDice()
+    {
+        bool previous = BattleManager.AutoEndDiceTurn;
+        try
+        {
+            var actor = Actor(); var skill = ChargeSkill(actor, 1);
+            var normal = Skill(actor, 2);
+            _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
+            var pool = Pool(1, 6);
+            pool.BeginTurn(2);
+            PlayerPrefs.SetInt("Battle.AutoEndDiceTurn", 1);
+            Select(0);
+            _battle.SelectSkill(skill, actor);
+            Assert.IsTrue(_battle.IsChargeReady(actor, skill));
+            Assert.AreEqual(1, pool.Dice.Count);
+            Assert.IsFalse(normal.levels[0].diceInput.AcceptsValue(pool.Dice[0].Value));
+            Assert.IsTrue(_battle.IsPlayerTurn, "A remaining die that fails conditions does not auto-end");
+
+            pool.TrySpend(new[] { pool.Dice[0].Id });
+            typeof(BattleManager).GetMethod("TryAutoEndDiceTurn", Private).Invoke(_battle, null);
+            Assert.IsTrue(_battle.IsPlayerTurn, "A fireable ready charge blocks auto end");
+        }
+        finally { PlayerPrefs.SetInt("Battle.AutoEndDiceTurn", previous ? 1 : 0); }
     }
 }
