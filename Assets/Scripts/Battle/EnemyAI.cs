@@ -20,13 +20,38 @@ public class EnemyAI : MonoBehaviour
     public bool HasPreparedTurn => _preparedPattern != null;
     public EnemyRuntimeState RuntimeState => GetRuntimeState();
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    public int DebugPatternIndex => _patternIndex;
+
+    // Select the next action without resetting counters, remembered targets or boss state.
+    public bool DebugSelectPattern(int index)
+    {
+        if (_self == null) _self = GetComponent<BattleCharacter>();
+        var patterns = _self?.status?.origin?.enemyPatterns;
+        if (patterns == null || index < 0 || index >= patterns.Count) return false;
+        _patternIndex = index;
+        return PrepareTurn();
+    }
+#endif
+
     private void Awake()
     {
         _self = GetComponent<BattleCharacter>();
     }
 
+    public void ResetForBattle()
+    {
+        _runtimeState?.EndDamageCheck();
+        _runtimeState = null;
+        _patternIndex = 0;
+        ClearPreparedTurn();
+    }
+
+    private void OnDestroy() => _runtimeState?.EndDamageCheck();
+
     public bool PrepareTurn()
     {
+        if (_self == null) _self = GetComponent<BattleCharacter>();
         _preparedTargets = null;
         _preparedPattern = null;
         _preparedAction = null;
@@ -66,6 +91,7 @@ public class EnemyAI : MonoBehaviour
         {
             foreach (EnemyPatternAction action in _preparedPattern.actions)
             {
+                if (_self.status.currentHp <= 0f) break;
                 if (action == null) continue;
                 List<BattleCharacter> targets = NeedsTargets(action.actionType)
                     ? GetExecutionTargets(action)
@@ -90,6 +116,7 @@ public class EnemyAI : MonoBehaviour
         }
 
         _self.ResolveActionStatusEffects();
+        _self.view?.UpdateVisual(_self.status);
         AdvancePattern();
         Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {_preparedPattern.patternName}");
         ClearPreparedTurn();
@@ -140,6 +167,7 @@ public class EnemyAI : MonoBehaviour
 
     private EnemyRuntimeState GetRuntimeState()
     {
+        if (_self == null) _self = GetComponent<BattleCharacter>();
         CharacterData source = _self?.status?.origin;
         if (_runtimeState == null || _runtimeState.Source != source)
             _runtimeState = new EnemyRuntimeState(source);
@@ -157,8 +185,9 @@ public class EnemyAI : MonoBehaviour
     private EnemyPatternAction FindTargetedAction(EnemyPatternData pattern)
     {
         if (pattern.actions == null) return null;
-        return pattern.actions.Find(action => action != null
-            && NeedsTargets(action.actionType));
+        return pattern.actions.Find(action => action != null && NeedsTargets(action.actionType)
+            && !IsFriendlyTarget(action.targetType))
+            ?? pattern.actions.Find(action => action != null && NeedsTargets(action.actionType));
     }
 
     private static bool NeedsTargets(EnemyPatternActionType type)
@@ -171,7 +200,8 @@ public class EnemyAI : MonoBehaviour
 
     private List<BattleCharacter> GetExecutionTargets(EnemyPatternAction action)
     {
-        if (action != _preparedAction)
+        if (action != _preparedAction && (!action.usePreparedTarget || _preparedAction == null
+            || action.targetType != _preparedAction.targetType || action.targetSelection == EnemyTargetSelection.Remembered))
             return ResolveTargets(action.targetType, action.targetSelection);
 
         // 무작위 대상은 의도에 표시한 대상을 유지하고, 조건 대상은 실행 직전에 다시 고릅니다.
@@ -222,12 +252,39 @@ public class EnemyAI : MonoBehaviour
             }
         }
 
+        if (pattern.forecastPatternOffset > 0)
+        {
+            var values = new Dictionary<string, int>();
+            List<EnemyPatternData> patterns = _self.status.origin.enemyPatterns;
+            for (int offset = 0; offset < pattern.forecastPatternOffset; offset++)
+                foreach (EnemyPatternAction action in patterns[(_patternIndex + offset) % patterns.Count].actions)
+                {
+                    if (action.actionType != EnemyPatternActionType.ModifyRuntimeVariable) continue;
+                    int added = action.runtimeValue + GetIntentVariable(action.runtimeValueVariableId, values);
+                    int value = action.setRuntimeValue ? added : GetIntentVariable(action.runtimeVariableId, values) + added;
+                    var definition = GetRuntimeState().GetDefinition(action.runtimeVariableId);
+                    values[action.runtimeVariableId] = definition != null && definition.hasMaxValue ? Mathf.Min(value, definition.maxValue) : value;
+                }
+            var future = patterns[(_patternIndex + pattern.forecastPatternOffset) % patterns.Count];
+            foreach (var action in future.actions)
+            {
+                if (action.effect == null || (action.effect.type != EffectType.Damage && action.effect.type != EffectType.MentalDamage)
+                    || (action.actionType != EnemyPatternActionType.Effect && action.actionType != EnemyPatternActionType.ResolveDamageCheck)) continue;
+                var effect = BuildIntentEffect(action, values);
+                string kind = effect.EffectType == EffectType.MentalDamage ? "정신" : "물리";
+                intent.Forecast = $"예고: {future.patternName} {kind} {effect.Value:0.#} × {effect.HitCount}";
+                break;
+            }
+        }
         intent.VisualType = ResolveVisualType(intent.Effects);
         return intent;
     }
 
     private EnemyIntentEffectData BuildIntentEffect(EnemyPatternAction action, Dictionary<string, int> previewValues)
     {
+        if (action.actionType == EnemyPatternActionType.SetArmor)
+            return new EnemyIntentEffectData { ActionType = action.actionType, RuntimeValue = action.runtimeValue };
+
         if (action.actionType == EnemyPatternActionType.ModifyRuntimeVariable)
         {
             return new EnemyIntentEffectData
@@ -280,7 +337,9 @@ public class EnemyAI : MonoBehaviour
         valueBonus += GetIntentVariable(action.additionalValueVariableId, previewValues);
         EnemyIntentEffectData result = BuildIntentEffect(action.effect, action.targetType, action.targetSelection,
             null, null, previewValues);
+        result.ActionType = action.actionType;
         result.Value = CalculateIntentValue(action.effect, valueBonus);
+        if (!string.IsNullOrEmpty(action.valueMultiplierVariableId)) result.Value *= GetIntentVariable(action.valueMultiplierVariableId, previewValues);
         int hitVariable = GetIntentVariable(action.hitCountVariableId, previewValues);
         result.HitCount = Mathf.Max(1, action.useHitCountVariableAsTotal ? hitVariable : action.effect.hitCount + hitVariable);
         result.Icon = action.intentIcon != null ? action.intentIcon
@@ -331,6 +390,10 @@ public class EnemyAI : MonoBehaviour
 
     private float CalculateIntentValue(EffectEntry effect, int runtimeValue)
     {
+        if (effect.type == EffectType.Counter) return _self.status.FinalAttack + effect.value + runtimeValue;
+        if (effect.type == EffectType.Pierce || effect.type == EffectType.Reflect) return effect.value;
+        if (effect.type == EffectType.Strength || effect.type == EffectType.Amplification || effect.type == EffectType.Protection || effect.type == EffectType.Vulnerable)
+            return (!Mathf.Approximately(effect.value, 0f) ? effect.value : effect.fixedValue) + runtimeValue;
         if (effect.type == EffectType.Bleed || effect.type == EffectType.Poison || effect.type == EffectType.Burn)
             return effect.value + runtimeValue;
 

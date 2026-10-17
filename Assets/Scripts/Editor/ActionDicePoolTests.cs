@@ -5,6 +5,31 @@ using TheLastArk.Skills;
 public class ActionDicePoolTests
 {
     [Test]
+    public void InvalidSelectionDoesNotSpendAndNewTurnResetsPool()
+    {
+        var pool = new ActionDicePool();
+        pool.BeginTurn(2);
+        Assert.IsFalse(pool.TrySpend(new[] { 0, 99 }));
+        Assert.IsFalse(pool.TrySpend(new int[0]));
+        Assert.IsTrue(pool.Find(0).IsAvailable);
+        pool.SetLocked(1, true);
+        Assert.IsFalse(pool.TrySpend(new[] { 0, 1 }));
+        Assert.IsTrue(pool.Find(0).IsAvailable);
+        pool.SetLocked(1, false);
+        Assert.IsTrue(pool.TrySpend(new[] { 0, 1 }));
+        Assert.IsFalse(pool.TrySpend(new[] { 0 }));
+        Assert.AreEqual(8, pool.Roll(20, 1));
+        Assert.AreEqual(0, pool.Roll(1));
+        Assert.AreEqual(1, pool.Find(9).Value);
+        pool.BeginTurn(1);
+        Assert.AreEqual(1, pool.CreatedThisTurn);
+        Assert.IsTrue(pool.Find(0).IsAvailable);
+        Assert.IsNull(pool.Find(1));
+        Assert.AreEqual(0, pool.Roll(1, 0));
+        Assert.AreEqual(0, pool.Roll(-1));
+    }
+
+    [Test]
     public void DiceRulesAndSpending()
     {
         var pool = new ActionDicePool();

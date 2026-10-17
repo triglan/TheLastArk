@@ -602,6 +602,42 @@ public class CharacterEditorWindow : EditorWindow
             selectedData.portraitSprite = (Sprite)EditorGUILayout.ObjectField("초상화", selectedData.portraitSprite, typeof(Sprite), false, GUILayout.Height(60));
         selectedData.standingSprite = (Sprite)EditorGUILayout.ObjectField("Standing", selectedData.standingSprite, typeof(Sprite), false, GUILayout.Height(60));
         EditorGUILayout.EndHorizontal();
+        if (selectedData.isEnemy) DrawEnemyIllustrationLayout();
+        else
+        {
+            var serialized = new SerializedObject(selectedData);
+            serialized.Update();
+            EditorGUILayout.PropertyField(serialized.FindProperty("panicIllustrations"), new GUIContent("패닉 일러스트"), true);
+            serialized.ApplyModifiedProperties();
+        }
+    }
+
+    private void DrawEnemyIllustrationLayout()
+    {
+        EditorGUILayout.BeginVertical("helpbox");
+        EditorGUILayout.LabelField("일러스트 크기 / 배치", EditorStyles.boldLabel);
+        var serialized = new SerializedObject(selectedData);
+        serialized.Update();
+        EditorGUILayout.PropertyField(serialized.FindProperty("enemyIllustrationHeight"), new GUIContent("키 (cm)", "170, 180처럼 입력하세요. 180cm를 기본 전투 크기로 사용하며 이미지 해상도와 기존 배율의 영향을 받지 않습니다."));
+        EditorGUILayout.PropertyField(serialized.FindProperty("enemyFormationType"), new GUIContent("배치 체형", "Auto: 이미지 비율로 판정 / Humanoid: 인간형 / Creature: 넓은 크리쳐용 두 줄 배치"));
+        EditorGUILayout.LabelField("180 = 기본 키 · 170 = 조금 작게 · 200 = 조금 크게", EditorStyles.wordWrappedMiniLabel);
+        EditorGUILayout.PropertyField(serialized.FindProperty("enemyIllustrationOffset"), new GUIContent("위치 X / Y", "전투 UI 기준 단위. X는 오른쪽, Y는 위쪽이 양수입니다."));
+        EditorGUILayout.PropertyField(serialized.FindProperty("enemyIllustrationKeepFeet"), new GUIContent("발밑 기준 유지", "키를 바꿔도 이미지 하단을 유지합니다. 그림 내부의 투명 여백은 Y 위치로 보정하세요."));
+        if (GUILayout.Button("크기 / 위치 초기화"))
+        {
+            serialized.FindProperty("enemyIllustrationHeight").floatValue = 180f;
+            serialized.FindProperty("enemyIllustrationOffset").vector2Value = Vector2.zero;
+            serialized.FindProperty("enemyIllustrationKeepFeet").boolValue = true;
+        }
+        if (serialized.ApplyModifiedProperties()) MarkDirtyAndSave(selectedData);
+        TheLastArk.Editor.EnemyIllustrationPreview.Draw(new[] { selectedData });
+        if (Application.isPlaying && GUILayout.Button("현재 전투에 배치 반영"))
+        {
+            foreach (CharacterView view in FindObjectsOfType<CharacterView>())
+                if (view.GetComponent<BattleCharacter>()?.status?.origin == selectedData)
+                    view.ApplyIllustrationLayout(selectedData);
+        }
+        EditorGUILayout.EndVertical();
     }
 
     private void DrawBaseStatsSection()

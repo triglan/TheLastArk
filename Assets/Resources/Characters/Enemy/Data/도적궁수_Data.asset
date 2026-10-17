@@ -17,8 +17,14 @@ MonoBehaviour:
   jobName: 
   synergies: 
   isEnemy: 1
+  regionId: temp
   standingSprite: {fileID: 21300000, guid: c2b83b4dc05d4b14ca6dfee7595681a8, type: 3}
   portraitSprite: {fileID: 0}
+  closedEyesSprite: {fileID: 0}
+  enemyIllustrationScale: 1
+  enemyIllustrationHeight: 180
+  enemyIllustrationOffset: {x: 0, y: 0}
+  enemyIllustrationKeepFeet: 1
   maxHp: 20
   maxMental: 30
   baseAttack: 5
@@ -38,20 +44,63 @@ MonoBehaviour:
     baseCost: 3
     levels:
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
+      customVfxName: 
       effects: []
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
+      customVfxName: 
       effects: []
   activeSkills: []
+  enemyRoleDescription: 
+  damageBonusPerCycle: 0
+  bleedBonusPerCycle: 0
   enemyPatterns:
-  - patternName: "\uD328\uD134 1"
+  - forecastPatternOffset: 0
+    patternName: "\uD328\uD134 1"
     targetType: 0
+    targetSelection: 0
+    customVfxName: 
     effects:
     - type: 0
+      damageType: 0
       multiplier: 1
       fixedValue: 0
       useActualResult: 0
+      value: 0
+      secondaryValue: 0
+      hitCount: 1
+      duration: 3
+      charges: 3
+      durationType: 0
+      skillSlot: -1
+      statusIcon: {fileID: 0}
+      customVfxName: 
+    actions: []
+  enemyRuntimeVariables: []
+  enemyEnhancementIcon: {fileID: 0}
+  defeatGoldBonus: 0
+  returnStolenGoldOnDefeat: 0
+  stolenGoldVariableId: 

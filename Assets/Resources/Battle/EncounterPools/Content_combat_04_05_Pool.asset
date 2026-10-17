@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   poolId: content_combat_04_05
   displayName: "\uC77C\uBC18 4~5\uCE35"
-  regionId: temp
+  regionId: mirage
   nodeType: 1
   minFloor: 4
   maxFloor: 5

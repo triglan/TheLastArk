@@ -6,6 +6,9 @@ public class BattleEncounterTable : ScriptableObject
 {
     public const string ResourcesPath = "Battle/BattleEncounterTable";
 
+    [SerializeField] private string startingRegionId = EnemyEncounterPool.DefaultRegionId;
+    public string StartingRegionId => NormalizeRegionId(startingRegionId);
+
     [SerializeField] private List<EnemyEncounterRegionPools> regions = new List<EnemyEncounterRegionPools>();
 
     // Legacy flat list. Kept so existing assets do not lose references before they are grouped by region.

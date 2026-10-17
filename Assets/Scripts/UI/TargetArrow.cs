@@ -33,34 +33,62 @@ public class TargetArrow : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
-            if (IsPointerOnActionDie()) return;
+            if (TrySelectUIAt(Input.mousePosition)) return;
             if (Camera.main == null) return;
             Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
 
             if (hit.collider != null && (hit.collider.name.Contains("Player") || hit.collider.name.Contains("Enemy")))
             {
-                target = hit.collider.gameObject;
-                    if (arrowUI != null)
-                    {
-                arrowUI.gameObject.SetActive(true);
-                    }
-
-                _cachedTargetPoint = target.transform.Find("TargetPoint");
-                TargetSelected?.Invoke(target);
+                SelectTarget(hit.collider.gameObject);
             }
         }
     }
 
-    private bool IsPointerOnActionDie()
+    private void SelectTarget(GameObject selected)
+    {
+        target = selected;
+        if (arrowUI != null) arrowUI.gameObject.SetActive(true);
+        _cachedTargetPoint = target.transform.Find("TargetPoint");
+        TargetSelected?.Invoke(target);
+    }
+
+    public bool TrySelectUIAt(Vector2 screenPosition)
     {
         if (EventSystem.current == null) return false;
         _uiHits.Clear();
-        var pointer = new PointerEventData(EventSystem.current) { position = Input.mousePosition };
+        var pointer = new PointerEventData(EventSystem.current) { position = screenPosition };
         EventSystem.current.RaycastAll(pointer, _uiHits);
+        // EventSystem also includes Physics2DRaycaster hits. Legacy tall colliders must not
+        // outrank the exposed artwork of a rear creature or the UI drawn over it.
+        for (int i = _uiHits.Count - 1; i >= 0; i--)
+            if (!(_uiHits[i].module is UnityEngine.UI.GraphicRaycaster)) _uiHits.RemoveAt(i);
         foreach (RaycastResult hit in _uiHits)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (hit.gameObject != null && TheLastArk.Battle.BattleDebugPanel.ContainsGraphic(hit.gameObject))
+                return true;
+#endif
             if (hit.gameObject != null && hit.gameObject.GetComponentInParent<DiceDragSource>() != null)
                 return true;
+        }
+        // Use UI draw order for overlapping enemies, including exposed back-row HP bars.
+        // Physics2D.Raycast alone can select a different collider behind the visible image.
+        if (_uiHits.Count > 0 && _uiHits[0].gameObject != null)
+        {
+            var enemy = _uiHits[0].gameObject.GetComponentInParent<EnemyBattleCharacter>();
+            if (enemy != null)
+            {
+                if (enemy.HasRuntimeStatus && enemy.CurrentHp > 0f)
+                    SelectTarget(enemy.gameObject);
+                return true;
+            }
+            var character = _uiHits[0].gameObject.GetComponentInParent<BattleCharacter>();
+            if (character != null && character.status != null && character.status.currentHp > 0f)
+                SelectTarget(character.gameObject);
+            // Buttons, bars and panels consume the click instead of falling through to a collider.
+            return true;
+        }
         return false;
     }
     

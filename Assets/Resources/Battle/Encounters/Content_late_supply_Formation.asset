@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: "\uD6C4\uBC18 - \uBCF4\uAE09 \uC0AC\uACA9\uB300"
   enemySlots:
   - {fileID: 11400000, guid: 8a65ef82b707f644e9301f4fefc4fbb3, type: 2}
-  - {fileID: 11400000, guid: eac52955fc85056418e9eb8aac55caa5, type: 2}
   - {fileID: 11400000, guid: 37c8b29f079a1bd4a90d582b2b83ab51, type: 2}
+  - {fileID: 0}
   - {fileID: 0}

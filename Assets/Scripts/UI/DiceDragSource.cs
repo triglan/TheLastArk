@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 namespace TheLastArk.UI
 {
-    public sealed class DiceDragSource : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    public sealed class DiceDragSource : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler, IPointerUpHandler
     {
         private RectTransform _canvas;
         private RectTransform _ghost;
@@ -12,6 +12,27 @@ namespace TheLastArk.UI
         private Image _image;
 
         public int DieId { get; private set; }
+        public static int HeldDieId { get; private set; } = -1;
+        public static event System.Action<int> HeldDieChanged;
+        private bool _holding;
+
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            if (!enabled || eventData.button != PointerEventData.InputButton.Left) return;
+            _holding = true;
+            HeldDieId = DieId;
+            HeldDieChanged?.Invoke(DieId);
+        }
+
+        public void OnPointerUp(PointerEventData eventData) => Release();
+
+        private void Release()
+        {
+            if (!_holding) return;
+            _holding = false;
+            HeldDieId = -1;
+            HeldDieChanged?.Invoke(-1);
+        }
 
         public void Configure(int dieId, RectTransform canvas)
         {
@@ -24,6 +45,7 @@ namespace TheLastArk.UI
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (!enabled || _canvas == null || _image == null) return;
+            OnPointerDown(eventData);
             var preview = new GameObject("DraggedDie", typeof(RectTransform), typeof(Image));
             preview.transform.SetParent(_canvas, false);
             _ghost = preview.GetComponent<RectTransform>();
@@ -46,6 +68,7 @@ namespace TheLastArk.UI
 
         public void OnEndDrag(PointerEventData eventData)
         {
+            Release();
             if (_group != null) _group.blocksRaycasts = true;
             if (_ghost != null) Destroy(_ghost.gameObject);
             _ghost = null;
@@ -53,6 +76,7 @@ namespace TheLastArk.UI
 
         private void OnDisable()
         {
+            Release();
             if (_group != null) _group.blocksRaycasts = true;
             if (_ghost != null) Destroy(_ghost.gameObject);
             _ghost = null;

@@ -13,7 +13,7 @@ namespace TheLastArk.UI
         private const int PageSize = 5;
 
         private RectTransform barRect;
-        private HorizontalLayoutGroup layoutGroup;
+        private HorizontalOrVerticalLayoutGroup layoutGroup;
         private List<SynergyItemUI> itemSlotPool = new List<SynergyItemUI>();
 
         private Button prevButton;
@@ -31,7 +31,7 @@ namespace TheLastArk.UI
             if (existing != null)
             {
                 barRect = existing.GetComponent<RectTransform>();
-                layoutGroup = existing.GetComponent<HorizontalLayoutGroup>();
+                layoutGroup = existing.GetComponent<HorizontalOrVerticalLayoutGroup>();
                 itemSlotPool = existing.GetComponentsInChildren<SynergyItemUI>(true).ToList();
                 prevButton = existing.Find("PrevBtn").GetComponent<Button>();
                 nextButton = existing.Find("NextBtn").GetComponent<Button>();

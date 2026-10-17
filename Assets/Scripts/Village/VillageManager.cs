@@ -1,7 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TheLastArk.UI;
+using TMPro;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace TheLastArk.Village
 {
@@ -16,6 +19,10 @@ namespace TheLastArk.Village
         private System.Collections.Generic.HashSet<string> unlockedFacilities = new System.Collections.Generic.HashSet<string>();
         private TMPro.TextMeshProUGUI remainingChoicesText;
         private Button restButton;
+        private bool restUsed;
+        private TheLastArk.Managers.ResourceManager observedResources;
+        private readonly Dictionary<string, Button> facilityButtons = new Dictionary<string, Button>();
+        private readonly Dictionary<string, TextMeshProUGUI> facilityStates = new Dictionary<string, TextMeshProUGUI>();
 
         void Start()
         {
@@ -65,11 +72,11 @@ namespace TheLastArk.Village
             // Background Image
             CreateBackground(canvas.transform);
 
-            // Left Panel (Leader Illustration)
-            CreateLeftPanel(canvas.transform);
-
-            // Right Panel (Menus)
-            CreateRightPanel(canvas.transform);
+            // Keep both the character and facility controls between the HUD frame bands.
+            var safeArea = ManagementTheme.Rect("VillageContent", canvas.transform);
+            ManagementTheme.Place(safeArea, new Vector2(0.04f, 0.19f), new Vector2(0.96f, 0.83f));
+            CreateLeftPanel(safeArea);
+            CreateRightPanel(safeArea);
 
             // TopBar (ExplorationResourceUI)
             Transform existingRes = canvas.transform.Find("ResourcePanel");
@@ -79,127 +86,74 @@ namespace TheLastArk.Village
                 if (resourceUI == null) resourceUI = gameObject.AddComponent<ExplorationResourceUI>();
                 resourceUI.Initialize(canvas.transform);
             }
+            observedResources = TheLastArk.Managers.ResourceManager.Instance;
+            observedResources.OnRelicsChanged += UpdateRemainingChoicesUI;
+        }
+
+        private void OnDestroy()
+        {
+            if (observedResources != null) observedResources.OnRelicsChanged -= UpdateRemainingChoicesUI;
         }
 
         private void CreateBackground(Transform canvasTransform)
         {
-            GameObject bgObj = new GameObject("VillageBackground");
-            bgObj.transform.SetParent(canvasTransform, false);
-            bgObj.transform.SetAsFirstSibling();
-
-            Image bgImage = bgObj.AddComponent<Image>();
-            
+            var background = ManagementTheme.Panel("VillageBackground", canvasTransform, new Color(0.10f, 0.15f, 0.20f));
+            background.SetAsFirstSibling();
+            var image = background.GetComponent<Image>();
+            image.raycastTarget = false;
             if (backgroundImage != null)
             {
-                bgImage.sprite = backgroundImage;
-                bgImage.color = Color.white;
+                image.sprite = backgroundImage; image.color = Color.white;
+                image.preserveAspect = false;
+                var aspect = background.gameObject.AddComponent<AspectRatioFitter>();
+                aspect.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+                aspect.aspectRatio = backgroundImage.rect.width / backgroundImage.rect.height;
             }
-            else
-            {
-                bgImage.color = new Color(0.1f, 0.15f, 0.2f, 1f); // Placeholder color
-            }
-            
-            // Set preserveAspect so a 1920x1080 image won't stretch weirdly on different aspect ratios
-            bgImage.preserveAspect = true;
-
-            RectTransform bgRect = bgObj.GetComponent<RectTransform>();
-            bgRect.anchorMin = new Vector2(0.5f, 0.5f);
-            bgRect.anchorMax = new Vector2(0.5f, 0.5f);
-            bgRect.pivot = new Vector2(0.5f, 0.5f);
-            bgRect.anchoredPosition = Vector2.zero;
-            bgRect.sizeDelta = new Vector2(1920, 1080);
+            var shade = ManagementTheme.Panel("VillageShade", canvasTransform, new Color(0.02f, 0.04f, 0.06f, 0.15f));
+            shade.SetSiblingIndex(1); shade.GetComponent<Image>().raycastTarget = false;
         }
 
-        private void CreateLeftPanel(Transform canvasTransform)
+        private void CreateLeftPanel(Transform parent)
         {
-            GameObject leftObj = new GameObject("LeftPanel_LeaderIllustration");
-            leftObj.transform.SetParent(canvasTransform, false);
-
-            RectTransform leftRect = leftObj.AddComponent<RectTransform>();
-            leftRect.anchorMin = new Vector2(0, 0);
-            leftRect.anchorMax = new Vector2(0.5f, 1); // Left half of screen
-            leftRect.offsetMin = new Vector2(0, 0);
-            leftRect.offsetMax = new Vector2(0, -80); // Leave top for resource bar
-
-            Image illImg = leftObj.AddComponent<Image>();
-            illImg.color = new Color(1, 1, 1, 0); // Transparent unless we have sprite
-
-            // Create Text for remaining choices above the character
-            GameObject textObj = new GameObject("RemainingChoicesText");
-            textObj.transform.SetParent(leftObj.transform, false);
-            RectTransform textRect = textObj.AddComponent<RectTransform>();
-            textRect.anchorMin = new Vector2(0, 1);
-            textRect.anchorMax = new Vector2(1, 1);
-            textRect.pivot = new Vector2(0.5f, 1);
-            textRect.anchoredPosition = new Vector2(0, -20);
-            textRect.sizeDelta = new Vector2(0, 50);
-
-            remainingChoicesText = textObj.AddComponent<TMPro.TextMeshProUGUI>();
-            remainingChoicesText.text = $"남은 선택지: {remainingChoices} / 3";
-            remainingChoicesText.fontSize = 36;
-            remainingChoicesText.alignment = TMPro.TextAlignmentOptions.Center;
-            remainingChoicesText.color = Color.yellow;
-            TMPro.TMP_FontAsset mainFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Main_Fonts");
-            if (mainFont != null) remainingChoicesText.font = mainFont;
-
-            // Try to load leader illustration
-            if (RunManager.Instance != null && RunManager.Instance.State != null)
+            var left = ManagementTheme.Rect("LeftPanel_LeaderIllustration", parent);
+            ManagementTheme.Place(left, Vector2.zero, new Vector2(0.46f, 1));
+            string leaderId = RunManager.Instance.State.leaderCharacterID;
+            var data = Resources.LoadAll<CharacterData>("Characters").FirstOrDefault(c => c != null && c.DataId == leaderId);
+            var artRect = ManagementTheme.Rect("LeaderArtwork", left);
+            ManagementTheme.Place(artRect, Vector2.zero, Vector2.one, new Vector2(16, 92), new Vector2(-16, -8));
+            var art = artRect.gameObject.AddComponent<Image>();
+            art.sprite = data != null ? data.standingSprite : null;
+            art.preserveAspect = true; art.raycastTarget = false; art.enabled = art.sprite != null;
+            if (art.sprite == null)
             {
-                string leaderId = RunManager.Instance.State.leaderCharacterID;
-                if (!string.IsNullOrEmpty(leaderId))
-                {
-                    CharacterData charData = null;
-                    CharacterData[] allCharacters = Resources.LoadAll<CharacterData>("Characters");
-                    foreach (var data in allCharacters)
-                    {
-                        if (data.DataId == leaderId)
-                        {
-                            charData = data;
-                            break;
-                        }
-                    }
-
-                    if (charData != null && charData.standingSprite != null)
-                    {
-                        illImg.sprite = charData.standingSprite;
-                        illImg.color = Color.white;
-                        illImg.preserveAspect = true;
-                        
-                        // Push image down a bit to make room for the text
-                        RectTransform imgRect = illImg.GetComponent<RectTransform>();
-                        imgRect.offsetMax = new Vector2(0, -80);
-
-                        Debug.Log($"[VillageManager] 리더 캐릭터({leaderId}) 일러스트 로드 완료.");
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[VillageManager] 리더 캐릭터({leaderId}) 데이터 또는 standingSprite를 찾을 수 없습니다.");
-                    }
-                }
+                var empty = ManagementTheme.Label(artRect, "탐험을 이끌 승무원을 기다리는 중", 23, ManagementTheme.Text, TextAlignmentOptions.Center);
+                empty.raycastTarget = false;
             }
+            var nameplate = ManagementTheme.Panel("LeaderNameplate", left, ManagementTheme.Background, true);
+            ManagementTheme.Place(nameplate, Vector2.zero, new Vector2(1, 0), new Vector2(24, 0), new Vector2(-24, 78));
+            var tag = ManagementTheme.Label(nameplate, "원정대 리더", 16, ManagementTheme.Gold);
+            ManagementTheme.Top(tag.rectTransform, 10, 22, 20, 20);
+            var name = ManagementTheme.Label(nameplate, data != null ? data.DisplayName : "리더 미지정", 27);
+            ManagementTheme.Top(name.rectTransform, 34, 36, 20, 20);
         }
 
         private void CreateRightPanel(Transform canvasTransform)
         {
-            GameObject rightObj = new GameObject("RightPanel_Menus");
-            rightObj.transform.SetParent(canvasTransform, false);
-
-            RectTransform rightRect = rightObj.AddComponent<RectTransform>();
-            rightRect.anchorMin = new Vector2(0.6f, 0);
-            rightRect.anchorMax = new Vector2(1f, 1);
-            rightRect.offsetMin = new Vector2(0, 100);
-            rightRect.offsetMax = new Vector2(-100, -150);
-
-            VerticalLayoutGroup vLayout = rightObj.AddComponent<VerticalLayoutGroup>();
-            vLayout.padding = new RectOffset(50, 50, 50, 50);
-            vLayout.spacing = 30;
-            vLayout.childAlignment = TextAnchor.MiddleCenter;
-            vLayout.childControlHeight = false;
-            vLayout.childControlWidth = true;
-            vLayout.childForceExpandHeight = false;
-            vLayout.childForceExpandWidth = true;
-
-            TMPro.TMP_FontAsset mainFont = Resources.Load<TMPro.TMP_FontAsset>("Fonts/Main_Fonts");
+            var panel = ManagementTheme.Panel("VillageFacilities", canvasTransform, ManagementTheme.Background, true);
+            ManagementTheme.Place(panel, new Vector2(0.50f, 0), Vector2.one);
+            var title = ManagementTheme.Label(panel, "마을 정박", 31);
+            ManagementTheme.Top(title.rectTransform, 18, 40, 24, 180);
+            remainingChoicesText = ManagementTheme.Label(panel, "", 21, ManagementTheme.Gold, TextAlignmentOptions.MidlineRight);
+            ManagementTheme.Top(remainingChoicesText.rectTransform, 18, 40, 240, 24);
+            var hint = ManagementTheme.Label(panel, "첫 방문에 행동 1회 소모 · 방문한 시설은 자유롭게 재이용", 17, ManagementTheme.Muted);
+            ManagementTheme.Top(hint.rectTransform, 66, 30, 24, 24);
+            var scroll = ManagementTheme.Scroll(panel, "FacilityScroll", out var menu);
+            ManagementTheme.Place(scroll, Vector2.zero, Vector2.one, new Vector2(20, 84), new Vector2(-20, -108));
+            var layout = menu.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.spacing = 10; layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandHeight = false; layout.childForceExpandWidth = true;
+            var rightObj = menu.gameObject;
+            var mainFont = TMPFontManager.MainKoreanFont;
 
             // 개편된 마을 선택지 (상점가, 대장간, 주점, 정비소, 휴식)
             CreateMenuButton(rightObj.transform, "상점가 (소모품/유물 거래)", () => TryEnterFacility("Shop", () => 
@@ -237,13 +191,7 @@ namespace TheLastArk.Village
 
             CreateMenuButton(rightObj.transform, "정비소 (기차 정비/강화)", () => TryEnterFacility("Maintenance", () => 
             {
-                var trainUI = FindObjectOfType<TrainManagementUI>();
-                if (trainUI == null)
-                {
-                    GameObject uiObj = new GameObject("TrainManagementUI");
-                    trainUI = uiObj.AddComponent<TrainManagementUI>();
-                }
-                trainUI.Show();
+                MaintenanceUI.Show();
             }), mainFont);
             
             // Rest Button
@@ -253,11 +201,12 @@ namespace TheLastArk.Village
             // (기차/캐릭터/가방/환경설정 관리는 상단바 아이콘으로 이동됨)
 
             // Return to map button
-            CreateMenuButton(rightObj.transform, "탐색 계속", () => 
+            CreateMenuButton(panel, "탐색 계속", () => 
             {
                 Debug.Log("[VillageManager] 마을 나가기 -> MapScene 로드");
                 SceneManager.LoadScene("MapScene");
-            }, mainFont, new Color(0.6f, 0.2f, 0.2f, 1f));
+            }, mainFont, ManagementTheme.Gold);
+            UpdateRemainingChoicesUI();
         }
 
         private void TryEnterFacility(string facilityId, System.Action onEnter)
@@ -282,6 +231,7 @@ namespace TheLastArk.Village
                 
                 unlockedFacilities.Add(facilityId);
                 onEnter?.Invoke();
+                UpdateRemainingChoicesUI();
             }
             else
             {
@@ -291,9 +241,18 @@ namespace TheLastArk.Village
 
         private void UpdateRemainingChoicesUI()
         {
-            if (remainingChoicesText != null)
+            if (remainingChoicesText != null) remainingChoicesText.text = $"남은 행동   {remainingChoices} / 3";
+            bool freeRest = TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.FreeRest);
+            foreach (var pair in facilityButtons)
             {
-                remainingChoicesText.text = $"남은 선택지: {remainingChoices} / 3";
+                bool used = pair.Key == "Rest" && restUsed;
+                bool open = unlockedFacilities.Contains(pair.Key);
+                bool free = pair.Key == "Rest" && freeRest;
+                bool allowed = !used && (open || remainingChoices > 0 || free);
+                pair.Value.interactable = allowed;
+                var status = facilityStates[pair.Key];
+                status.text = used ? "휴식 완료" : open ? "재방문 가능" : free ? "행동 소모 없음" : allowed ? "행동 1회" : "행동 부족";
+                status.color = used || !allowed ? ManagementTheme.Muted : open || free ? ManagementTheme.Cyan : ManagementTheme.Gold;
             }
         }
 
@@ -326,46 +285,37 @@ namespace TheLastArk.Village
                 }
             }
 
-            // 휴식은 1회성. 버튼 비활성화
-            if (restButton != null)
-            {
-                restButton.interactable = false;
-                restButton.GetComponent<Image>().color = new Color(0.2f, 0.2f, 0.2f, 1f);
-                var txt = restButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
-                if (txt != null) txt.text = "휴식 (사용 완료)";
-            }
+            restUsed = true;
+            UpdateRemainingChoicesUI();
         }
 
-        private GameObject CreateMenuButton(Transform parent, string text, UnityEngine.Events.UnityAction onClickAction, TMPro.TMP_FontAsset font, Color? bgColor = null)
+        private GameObject CreateMenuButton(Transform parent, string text, UnityEngine.Events.UnityAction onClickAction, TMP_FontAsset font, Color? bgColor = null)
         {
-            GameObject btnObj = new GameObject($"MenuBtn_{text}");
-            btnObj.transform.SetParent(parent, false);
-
-            RectTransform rect = btnObj.AddComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(0, 80);
-
-            Image img = btnObj.AddComponent<Image>();
-            img.color = bgColor ?? new Color(0.2f, 0.2f, 0.2f, 1f);
-
-            Button btn = btnObj.AddComponent<Button>();
-            btn.onClick.AddListener(onClickAction);
-
-            GameObject txtObj = new GameObject("Text");
-            txtObj.transform.SetParent(btnObj.transform, false);
-            RectTransform txtRect = txtObj.AddComponent<RectTransform>();
-            txtRect.anchorMin = Vector2.zero;
-            txtRect.anchorMax = Vector2.one;
-            txtRect.offsetMin = Vector2.zero;
-            txtRect.offsetMax = Vector2.zero;
-
-            TMPro.TextMeshProUGUI tmp = txtObj.AddComponent<TMPro.TextMeshProUGUI>();
-            tmp.text = text;
-            tmp.fontSize = 32;
-            tmp.alignment = TMPro.TextAlignmentOptions.Center;
-            tmp.color = Color.white;
-            if (font != null) tmp.font = font;
-
-            return btnObj;
+            bool depart = text == "탐색 계속";
+            var button = ManagementTheme.Button(parent, $"MenuBtn_{text}", "", onClickAction, depart);
+            var rect = (RectTransform)button.transform;
+            var title = button.GetComponentInChildren<TextMeshProUGUI>();
+            title.alignment = TextAlignmentOptions.MidlineLeft; title.fontSize = 24;
+            if (depart)
+            {
+                ManagementTheme.Place(rect, Vector2.zero, new Vector2(1, 0), new Vector2(22, 18), new Vector2(-22, 66));
+                title.text = "탐색 계속   →"; title.alignment = TextAlignmentOptions.Center;
+                return button.gameObject;
+            }
+            ManagementTheme.Height(rect, 90);
+            string id, heading, description;
+            if (text.StartsWith("상점가")) { id = "Shop"; heading = "상점"; description = "소모품과 유물 거래"; }
+            else if (text.StartsWith("대장간")) { id = "Forge"; heading = "대장간"; description = "장비 구매 · 장비 합성"; }
+            else if (text.StartsWith("주점")) { id = "Tavern"; heading = "주점"; description = "용병 영입 · 출전 스킬 변경"; }
+            else if (text.StartsWith("정비소")) { id = "Maintenance"; heading = "정비소"; description = "기차 칸 강화 · 건설 · 파츠 장착"; }
+            else { id = "Rest"; heading = "휴식"; description = "체력 · 정신력 · 기차 내구도 25% 회복"; }
+            title.text = heading; ManagementTheme.Top(title.rectTransform, 14, 32, 20, 180);
+            var detail = ManagementTheme.Label(rect, description, 17, ManagementTheme.Muted);
+            ManagementTheme.Top(detail.rectTransform, 53, 27, 20, 20);
+            var state = ManagementTheme.Label(rect, "", 18, ManagementTheme.Gold, TextAlignmentOptions.MidlineRight);
+            ManagementTheme.Place(state.rectTransform, Vector2.one, Vector2.one, new Vector2(-190, -46), new Vector2(-20, -14));
+            facilityButtons[id] = button; facilityStates[id] = state;
+            return button.gameObject;
         }
     }
 }

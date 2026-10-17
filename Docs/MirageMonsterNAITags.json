@@ -1,0 +1,140 @@
+[
+  {
+    "name": "무장 상인",
+    "group": "약한 적",
+    "file": "무장 상인.png",
+    "tags": "mature male, dark skin, black hair, short hair, mustache, turban, vest, sash, bag, jewelry, dagger, boots"
+  },
+  {
+    "name": "부랑자 도적",
+    "group": "약한 적",
+    "file": "부랑자 도적.png",
+    "tags": "skinny, messy hair, stubble, scar on face, bandana, red scarf, torn clothes, fingerless gloves, dagger, boots"
+  },
+  {
+    "name": "쌍칼잡이",
+    "group": "약한 적",
+    "file": "쌍칼잡이.png",
+    "tags": "toned, short hair, tsurime, sleeveless, red scarf, arm wrap, belt, dual wielding, dagger, boots"
+  },
+  {
+    "name": "사막 전갈",
+    "group": "약한 적",
+    "file": "사막 전갈.png",
+    "tags": "scorpion, monster, exoskeleton, pincers, claws, stinger, tail, yellow skin, black eyes"
+  },
+  {
+    "name": "흑철 방패병",
+    "group": "약한 적",
+    "file": "흑철 방패병.png",
+    "tags": "muscular male, black armor, full armor, helmet, shoulder armor, gauntlets, shield, sword, greaves"
+  },
+  {
+    "name": "종말의 종지기",
+    "group": "약한 적",
+    "file": "종말의 종지기.png",
+    "tags": "pale skin, skinny, white hair, hood, robe, torn clothes, bandages, bell, chain, black gloves"
+  },
+  {
+    "name": "징수자",
+    "group": "중간 적",
+    "file": "징수자.png",
+    "tags": "mature male, muscular male, dark skin, bald, beard, scar on face, gold earrings, vest, sash, gauntlets, mace, boots"
+  },
+  {
+    "name": "갈고리 약탈자",
+    "group": "중간 적",
+    "file": "갈고리 약탈자.png",
+    "tags": "muscular male, dark skin, long hair, ponytail, eyepatch, red scarf, leather armor, hook, chain, fingerless gloves, boots"
+  },
+  {
+    "name": "탈피 딱정벌레",
+    "group": "중간 적",
+    "file": "탈피 딱정벌레.png",
+    "tags": "beetle, bug, monster, exoskeleton, horns, mandibles, claws, yellow eyes"
+  },
+  {
+    "name": "계약 결투사",
+    "group": "중간 적",
+    "file": "계약 결투사.png",
+    "tags": "black hair, short hair, tsurime, scar on face, black armor, breastplate, cape, gauntlets, rapier, boots"
+  },
+  {
+    "name": "흑철 쇠뇌수",
+    "group": "중간 적",
+    "file": "흑철 쇠뇌수.png",
+    "tags": "short hair, hood, black armor, leather armor, shoulder armor, gloves, crossbow, quiver, belt, boots"
+  },
+  {
+    "name": "마지막 목격자",
+    "group": "중간 적",
+    "file": "마지막 목격자.png",
+    "tags": "pale skin, skinny, long hair, white hair, hair over one eye, bags under eyes, grey eyes, robe, hood down, bandages"
+  },
+  {
+    "name": "화약 행상인",
+    "group": "강한 적",
+    "file": "화약 행상인.png",
+    "tags": "mature male, muscular male, beard, goggles, turban, leather apron, gloves, backpack, pouch, bomb, cannon, boots"
+  },
+  {
+    "name": "보급 마차꾼",
+    "group": "강한 적",
+    "file": "보급 마차꾼.png",
+    "tags": "mature male, muscular male, dark skin, beard, headband, sleeves rolled up, vest, gloves, backpack, bag, belt, boots"
+  },
+  {
+    "name": "피칼잡이",
+    "group": "강한 적",
+    "file": "피칼잡이.png",
+    "tags": "muscular male, messy hair, red hair, scar on face, red eyes, sleeveless, red scarf, bandages, dual wielding, scimitar, fingerless gloves"
+  },
+  {
+    "name": "가시 선인장",
+    "group": "강한 적",
+    "file": "가시 선인장.png",
+    "tags": "cactus, monster, plant, green skin, spikes, thorns, glowing eyes, yellow eyes, sharp teeth, claws"
+  },
+  {
+    "name": "영혼등불지기",
+    "group": "강한 적",
+    "file": "영혼등불지기.png",
+    "tags": "pale skin, long hair, hood, black robe, torn clothes, black gloves, lantern, chain, blue fire, glowing eyes"
+  },
+  {
+    "name": "흑철 기수",
+    "group": "엘리트",
+    "file": "흑철 기수.png",
+    "tags": "black armor, full armor, helmet, shoulder armor, gauntlets, lance, cape, horse, saddle, reins"
+  },
+  {
+    "name": "흑철 호위대장",
+    "group": "엘리트",
+    "file": "흑철 호위대장.png",
+    "tags": "mature male, muscular male, grey hair, short hair, beard, scar on face, black armor, full armor, shoulder armor, cape, shield, sword"
+  },
+  {
+    "name": "재의 인도자",
+    "group": "엘리트",
+    "file": "재의 인도자.png",
+    "tags": "mature male, pale skin, white hair, long hair, hood, robe, torn clothes, bone, skull necklace, staff, glowing eyes"
+  },
+  {
+    "name": "황금낙타 대상주",
+    "group": "보스",
+    "file": "황금낙타 대상주.png",
+    "tags": "mature male, dark skin, beard, turban, jewelry, gold earrings, necklace, ring, fur trim, robe, sash, staff"
+  },
+  {
+    "name": "쌍월도 대장",
+    "group": "보스",
+    "file": "쌍월도 대장.png",
+    "tags": "mature male, muscular male, dark skin, long hair, ponytail, scar on face, red eyes, red scarf, shoulder armor, gauntlets, dual wielding, scimitar"
+  },
+  {
+    "name": "사막을 삼키는 자",
+    "group": "보스",
+    "file": "사막을 삼키는 자.png",
+    "tags": "monster, worm, giant, exoskeleton, spikes, fangs, sharp teeth, open mouth, extra teeth"
+  }
+]

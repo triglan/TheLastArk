@@ -11,6 +11,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
     // 전투 중 계속 바뀌는 현재 수치입니다.
     public float currentHp;
     public float currentMental;
+    [System.NonSerialized] public TheLastArk.Battle.PanicState panic = new TheLastArk.Battle.PanicState();
     public float bonusAttack; // 버프로 추가된 공격력입니다.
 
     // 아군 강화 단계입니다. 적은 0으로 고정합니다.
@@ -115,7 +116,9 @@ public class CharacterStatus : ISerializationCallbackReceiver
 
     public float FinalAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + GetSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier)) + AttackStatusModifier + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : AttackStatusModifier + bonusAttack + EquipmentBonusAttack;
     public float FinalSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + GetSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + SpellPowerStatusModifier + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : SpellPowerStatusModifier + EquipmentBonusSpellPower;
-    public float FinalArmor => origin != null ? (origin.armor * (1 + GetMultiplier())) + ArmorStatusModifier + EquipmentBonusArmor : ArmorStatusModifier + EquipmentBonusArmor;
+    // Pattern-driven forms set an exact armor value until their next transition.
+    public float? PatternArmorOverride { get; set; }
+    public float FinalArmor => PatternArmorOverride ?? (origin != null ? (origin.armor * (1 + GetMultiplier())) + ArmorStatusModifier + EquipmentBonusArmor : ArmorStatusModifier + EquipmentBonusArmor);
     public float FinalMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + MagicResistStatusModifier + EquipmentBonusMagicResist : MagicResistStatusModifier + EquipmentBonusMagicResist;
     public float FinalCritRate => origin != null ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus : EquipmentBonusCritRate;
 
@@ -273,6 +276,17 @@ public class CharacterStatus : ISerializationCallbackReceiver
 
         equippedItems[slotIndex] = equipment;
         return true;
+    }
+
+    public CharacterStatus PreviewEquipment(int slotIndex, TheLastArk.Data.EquipmentData equipment)
+    {
+        EnsureEquipmentSlots();
+        var preview = (CharacterStatus)MemberwiseClone();
+        preview.equippedItems = (TheLastArk.Data.EquipmentData[])equippedItems.Clone();
+        preview.SetEquippedItem(slotIndex, equipment);
+        preview.currentHp = Mathf.Min(preview.currentHp, preview.FinalMaxHp);
+        preview.currentMental = Mathf.Min(preview.currentMental, preview.FinalMaxMental);
+        return preview;
     }
 
     public void EnsureEquipmentSlots()

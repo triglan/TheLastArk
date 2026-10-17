@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UI;
@@ -9,7 +9,7 @@ using TheLastArk.Battle;
 using TheLastArk.Data;
 using TheLastArk.Skills;
 
-public class BattleManager : MonoBehaviour
+public partial class BattleManager : MonoBehaviour
 {
     private const string SkillFirstTargetingKey = "Battle.SkillFirstTargeting";
     private const string AutoEndDiceTurnKey = "Battle.AutoEndDiceTurn";
@@ -54,6 +54,7 @@ public class BattleManager : MonoBehaviour
     [Header("Turn UI")]
     [Tooltip("현재 턴 수를 표시합니다.")]
     public TextMeshProUGUI turnCountText;
+    private TheLastArk.UI.BattleTurnClock _turnClock;
     [Tooltip("플레이어 턴을 종료하는 버튼입니다. 비워두면 TurnEndButton 이름으로 자동 검색합니다.")]
     public UnityEngine.UI.Button turnEndButton;
 
@@ -90,7 +91,8 @@ public class BattleManager : MonoBehaviour
     private bool _limitFirstSkillFreeThisTurn = false;
     private bool _limitRetainAllSkillsThisTurn = false;
 
-    public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerTurn;
+    public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerTurn && !DebugActionRunning
+        && (_executingPanicSkill || (!_resolvingPanicTurn && (_panicPresentation == null || !_panicPresentation.IsPresenting)));
     public bool UsesDice => TheLastArk.Managers.TrainManager.IsInitialized
         && TheLastArk.Managers.TrainManager.Instance.nexusCar != null
         && TheLastArk.Data.NexusModuleDatabase.GetModule(TheLastArk.Managers.TrainManager.Instance.nexusCar.installedModuleId)?.moduleId
@@ -104,8 +106,11 @@ public class BattleManager : MonoBehaviour
 
     public string GetDiceSkillUnavailableReason(BattleCharacter actor, SkillInfo skill)
     {
+        string panicReason = GetPanicSkillUnavailableReason(actor, skill);
+        if (panicReason != null) return panicReason;
         if (!UsesDice) return null;
         if (actor?.status == null || skill == null) return "사용 불가";
+        if (actor.status.currentHp <= 0f) return "전투 불능";
         if (_usedDiceSkills.Contains((actor, skill))) return "사용 완료";
         if (actor.status.GetStatus(EffectType.Stun) != null) return "기절";
         if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
@@ -145,6 +150,7 @@ public class BattleManager : MonoBehaviour
         }
         ActionDie die = _dicePool.Find(dieId);
         if (die == null || !die.IsAvailable) return;
+        if (!GetDiceRule(skill, actor).AcceptsValue(die.Value)) return;
 
         BattleCharacter target = targetHandler.target != null
             ? targetHandler.target.GetComponent<BattleCharacter>() : null;
@@ -479,11 +485,13 @@ public class BattleManager : MonoBehaviour
             targetHandler.TargetCanceled -= CancelPendingSelection;
             targetHandler.TargetCanceled += CancelPendingSelection;
         }
+        InitializePanic();
         EnterPhase(BattlePhase.PlayerTurn);
     }
 
     private void OnDestroy()
     {
+        ClearBattlePanic(false);
         if (targetHandler == null) return;
         targetHandler.TargetSelected -= OnTargetSelected;
         targetHandler.TargetCanceled -= CancelPendingSelection;
@@ -520,6 +528,7 @@ public class BattleManager : MonoBehaviour
 
     private void EnsureTurnCountUI(Transform topBarCanvasTransform)
     {
+        if (_turnClock != null) return;
         if (turnCountText == null)
         {
             GameObject existingTurnObj = GameObject.Find("TurnCountText");
@@ -553,6 +562,8 @@ public class BattleManager : MonoBehaviour
             turnCountText.fontStyle = FontStyles.Bold;
 
             TMPFontManager.ApplyFont(turnCountText);
+            _turnClock = TheLastArk.UI.BattleTurnClock.Create(topBarCanvasTransform, turnCountText);
+            _turnClock.SetTurn(_turnCount);
         }
     }
 
@@ -591,6 +602,12 @@ public class BattleManager : MonoBehaviour
     public void SelectSkill(SkillInfo skill, BattleCharacter actor)
     {
         if (!IsPlayerTurn) return;
+        string panicReason = GetPanicSkillUnavailableReason(actor, skill);
+        if (panicReason != null)
+        {
+            NotificationManager.Instance?.ShowMessage(panicReason, Color.red);
+            return;
+        }
 
         if (UsesDice)
         {
@@ -691,16 +708,25 @@ public class BattleManager : MonoBehaviour
             NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
     }
 
-    public void PerformSkill()
+    public void PerformSkill() => PerformSkillOnTarget(null);
+
+    private void PerformSkillOnTarget(BattleCharacter forcedTarget)
     {
         if (!IsPlayerTurn) return;
-        if (!_selection.IsReady || targetHandler.target == null) return;
+        if (!_selection.IsReady || (forcedTarget == null && (targetHandler == null || targetHandler.target == null))) return;
 
-        BattleCharacter primaryTarget = targetHandler.target.GetComponent<BattleCharacter>();
+        BattleCharacter primaryTarget = forcedTarget != null ? forcedTarget : targetHandler.target.GetComponent<BattleCharacter>();
         if (primaryTarget == null) return;
 
         SkillInfo skill = _selection.Skill;
         BattleCharacter actor = _selection.Actor;
+        if (actor?.status == null || actor.status.currentHp <= 0f || primaryTarget.status == null || primaryTarget.status.currentHp <= 0f) return;
+        string panicReason = GetPanicSkillUnavailableReason(actor, skill);
+        if (panicReason != null)
+        {
+            NotificationManager.Instance?.ShowMessage(panicReason, Color.red);
+            return;
+        }
         if (actor.status.GetStatus(EffectType.Stun) != null)
         {
             NotificationManager.Instance.ShowMessage("[기절] 행동할 수 없습니다.", Color.red);
@@ -867,7 +893,7 @@ public class BattleManager : MonoBehaviour
             if (livingAllies.Count > 0)
             {
                 var victim = livingAllies[UnityEngine.Random.Range(0, livingAllies.Count)];
-                victim.status.currentMental = Mathf.Max(0f, victim.status.currentMental - 6f);
+                victim.TakeMentalDamage(6f);
                 if (victim.view != null) victim.view.UpdateVisual(victim.status);
                 NotificationManager.Instance?.ShowMessage($"[오만의 죄] 스킬 사용으로 {victim.characterName} 정신력 -6 감소!", Color.magenta);
             }
@@ -956,6 +982,7 @@ public class BattleManager : MonoBehaviour
         }
 
         actor.status.lastUsedSkill = skill;
+        actor.status.panic?.SkillUsed(skill);
         actor.ResolveActionStatusEffects();
 
         // [별자리] 스킬 3회 사용 시마다 행동력 +1 획득
@@ -1026,17 +1053,18 @@ public class BattleManager : MonoBehaviour
         _selection.Clear();
         if (targetHandler != null) targetHandler.Deselect(false);
         if (TryEndBattleIfPartyWiped()) return;
+        RefreshSkillSlots();
 
         if (UsesDice)
         {
-            RefreshSkillSlots();
             TryAutoEndDiceTurn();
         }
-        else if (currentAP <= 0) EndPlayerTurn();
+        else if (currentAP <= 0 && !_resolvingPanicTurn) EndPlayerTurn();
     }
 
     private void TryAutoEndDiceTurn()
     {
+        if (_resolvingPanicTurn) return;
         if (!UsesDice || !IsPlayerTurn || !AutoEndDiceTurn || _dicePool.CreatedThisTurn == 0) return;
         foreach (ActionDie die in _dicePool.Dice)
             if (die.IsAvailable) return;
@@ -1180,7 +1208,7 @@ public class BattleManager : MonoBehaviour
                 if (a != null && a.status != null && a.status.currentHp > 0)
                 {
                     a.status.currentHp = Mathf.Max(1f, a.status.currentHp - 4f);
-                    a.status.currentMental = Mathf.Max(0f, a.status.currentMental - 4f);
+                    a.TakeMentalDamage(4f);
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
             }
@@ -1194,7 +1222,7 @@ public class BattleManager : MonoBehaviour
             {
                 if (a != null && a.status != null && a.status.currentHp > 0)
                 {
-                    a.status.currentMental = Mathf.Max(0f, a.status.currentMental - 6f);
+                    a.TakeMentalDamage(6f);
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
             }
@@ -1241,12 +1269,12 @@ public class BattleManager : MonoBehaviour
                     if (hasMartyr)
                     {
                         float mDmg = a.status.FinalMaxMental * 0.20f * currentAP;
-                        a.status.currentMental = Mathf.Max(0f, a.status.currentMental - mDmg);
+                        a.TakeMentalDamage(mDmg);
                     }
                     else
                     {
                         int pPerAp = hasGevil ? 6 : 3;
-                        a.status.currentMental = Mathf.Max(0f, a.status.currentMental - (pPerAp * currentAP));
+                        a.TakeMentalDamage(pPerAp * currentAP);
                     }
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
@@ -1265,6 +1293,7 @@ public class BattleManager : MonoBehaviour
     public void DebugWinBattle()
     {
         if (_currentPhase == BattlePhase.BattleEnd) return;
+        if (DebugActionRunning || !IsPlayerTurn) return;
 
         Debug.LogWarning("[Battle] DebugWinBattle() 호출. 적 파티를 즉시 전멸 처리합니다.");
         if (enemyParty != null)
@@ -1990,6 +2019,7 @@ public class BattleManager : MonoBehaviour
         {
             TriggerArchiumUnionInvention(auCount);
         }
+        StartCoroutine(ResolvePanicTurnStart());
     }
 
     private void TriggerArchiumUnionInvention(int auCount)
@@ -2154,7 +2184,8 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
-        foreach (BattleCharacter enemy in enemyParty)
+        // Summons join the next phase, and cannot invalidate this phase's enumeration.
+        foreach (BattleCharacter enemy in enemyParty.FindAll(member => member != null && member.status != null && member.status.currentHp > 0f))
         {
             if (enemy == null)
             {
@@ -2185,7 +2216,7 @@ public class BattleManager : MonoBehaviour
             SetEnemyTargetMarkers(preparedTargets, false);
             enemy.GetComponent<EnemyIntentUI>()?.Hide();
 
-            if (IsPartyWiped(playerParty))
+            if (!DebugHoldsBattleOpen && IsPartyWiped(playerParty))
             {
                 Debug.Log("[Battle] 플레이어 파티 전멸. 전투 종료로 넘어갑니다.");
                 EnterPhase(BattlePhase.BattleEnd);
@@ -2241,6 +2272,7 @@ public class BattleManager : MonoBehaviour
 
     private void OnEnterBattleEnd()
     {
+        ClearBattlePanic();
         CancelPendingSelection();
         ClearEnemyTargetMarkers();
         ClearEnemyIntents();
@@ -2409,7 +2441,8 @@ public class BattleManager : MonoBehaviour
         if (turnCountText == null) return;
 
         TMPFontManager.ApplyFont(turnCountText);
-        turnCountText.text = $"{_turnCount}턴";
+        if (_turnClock != null) _turnClock.SetTurn(_turnCount);
+        else turnCountText.text = $"{_turnCount}턴";
     }
 
     private bool IsPartyWiped(List<BattleCharacter> party)
@@ -2419,6 +2452,7 @@ public class BattleManager : MonoBehaviour
 
     private bool TryEndBattleIfPartyWiped()
     {
+        if (DebugHoldsBattleOpen) return false;
         if (IsPartyWiped(playerParty))
         {
             Debug.LogWarning("[Battle] 플레이어 파티 전멸.");

@@ -94,6 +94,7 @@ public class EnemyBattleCharacter : MonoBehaviour
         }
 
         battleCharacter.Init(enemyData, false);
+        GetComponent<EnemyAI>()?.ResetForBattle();
         _hasFled = false;
         _defeatRewardClaimed = false;
         _initialized = true;

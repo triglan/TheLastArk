@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -56,6 +56,8 @@ namespace TheLastArk.UI
         private float sfxVolume = 1.0f;
 
         private bool showKeybindsModal = false;
+        private bool showDeveloperTools;
+        private ScrollRect settingsScroll;
 
         private void Awake()
         {
@@ -93,7 +95,7 @@ namespace TheLastArk.UI
         {
             if (Instance == null)
             {
-                Canvas canvas = FindObjectOfType<Canvas>();
+                Canvas canvas = HudCanvasUtility.FindOverlayCanvas();
                 if (canvas == null) return;
 
                 GameObject uiObj = new GameObject("SettingsPopupUI");
@@ -106,11 +108,19 @@ namespace TheLastArk.UI
 
         public void Open()
         {
+            // Battle uses a separate, higher-order HUD canvas. Keep the modal
+            // on that canvas so HUD graphics cannot intercept its close buttons.
+            Canvas canvas = HudCanvasUtility.FindOverlayCanvas();
+            if (canvas == null) return;
+            transform.SetParent(canvas.transform, false);
+
             if (popupRoot == null)
             {
                 BuildUI();
             }
 
+            popupRoot.transform.SetParent(canvas.transform, false);
+            popupRoot.transform.SetAsLastSibling();
             LoadSettings();
             popupRoot.SetActive(true);
             RefreshTab();
@@ -145,191 +155,33 @@ namespace TheLastArk.UI
         // ─────────────────────────────────────────────────────────────
         private void BuildUI()
         {
-            Canvas canvas = GetComponentInParent<Canvas>();
-            if (canvas == null) canvas = FindObjectOfType<Canvas>();
-
-            // Fullscreen Dim Backdrop
-            popupRoot = new GameObject("SettingsPopup_Root");
-            popupRoot.transform.SetParent(canvas.transform, false);
-            popupRoot.transform.SetAsLastSibling();
-
-            RectTransform rootRect = popupRoot.AddComponent<RectTransform>();
-            rootRect.anchorMin = Vector2.zero;
-            rootRect.anchorMax = Vector2.one;
-            rootRect.offsetMin = Vector2.zero;
-            rootRect.offsetMax = Vector2.zero;
-
-            Image rootDim = popupRoot.AddComponent<Image>();
-            rootDim.color = new Color(0.02f, 0.04f, 0.06f, 0.8f);
-
-            // Centered Main Window Panel (Width: 1080, Height: 680)
-            GameObject windowObj = new GameObject("SettingsWindow");
-            windowObj.transform.SetParent(popupRoot.transform, false);
-
-            RectTransform winRect = windowObj.AddComponent<RectTransform>();
-            winRect.anchorMin = new Vector2(0.5f, 0.5f);
-            winRect.anchorMax = new Vector2(0.5f, 0.5f);
-            winRect.pivot = new Vector2(0.5f, 0.5f);
-            winRect.sizeDelta = new Vector2(1080, 680);
-
-            // Window Background & Border
-            Image winBg = windowObj.AddComponent<Image>();
-            winBg.color = new Color(0.08f, 0.11f, 0.16f, 0.98f);
-
-            Outline winOutline = windowObj.AddComponent<Outline>();
-            winOutline.effectColor = new Color(0.24f, 0.38f, 0.5f, 0.8f);
-            winOutline.effectDistance = new Vector2(2, -2);
-
-            // ── Top Tabs Bar ──────────────────────────────────────────
-            GameObject tabsObj = new GameObject("TabsHeader");
-            tabsObj.transform.SetParent(windowObj.transform, false);
-
-            RectTransform tabsRect = tabsObj.AddComponent<RectTransform>();
-            tabsRect.anchorMin = new Vector2(0.06f, 0.89f);
-            tabsRect.anchorMax = new Vector2(0.94f, 0.97f);
-            tabsRect.offsetMin = Vector2.zero;
-            tabsRect.offsetMax = Vector2.zero;
-
-            HorizontalLayoutGroup tabsLayout = tabsObj.AddComponent<HorizontalLayoutGroup>();
-            tabsLayout.spacing = 15;
-            tabsLayout.childAlignment = TextAnchor.MiddleCenter;
-            tabsLayout.childControlWidth = true;
-            tabsLayout.childControlHeight = true;
-            tabsLayout.childForceExpandWidth = true;
-            tabsLayout.childForceExpandHeight = true;
-
-            tabsContainer = tabsObj.transform;
-
-            CreateTabHeaderButton("일반", SettingTab.General);
-            CreateTabHeaderButton("그래픽", SettingTab.Graphics);
-            CreateTabHeaderButton("소리", SettingTab.Audio);
-            CreateTabHeaderButton("게임플레이", SettingTab.Gameplay);
-
-            // Top-right Close Button (X)
-            GameObject closeXObj = new GameObject("CloseXButton");
-            closeXObj.transform.SetParent(windowObj.transform, false);
-            RectTransform closeXRect = closeXObj.AddComponent<RectTransform>();
-            closeXRect.anchorMin = new Vector2(1f, 1f);
-            closeXRect.anchorMax = new Vector2(1f, 1f);
-            closeXRect.pivot = new Vector2(1f, 1f);
-            closeXRect.anchoredPosition = new Vector2(-12, -12);
-            closeXRect.sizeDelta = new Vector2(36, 36);
-
-            Image closeXImg = closeXObj.AddComponent<Image>();
-            closeXImg.color = new Color(0.7f, 0.2f, 0.2f, 1f);
-            Button closeXBtn = closeXObj.AddComponent<Button>();
-            closeXBtn.onClick.AddListener(Hide);
-            CreateTextUI(closeXObj.transform, "X", 20, Color.white);
-
-            // ── Main Content Area ─────────────────────────────────────
-            GameObject contentObj = new GameObject("SettingsContentArea");
-            contentObj.transform.SetParent(windowObj.transform, false);
-
-            RectTransform cRect = contentObj.AddComponent<RectTransform>();
-            cRect.anchorMin = new Vector2(0.06f, 0.11f);
-            cRect.anchorMax = new Vector2(0.94f, 0.87f);
-            cRect.offsetMin = Vector2.zero;
-            cRect.offsetMax = Vector2.zero;
-
-            // Subtle inner frame background
-            Image cBg = contentObj.AddComponent<Image>();
-            cBg.color = new Color(0.05f, 0.07f, 0.1f, 0.7f);
-
-            // Scroll Rect & Viewport
-            ScrollRect sRect = contentObj.AddComponent<ScrollRect>();
-            sRect.horizontal = false;
-            sRect.vertical = true;
-            sRect.movementType = ScrollRect.MovementType.Clamped;
-
-            GameObject viewportObj = new GameObject("Viewport");
-            viewportObj.transform.SetParent(contentObj.transform, false);
-            RectTransform vpRect = viewportObj.AddComponent<RectTransform>();
-            vpRect.anchorMin = Vector2.zero;
-            vpRect.anchorMax = Vector2.one;
-            vpRect.offsetMin = new Vector2(15, 10);
-            vpRect.offsetMax = new Vector2(-15, -10);
-
-            Image vpMaskImg = viewportObj.AddComponent<Image>();
-            vpMaskImg.color = Color.white;
-            Mask mask = viewportObj.AddComponent<Mask>();
-            mask.showMaskGraphic = false;
-
-            GameObject itemsObj = new GameObject("ContentItems");
-            itemsObj.transform.SetParent(viewportObj.transform, false);
-            RectTransform itemsRect = itemsObj.AddComponent<RectTransform>();
-            itemsRect.anchorMin = new Vector2(0f, 1f);
-            itemsRect.anchorMax = new Vector2(1f, 1f);
-            itemsRect.pivot = new Vector2(0.5f, 1f);
-            itemsRect.offsetMin = Vector2.zero;
-            itemsRect.offsetMax = Vector2.zero;
-
-            VerticalLayoutGroup vLayout = itemsObj.AddComponent<VerticalLayoutGroup>();
-            vLayout.padding = new RectOffset(20, 20, 15, 15);
-            vLayout.spacing = 12;
-            vLayout.childControlHeight = true;
-            vLayout.childControlWidth = true;
-            vLayout.childForceExpandHeight = false;
-            vLayout.childForceExpandWidth = true;
-
-            ContentSizeFitter csf = itemsObj.AddComponent<ContentSizeFitter>();
-            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            sRect.viewport = vpRect;
-            sRect.content = itemsRect;
-
-            contentContainer = itemsObj.transform;
-
-            // ── Bottom Bar: Back Button ───────────────────────────────
-            GameObject bottomBarObj = new GameObject("BottomBar");
-            bottomBarObj.transform.SetParent(windowObj.transform, false);
-            RectTransform bRect = bottomBarObj.AddComponent<RectTransform>();
-            bRect.anchorMin = new Vector2(0.05f, 0.02f);
-            bRect.anchorMax = new Vector2(0.95f, 0.10f);
-            bRect.offsetMin = Vector2.zero;
-            bRect.offsetMax = Vector2.zero;
-
-            // Back Button (Bottom-Left Banner style)
-            GameObject backBtnObj = new GameObject("BackBannerButton");
-            backBtnObj.transform.SetParent(bottomBarObj.transform, false);
-            RectTransform backRect = backBtnObj.AddComponent<RectTransform>();
-            backRect.anchorMin = new Vector2(0f, 0.5f);
-            backRect.anchorMax = new Vector2(0f, 0.5f);
-            backRect.pivot = new Vector2(0f, 0.5f);
-            backRect.sizeDelta = new Vector2(130, 36);
-
-            Image backImg = backBtnObj.AddComponent<Image>();
-            backImg.color = new Color(0.65f, 0.22f, 0.22f, 1f);
-            Outline backOutline = backBtnObj.AddComponent<Outline>();
-            backOutline.effectColor = new Color(0.85f, 0.35f, 0.35f, 0.8f);
-
-            Button backBtn = backBtnObj.AddComponent<Button>();
-            backBtn.onClick.AddListener(Hide);
-            CreateTextUI(backBtnObj.transform, "<  닫기", 18, Color.white);
-
-            TMPFontManager.ApplyFontToAll(windowObj.transform);
+            var canvas = GetComponentInParent<Canvas>() ?? HudCanvasUtility.FindOverlayCanvas();
+            popupRoot = ManagementDialog.Create(canvas, "SettingsPopup_Root", "환경 설정", "THE LAST ARK  /  항해 환경", Hide, 0.16f, out var window);
+            var tabs = ManagementTheme.Rect("TabsHeader", window);
+            ManagementTheme.Top(tabs, 100, 52, 28, 28);
+            ManagementTheme.RowLayout(tabs, 8);
+            tabsContainer = tabs;
+            CreateTabHeaderButton("01   일반", SettingTab.General);
+            CreateTabHeaderButton("02   그래픽", SettingTab.Graphics);
+            CreateTabHeaderButton("03   소리", SettingTab.Audio);
+            CreateTabHeaderButton("04   게임플레이", SettingTab.Gameplay);
+            var body = ManagementDialog.Body(window);
+            var scroll = ManagementTheme.Scroll(body, "SettingsContentArea", out var content);
+            settingsScroll = scroll.GetComponent<ScrollRect>();
+            var layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.spacing = 10; layout.padding = new RectOffset(2, 2, 2, 8);
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = true; layout.childForceExpandHeight = false;
+            contentContainer = content;
         }
 
         private void CreateTabHeaderButton(string label, SettingTab tab)
         {
-            GameObject btnObj = new GameObject($"TabBtn_{tab}");
-            btnObj.transform.SetParent(tabsContainer, false);
-
-            Image img = btnObj.AddComponent<Image>();
-            img.color = new Color(0.12f, 0.16f, 0.22f, 0.95f);
-
-            Outline outline = btnObj.AddComponent<Outline>();
-            outline.effectColor = new Color(0.2f, 0.28f, 0.38f, 0.6f);
-            outline.effectDistance = new Vector2(1.5f, -1.5f);
-
-            Button btn = btnObj.AddComponent<Button>();
-            btn.onClick.AddListener(() =>
+            ManagementTheme.Button(tabsContainer, $"TabBtn_{tab}", label, () =>
             {
-                currentTab = tab;
-                showKeybindsModal = false;
-                RefreshTab();
+                currentTab = tab; showKeybindsModal = false;
+                RefreshTab(); settingsScroll.verticalNormalizedPosition = 1;
             });
-
-            CreateTextUI(btnObj.transform, label, 20, new Color(0.6f, 0.72f, 0.82f, 1f));
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -340,6 +192,7 @@ namespace TheLastArk.UI
             // Clear content
             foreach (Transform child in contentContainer)
             {
+                child.gameObject.SetActive(false);
                 Destroy(child.gameObject);
             }
 
@@ -353,7 +206,7 @@ namespace TheLastArk.UI
                 bool isSelected = tabBtn.name == $"TabBtn_{currentTab}";
                 if (img != null)
                 {
-                    img.color = isSelected ? new Color(0.12f, 0.28f, 0.38f, 1f) : new Color(0.10f, 0.14f, 0.20f, 0.95f);
+                    img.color = isSelected ? ManagementTheme.Raised : ManagementTheme.Surface;
                 }
                 if (outline != null)
                 {
@@ -361,7 +214,7 @@ namespace TheLastArk.UI
                 }
                 if (tmp != null)
                 {
-                    tmp.color = isSelected ? new Color(0.95f, 0.98f, 1f, 1f) : new Color(0.6f, 0.72f, 0.82f, 1f);
+                    tmp.color = isSelected ? ManagementTheme.Gold : ManagementTheme.Muted;
                     tmp.fontStyle = isSelected ? FontStyles.Bold : FontStyles.Normal;
                 }
             }
@@ -397,6 +250,7 @@ namespace TheLastArk.UI
         // ─────────────────────────────────────────────────────────────
         private void BuildGeneralTab()
         {
+            CreateSectionHeader("일반 설정");
             // 1. 언어 설정
             CreateDropdownRow("언어", languages, languageIndex, newIdx =>
             {
@@ -451,6 +305,7 @@ namespace TheLastArk.UI
         // ─────────────────────────────────────────────────────────────
         private void BuildGraphicsTab()
         {
+            CreateSectionHeader("화면 설정");
             // 1. 전체화면
             CreateToggleRow("전체화면", isFullscreen, newVal =>
             {
@@ -510,13 +365,13 @@ namespace TheLastArk.UI
         // ─────────────────────────────────────────────────────────────
         private void BuildAudioTab()
         {
+            CreateSectionHeader("소리 크기");
             // 1. 전체 음량
             CreateVolumeRow("전체 음량", masterVolume, newVal =>
             {
                 masterVolume = Mathf.Clamp01(newVal);
                 AudioListener.volume = masterVolume;
                 PlayerPrefs.SetFloat("Setting.MasterVolume", masterVolume);
-                RefreshTab();
             });
 
             // 2. 배경음 (BGM)
@@ -524,7 +379,6 @@ namespace TheLastArk.UI
             {
                 bgmVolume = Mathf.Clamp01(newVal);
                 PlayerPrefs.SetFloat("Setting.BGMVolume", bgmVolume);
-                RefreshTab();
             });
 
             // 3. 효과음 (SFX)
@@ -532,7 +386,6 @@ namespace TheLastArk.UI
             {
                 sfxVolume = Mathf.Clamp01(newVal);
                 PlayerPrefs.SetFloat("Setting.SFXVolume", sfxVolume);
-                RefreshTab();
             });
         }
 
@@ -541,9 +394,10 @@ namespace TheLastArk.UI
         // ─────────────────────────────────────────────────────────────
         private void BuildGameplayTab()
         {
+            CreateSectionHeader("전투 조작");
             // 1. 스킬 타겟 온오프 (협업자 구현 연동)
             bool currentSkillTargeting = BattleManager.SkillFirstTargeting;
-            CreateToggleRow("스킬을 먼저 선택한 후 대상을 클릭", currentSkillTargeting, newVal =>
+            CreateToggleRow("스킬 먼저 선택", currentSkillTargeting, newVal =>
             {
                 BattleManager.SkillFirstTargeting = newVal;
                 NotificationManager.Instance?.ShowMessage(
@@ -551,28 +405,35 @@ namespace TheLastArk.UI
                 RefreshTab();
             });
 
-            CreateToggleRow("주사위를 모두 쓰면 턴 자동 종료", BattleManager.AutoEndDiceTurn, newVal =>
+            CreateToggleRow("턴 자동 종료", BattleManager.AutoEndDiceTurn, newVal =>
             {
                 BattleManager.AutoEndDiceTurn = newVal;
                 RefreshTab();
             });
 
             // 2. 단축키 설정 안내
-            CreateActionRow("단축키 설정", "단축키 목록 보기", new Color(0.2f, 0.45f, 0.65f, 1f), () =>
+            CreateActionRow("단축키 안내", "단축키 목록 보기", new Color(0.2f, 0.45f, 0.65f, 1f), () =>
             {
                 showKeybindsModal = true;
                 RefreshTab();
             });
 
+            CreateActionRow("개발 도구", showDeveloperTools ? "접기" : "펼치기", ManagementTheme.Surface, () =>
+            {
+                showDeveloperTools = !showDeveloperTools;
+                RefreshTab();
+            });
+            if (!showDeveloperTools) return;
+            CreateSectionHeader("개발 도구");
             // 3. 디버그 치트 1 (+1000 Gold)
-            CreateActionRow("[디버그] 골드 치트", "+1000 Gold 지급 (단축키: F1)", new Color(0.2f, 0.55f, 0.3f, 1f), () =>
+            CreateActionRow("골드 지급 · F1", "+1,000 G 지급", new Color(0.2f, 0.55f, 0.3f, 1f), () =>
             {
                 if (ResourceManager.Instance != null) ResourceManager.Instance.AddGold(1000);
                 NotificationManager.Instance?.ShowMessage("[디버그] +1000 Gold 지급 완료!", Color.yellow);
             });
 
             // 4. 디버그 치트 2 (롱소드 10개)
-            CreateActionRow("[디버그] 장비 치트", "롱소드 10개 지급 (단축키: F2)", new Color(0.2f, 0.45f, 0.75f, 1f), () =>
+            CreateActionRow("장비 지급 · F2", "롱소드 10개 지급", new Color(0.2f, 0.45f, 0.75f, 1f), () =>
             {
                 var longsword = EquipmentDatabase.GetEquipment("Longsword");
                 if (longsword != null && ResourceManager.Instance != null)
@@ -588,7 +449,7 @@ namespace TheLastArk.UI
         // ─────────────────────────────────────────────────────────────
         private void BuildKeybindsModal()
         {
-            CreateSectionHeader("── 게임 단축키 안내 ──");
+            CreateSectionHeader("단축키 안내");
 
             CreateKeybindRow("스킬 1 ~ 4 사용", "1, 2, 3, 4");
             CreateKeybindRow("턴 종료 / 진행", "Space");
@@ -611,331 +472,125 @@ namespace TheLastArk.UI
         // 8. 설정 항목 Row 컴포넌트 팩토리 (Slay the Spire 2 Style)
         // ─────────────────────────────────────────────────────────────
 
-        /// <summary>기본 Row 컨테이너 생성</summary>
         private (GameObject rowObj, Transform controlArea) CreateRowContainer(string label)
         {
-            GameObject rowObj = new GameObject($"Row_{label}");
-            rowObj.transform.SetParent(contentContainer, false);
-
-            LayoutElement rowLe = rowObj.AddComponent<LayoutElement>();
-            rowLe.preferredHeight = 52;
-            rowLe.minHeight = 52;
-
-            HorizontalLayoutGroup hLayout = rowObj.AddComponent<HorizontalLayoutGroup>();
-            hLayout.padding = new RectOffset(15, 15, 6, 6);
-            hLayout.spacing = 20;
-            hLayout.childAlignment = TextAnchor.MiddleLeft;
-            hLayout.childControlHeight = true;
-            hLayout.childControlWidth = false;
-            hLayout.childForceExpandWidth = false;
-
-            // Left Label
-            GameObject labelObj = new GameObject("Label");
-            labelObj.transform.SetParent(rowObj.transform, false);
-            LayoutElement labelLe = labelObj.AddComponent<LayoutElement>();
-            labelLe.preferredWidth = 540;
-
-            TextMeshProUGUI labelTmp = CreateTextUI(labelObj.transform, label, 20, new Color(0.88f, 0.92f, 0.96f, 1f));
-            labelTmp.alignment = TextAlignmentOptions.Left;
-
-            // Right Control Area
-            GameObject controlObj = new GameObject("ControlArea");
-            controlObj.transform.SetParent(rowObj.transform, false);
-            LayoutElement ctrlLe = controlObj.AddComponent<LayoutElement>();
-            ctrlLe.preferredWidth = 360;
-
-            return (rowObj, controlObj.transform);
+            var row = ManagementTheme.Panel("Row_" + label, contentContainer, ManagementTheme.Surface, true);
+            ManagementTheme.Height(row, 92);
+            var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.padding = new RectOffset(22, 22, 16, 16); layout.spacing = 28;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = false; layout.childForceExpandHeight = true;
+            var copy = ManagementTheme.Rect("Copy", row);
+            var copySize = copy.gameObject.AddComponent<LayoutElement>();
+            copySize.minWidth = 240; copySize.flexibleWidth = 1;
+            var title = ManagementTheme.Label(copy, label, 23);
+            ManagementTheme.Top(title.rectTransform, 0, 30);
+            string description = RowDescription(label);
+            var note = ManagementTheme.Label(copy, description, 16, ManagementTheme.Muted);
+            ManagementTheme.Top(note.rectTransform, 35, 25);
+            if (string.IsNullOrEmpty(description)) ManagementTheme.Place(title.rectTransform, Vector2.zero, Vector2.one);
+            var control = ManagementTheme.Rect("ControlArea", row);
+            var size = control.gameObject.AddComponent<LayoutElement>();
+            size.minWidth = size.preferredWidth = 360;
+            return (row.gameObject, control);
         }
 
-        /// <summary>토글 (체크박스) Row 생성 - Picture 2/3 스타일 체크박스</summary>
-        private void CreateToggleRow(string label, bool currentValue, Action<bool> onToggle)
+        private static string RowDescription(string label)
         {
-            var (_, ctrlArea) = CreateRowContainer(label);
-
-            HorizontalLayoutGroup ctrlLayout = ctrlArea.gameObject.AddComponent<HorizontalLayoutGroup>();
-            ctrlLayout.childAlignment = TextAnchor.MiddleRight;
-            ctrlLayout.childControlWidth = false;
-
-            GameObject boxObj = new GameObject("CheckboxFrame");
-            boxObj.transform.SetParent(ctrlArea, false);
-
-            LayoutElement boxLe = boxObj.AddComponent<LayoutElement>();
-            boxLe.preferredWidth = 34;
-            boxLe.preferredHeight = 34;
-
-            Image boxImg = boxObj.AddComponent<Image>();
-            boxImg.color = new Color(0.12f, 0.17f, 0.25f, 1f);
-
-            Outline boxOutline = boxObj.AddComponent<Outline>();
-            boxOutline.effectColor = new Color(0.35f, 0.5f, 0.65f, 0.9f);
-            boxOutline.effectDistance = new Vector2(1.5f, -1.5f);
-
-            Button boxBtn = boxObj.AddComponent<Button>();
-            boxBtn.onClick.AddListener(() => onToggle(!currentValue));
-
-            if (currentValue)
+            switch (label)
             {
-                // Gold checked indicator
-                GameObject checkObj = new GameObject("Checkmark");
-                checkObj.transform.SetParent(boxObj.transform, false);
-                RectTransform cRect = checkObj.AddComponent<RectTransform>();
-                cRect.anchorMin = new Vector2(0.15f, 0.15f);
-                cRect.anchorMax = new Vector2(0.85f, 0.85f);
-                cRect.offsetMin = Vector2.zero;
-                cRect.offsetMax = Vector2.zero;
-
-                Image checkImg = checkObj.AddComponent<Image>();
-                checkImg.color = new Color(0.95f, 0.75f, 0.2f, 1f);
-
-                TextMeshProUGUI checkTmp = CreateTextUI(checkObj.transform, "V", 20, new Color(0.08f, 0.1f, 0.14f, 1f));
-                checkTmp.fontStyle = FontStyles.Bold;
+                case "언어": return "표시 언어 · 번역 준비 중";
+                case "화면 흔들림": return "전투 중 화면 흔들림 강도";
+                case "텍스트 효과": return "전투 텍스트의 연출 효과";
+                case "배속 모드": return "전투 진행 속도 설정";
+                case "전체화면": return "전체화면과 창 모드 전환";
+                case "해상도": return "게임 화면의 크기 선택";
+                case "화면 비율": return "화면 가로·세로 비율 선택";
+                case "수직 동기화 (V-Sync)": return "화면 갱신 주기에 맞춰 출력";
+                case "전체 음량": return "게임의 전체 소리 크기";
+                case "배경음 (BGM)": return "음악의 소리 크기";
+                case "효과음 (SFX)": return "전투와 조작 효과음의 크기";
+                case "스킬 먼저 선택": return "켜짐: 스킬 → 대상  /  꺼짐: 대상 → 스킬";
+                case "턴 자동 종료": return "사용할 주사위가 없으면 턴 종료";
+                case "단축키 안내": return "자주 사용하는 조작 확인";
+                case "개발 도구": return "플레이 테스트용 자원 지급";
+                default: return "";
             }
         }
 
-        /// <summary>스텝 선택기 `<  Value  >` Row 생성</summary>
+        private void CreateToggleRow(string label, bool currentValue, Action<bool> onToggle)
+        {
+            var (_, controls) = CreateRowContainer(label);
+            var button = ManagementTheme.Button(controls, "CheckboxFrame", currentValue ? "켜짐" : "꺼짐", () => onToggle(!currentValue), currentValue);
+            ManagementTheme.Place((RectTransform)button.transform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-152, -22), new Vector2(0, 22));
+            var indicator = ManagementTheme.Panel("State", button.transform, currentValue ? ManagementTheme.Cyan : ManagementTheme.Line);
+            ManagementTheme.Place(indicator, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(16, -4), new Vector2(24, 4));
+            indicator.GetComponent<Image>().raycastTarget = false;
+        }
+
         private void CreateStepperRow(string label, string[] options, int currentIndex, Action<int> onIndexChanged)
         {
-            var (_, ctrlArea) = CreateRowContainer(label);
-
-            HorizontalLayoutGroup ctrlLayout = ctrlArea.gameObject.AddComponent<HorizontalLayoutGroup>();
-            ctrlLayout.childAlignment = TextAnchor.MiddleRight;
-            ctrlLayout.spacing = 10;
-            ctrlLayout.childControlWidth = false;
-
-            // Left Arrow Button `<`
-            GameObject leftBtnObj = new GameObject("LeftArrow");
-            leftBtnObj.transform.SetParent(ctrlArea, false);
-            LayoutElement leftLe = leftBtnObj.AddComponent<LayoutElement>();
-            leftLe.preferredWidth = 32;
-            leftLe.preferredHeight = 32;
-
-            Image lImg = leftBtnObj.AddComponent<Image>();
-            lImg.color = new Color(0.15f, 0.22f, 0.32f, 1f);
-            Button lBtn = leftBtnObj.AddComponent<Button>();
-            lBtn.onClick.AddListener(() =>
-            {
-                int next = currentIndex - 1;
-                if (next < 0) next = options.Length - 1;
-                onIndexChanged(next);
-            });
-            CreateTextUI(leftBtnObj.transform, "<", 18, new Color(0.95f, 0.78f, 0.25f, 1f));
-
-            // Value Text Box
-            GameObject valObj = new GameObject("ValueText");
-            valObj.transform.SetParent(ctrlArea, false);
-            LayoutElement valLe = valObj.AddComponent<LayoutElement>();
-            valLe.preferredWidth = 140;
-            valLe.preferredHeight = 32;
-
-            string curText = (currentIndex >= 0 && currentIndex < options.Length) ? options[currentIndex] : "";
-            TextMeshProUGUI valTmp = CreateTextUI(valObj.transform, curText, 18, Color.white);
-            valTmp.alignment = TextAlignmentOptions.Center;
-
-            // Right Arrow Button `>`
-            GameObject rightBtnObj = new GameObject("RightArrow");
-            rightBtnObj.transform.SetParent(ctrlArea, false);
-            LayoutElement rightLe = rightBtnObj.AddComponent<LayoutElement>();
-            rightLe.preferredWidth = 32;
-            rightLe.preferredHeight = 32;
-
-            Image rImg = rightBtnObj.AddComponent<Image>();
-            rImg.color = new Color(0.15f, 0.22f, 0.32f, 1f);
-            Button rBtn = rightBtnObj.AddComponent<Button>();
-            rBtn.onClick.AddListener(() =>
-            {
-                int next = (currentIndex + 1) % options.Length;
-                onIndexChanged(next);
-            });
-            CreateTextUI(rightBtnObj.transform, ">", 18, new Color(0.95f, 0.78f, 0.25f, 1f));
+            var (_, controls) = CreateRowContainer(label);
+            var left = ManagementTheme.Button(controls, "LeftArrow", "<", () => onIndexChanged((currentIndex + options.Length - 1) % options.Length));
+            ManagementTheme.Place((RectTransform)left.transform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, -22), new Vector2(44, 22));
+            var right = ManagementTheme.Button(controls, "RightArrow", ">", () => onIndexChanged((currentIndex + 1) % options.Length));
+            ManagementTheme.Place((RectTransform)right.transform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-44, -22), new Vector2(0, 22));
+            var value = ManagementTheme.Label(controls, options[Mathf.Clamp(currentIndex, 0, options.Length - 1)], 22, ManagementTheme.Gold, TextAlignmentOptions.Center);
+            ManagementTheme.Place(value.rectTransform, Vector2.zero, Vector2.one, new Vector2(52, 0), new Vector2(-52, 0));
         }
 
-        /// <summary>드롭다운 스타일 프레임 버튼 Row 생성 (클릭 시 다음 항목으로 순환)</summary>
         private void CreateDropdownRow(string label, string[] options, int currentIndex, Action<int> onIndexChanged)
-        {
-            var (_, ctrlArea) = CreateRowContainer(label);
+            => CreateStepperRow(label, options, currentIndex, onIndexChanged);
 
-            HorizontalLayoutGroup ctrlLayout = ctrlArea.gameObject.AddComponent<HorizontalLayoutGroup>();
-            ctrlLayout.childAlignment = TextAnchor.MiddleRight;
-            ctrlLayout.childControlWidth = false;
-
-            GameObject dropObj = new GameObject("DropdownFrame");
-            dropObj.transform.SetParent(ctrlArea, false);
-
-            LayoutElement dropLe = dropObj.AddComponent<LayoutElement>();
-            dropLe.preferredWidth = 220;
-            dropLe.preferredHeight = 34;
-
-            Image dropImg = dropObj.AddComponent<Image>();
-            dropImg.color = new Color(0.14f, 0.22f, 0.32f, 1f);
-
-            Outline outline = dropObj.AddComponent<Outline>();
-            outline.effectColor = new Color(0.28f, 0.45f, 0.6f, 0.8f);
-            outline.effectDistance = new Vector2(1.5f, -1.5f);
-
-            Button dropBtn = dropObj.AddComponent<Button>();
-            dropBtn.onClick.AddListener(() =>
-            {
-                int next = (currentIndex + 1) % options.Length;
-                onIndexChanged(next);
-            });
-
-            string curText = (currentIndex >= 0 && currentIndex < options.Length) ? options[currentIndex] : "";
-            TextMeshProUGUI tmp = CreateTextUI(dropObj.transform, $"{curText}   <color=#FFD700>[v]</color>", 17, Color.white);
-            tmp.alignment = TextAlignmentOptions.Center;
-        }
-
-        /// <summary>볼륨 조절 Row 생성 (< 바 + 퍼센트 >)</summary>
         private void CreateVolumeRow(string label, float volume, Action<float> onVolumeChanged)
         {
-            var (_, ctrlArea) = CreateRowContainer(label);
-
-            HorizontalLayoutGroup ctrlLayout = ctrlArea.gameObject.AddComponent<HorizontalLayoutGroup>();
-            ctrlLayout.childAlignment = TextAnchor.MiddleRight;
-            ctrlLayout.spacing = 8;
-            ctrlLayout.childControlWidth = false;
-
-            // Volume Down `<`
-            GameObject downObj = new GameObject("VolDown");
-            downObj.transform.SetParent(ctrlArea, false);
-            LayoutElement dLe = downObj.AddComponent<LayoutElement>();
-            dLe.preferredWidth = 30;
-            dLe.preferredHeight = 30;
-
-            Image dImg = downObj.AddComponent<Image>();
-            dImg.color = new Color(0.15f, 0.22f, 0.32f, 1f);
-            Button dBtn = downObj.AddComponent<Button>();
-            dBtn.onClick.AddListener(() => onVolumeChanged(Mathf.Max(0f, volume - 0.1f)));
-            CreateTextUI(downObj.transform, "<", 18, new Color(0.95f, 0.78f, 0.25f, 1f));
-
-            // Bar background & Fill
-            GameObject barObj = new GameObject("VolBar");
-            barObj.transform.SetParent(ctrlArea, false);
-            LayoutElement barLe = barObj.AddComponent<LayoutElement>();
-            barLe.preferredWidth = 120;
-            barLe.preferredHeight = 18;
-
-            Image barBg = barObj.AddComponent<Image>();
-            barBg.color = new Color(0.12f, 0.15f, 0.2f, 1f);
-
-            GameObject fillObj = new GameObject("Fill");
-            fillObj.transform.SetParent(barObj.transform, false);
-            RectTransform fRect = fillObj.AddComponent<RectTransform>();
-            fRect.anchorMin = new Vector2(0f, 0f);
-            fRect.anchorMax = new Vector2(Mathf.Clamp01(volume), 1f);
-            fRect.offsetMin = Vector2.zero;
-            fRect.offsetMax = Vector2.zero;
-
-            Image fillImg = fillObj.AddComponent<Image>();
-            fillImg.color = new Color(0.25f, 0.7f, 0.85f, 1f);
-
-            // Volume Up `>`
-            GameObject upObj = new GameObject("VolUp");
-            upObj.transform.SetParent(ctrlArea, false);
-            LayoutElement uLe = upObj.AddComponent<LayoutElement>();
-            uLe.preferredWidth = 30;
-            uLe.preferredHeight = 30;
-
-            Image uImg = upObj.AddComponent<Image>();
-            uImg.color = new Color(0.15f, 0.22f, 0.32f, 1f);
-            Button uBtn = upObj.AddComponent<Button>();
-            uBtn.onClick.AddListener(() => onVolumeChanged(Mathf.Min(1f, volume + 0.1f)));
-            CreateTextUI(upObj.transform, ">", 18, new Color(0.95f, 0.78f, 0.25f, 1f));
-
-            // Percent Text
-            GameObject pctObj = new GameObject("VolPercent");
-            pctObj.transform.SetParent(ctrlArea, false);
-            LayoutElement pctLe = pctObj.AddComponent<LayoutElement>();
-            pctLe.preferredWidth = 55;
-            pctLe.preferredHeight = 30;
-
-            TextMeshProUGUI pctTmp = CreateTextUI(pctObj.transform, $"{Mathf.RoundToInt(volume * 100)}%", 17, Color.yellow);
-            pctTmp.alignment = TextAlignmentOptions.Right;
+            var (_, controls) = CreateRowContainer(label);
+            var percent = ManagementTheme.Label(controls, $"{Mathf.RoundToInt(volume * 100)}%", 22, ManagementTheme.Gold, TextAlignmentOptions.MidlineRight);
+            ManagementTheme.Place(percent.rectTransform, new Vector2(1, 0), Vector2.one, new Vector2(-65, 0), Vector2.zero);
+            var sliderRect = ManagementTheme.Rect("VolumeSlider", controls);
+            ManagementTheme.Place(sliderRect, new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(48, -22), new Vector2(-116, 22));
+            var track = ManagementTheme.Panel("Track", sliderRect, ManagementTheme.Background);
+            ManagementTheme.Place(track, new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0, -4), new Vector2(0, 4));
+            var fill = ManagementTheme.Panel("Fill", track, ManagementTheme.Cyan);
+            var handleArea = ManagementTheme.Rect("HandleArea", sliderRect);
+            ManagementTheme.Place(handleArea, new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(8, -14), new Vector2(-8, 14));
+            var handle = ManagementTheme.Panel("Handle", handleArea, ManagementTheme.Gold);
+            handle.sizeDelta = new Vector2(16, 0);
+            var slider = sliderRect.gameObject.AddComponent<Slider>();
+            slider.fillRect = fill; slider.handleRect = handle; slider.targetGraphic = handle.GetComponent<Image>();
+            slider.minValue = 0; slider.maxValue = 1; slider.SetValueWithoutNotify(volume);
+            slider.onValueChanged.AddListener(value =>
+            {
+                percent.text = $"{Mathf.RoundToInt(value * 100)}%";
+                onVolumeChanged(value);
+            });
+            var down = ManagementTheme.Button(controls, "VolDown", "−", () => slider.value = Mathf.Max(0, slider.value - 0.1f));
+            ManagementTheme.Place((RectTransform)down.transform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, -20), new Vector2(36, 20));
+            var up = ManagementTheme.Button(controls, "VolUp", "+", () => slider.value = Mathf.Min(1, slider.value + 0.1f));
+            ManagementTheme.Place((RectTransform)up.transform, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-104, -20), new Vector2(-68, 20));
         }
 
-        /// <summary>버튼 실행형 Row 생성</summary>
         private void CreateActionRow(string label, string buttonText, Color btnColor, Action onClick)
         {
-            var (_, ctrlArea) = CreateRowContainer(label);
-
-            HorizontalLayoutGroup ctrlLayout = ctrlArea.gameObject.AddComponent<HorizontalLayoutGroup>();
-            ctrlLayout.childAlignment = TextAnchor.MiddleRight;
-            ctrlLayout.childControlWidth = false;
-
-            GameObject btnObj = new GameObject("ActionBtn");
-            btnObj.transform.SetParent(ctrlArea, false);
-
-            LayoutElement btnLe = btnObj.AddComponent<LayoutElement>();
-            btnLe.preferredWidth = 230;
-            btnLe.preferredHeight = 34;
-
-            Image btnImg = btnObj.AddComponent<Image>();
-            btnImg.color = btnColor;
-
-            Outline outline = btnObj.AddComponent<Outline>();
-            outline.effectColor = new Color(1f, 1f, 1f, 0.3f);
-            outline.effectDistance = new Vector2(1, -1);
-
-            Button btn = btnObj.AddComponent<Button>();
-            btn.onClick.AddListener(() => onClick?.Invoke());
-
-            CreateTextUI(btnObj.transform, buttonText, 16, Color.white);
+            var (_, controls) = CreateRowContainer(label);
+            var button = ManagementTheme.Button(controls, "ActionBtn", buttonText, () => onClick?.Invoke());
+            ManagementTheme.Place((RectTransform)button.transform, new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0, -22), new Vector2(0, 22));
+            if (label == "게임 종료" || label == "타이틀로 이동") button.GetComponentInChildren<TextMeshProUGUI>().color = ManagementTheme.Danger;
         }
 
-        /// <summary>단축키 목록용 Row</summary>
         private void CreateKeybindRow(string actionName, string keyName)
         {
-            var (_, ctrlArea) = CreateRowContainer(actionName);
-
-            HorizontalLayoutGroup ctrlLayout = ctrlArea.gameObject.AddComponent<HorizontalLayoutGroup>();
-            ctrlLayout.childAlignment = TextAnchor.MiddleRight;
-            ctrlLayout.childControlWidth = false;
-
-            GameObject keyObj = new GameObject("KeyBadge");
-            keyObj.transform.SetParent(ctrlArea, false);
-
-            LayoutElement kLe = keyObj.AddComponent<LayoutElement>();
-            kLe.preferredWidth = 140;
-            kLe.preferredHeight = 30;
-
-            Image kImg = keyObj.AddComponent<Image>();
-            kImg.color = new Color(0.18f, 0.25f, 0.35f, 1f);
-
-            TextMeshProUGUI kTmp = CreateTextUI(keyObj.transform, keyName, 16, new Color(0.95f, 0.85f, 0.3f, 1f));
-            kTmp.alignment = TextAlignmentOptions.Center;
+            var (row, controls) = CreateRowContainer(actionName);
+            ManagementTheme.Height(row.transform, 70);
+            var badge = ManagementTheme.Panel("KeyBadge", controls, ManagementTheme.Background, true);
+            ManagementTheme.Place(badge, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-190, -22), new Vector2(0, 22));
+            ManagementTheme.Label(badge, keyName, 21, ManagementTheme.Gold, TextAlignmentOptions.Center);
         }
 
         private void CreateSectionHeader(string headerText)
         {
-            GameObject headObj = new GameObject("SectionHeader");
-            headObj.transform.SetParent(contentContainer, false);
-            LayoutElement le = headObj.AddComponent<LayoutElement>();
-            le.preferredHeight = 40;
-            le.minHeight = 40;
-
-            TextMeshProUGUI tmp = CreateTextUI(headObj.transform, headerText, 20, new Color(0.35f, 0.85f, 0.95f, 1f));
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontStyle = FontStyles.Bold;
-        }
-
-        private TextMeshProUGUI CreateTextUI(Transform parent, string text, int fontSize, Color color)
-        {
-            GameObject txtObj = new GameObject("Text");
-            txtObj.transform.SetParent(parent, false);
-
-            RectTransform rect = txtObj.AddComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            TextMeshProUGUI tmp = txtObj.AddComponent<TextMeshProUGUI>();
-            tmp.text = text;
-            tmp.fontSize = fontSize;
-            tmp.color = color;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.font = TMPFontManager.MainKoreanFont;
-
-            return tmp;
+            var header = ManagementTheme.Label(contentContainer, headerText, 20, ManagementTheme.Gold);
+            ManagementTheme.Height(header.transform, 38);
         }
     }
 }

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace TheLastArk.Data
@@ -35,58 +35,31 @@ namespace TheLastArk.Data
         /// 두 장비를 합성하여 차세대 상위 장비 1종을 무작위 추출합니다.
         /// 동일 계열 합성 시 해당 계열 2종 중 무작위 1종 (50%/50%)
         /// </summary>
+        public static List<EquipmentData> GetSynthesisCandidates(EquipmentData first, EquipmentData second)
+        {
+            var results = new List<EquipmentData>();
+            if (first == null || second == null || first.starLevel < 1 || first.starLevel >= 3 ||
+                first.starLevel != second.starLevel || first.category != second.category) return results;
+            if (equipDict == null) InitDatabase();
+            var ids = new HashSet<string>();
+            if (first.synthesisResultIDs != null) ids.UnionWith(first.synthesisResultIDs);
+            if (second.synthesisResultIDs != null) ids.UnionWith(second.synthesisResultIDs);
+            foreach (string id in ids)
+            {
+                var candidate = GetEquipment(id);
+                if (candidate != null && candidate.starLevel == first.starLevel + 1 && candidate.category == first.category)
+                    results.Add(candidate);
+            }
+            if (results.Count == 0)
+                foreach (var candidate in equipDict.Values)
+                    if (candidate.starLevel == first.starLevel + 1 && candidate.category == first.category) results.Add(candidate);
+            return results;
+        }
+
         public static EquipmentData SynthesizeEquipments(EquipmentData eq1, EquipmentData eq2)
         {
-            if (eq1 == null || eq2 == null) return null;
-            if (equipDict == null) InitDatabase();
-
-            // 3성 장비는 합성 불가 (최고 등급)
-            if (eq1.starLevel >= 3 || eq2.starLevel >= 3) return null;
-
-            // 1. 같은 장비이거나 synthesisResultIDs가 존재하는 경우 우선 검색
-            List<string> candidateIDs = new List<string>();
-            if (eq1.synthesisResultIDs != null && eq1.synthesisResultIDs.Count > 0)
-            {
-                candidateIDs.AddRange(eq1.synthesisResultIDs);
-            }
-            if (eq2.synthesisResultIDs != null && eq2.synthesisResultIDs.Count > 0)
-            {
-                foreach (var id in eq2.synthesisResultIDs)
-                {
-                    if (!candidateIDs.Contains(id)) candidateIDs.Add(id);
-                }
-            }
-
-            if (candidateIDs.Count > 0)
-            {
-                string chosenID = candidateIDs[Random.Range(0, candidateIDs.Count)];
-                return GetEquipment(chosenID);
-            }
-
-            // 2. 계열이 같을 경우 해당 계열의 다음 등급 장비 목록 무작위
-            int targetStar = Mathf.Min(eq1.starLevel, eq2.starLevel) + 1;
-            List<EquipmentData> sameCategory = new List<EquipmentData>();
-            foreach (var eq in equipDict.Values)
-            {
-                if (eq.starLevel == targetStar && (eq.category == eq1.category || eq.category == eq2.category))
-                {
-                    sameCategory.Add(eq);
-                }
-            }
-
-            if (sameCategory.Count > 0)
-            {
-                return sameCategory[Random.Range(0, sameCategory.Count)];
-            }
-
-            // 3. Fallback: 임의의 다음 등급 장비
-            var targetStarEquips = GetEquipmentsByStar(targetStar);
-            if (targetStarEquips.Count > 0)
-            {
-                return targetStarEquips[Random.Range(0, targetStarEquips.Count)];
-            }
-
-            return null;
+            var candidates = GetSynthesisCandidates(eq1, eq2);
+            return candidates.Count == 0 ? null : candidates[Random.Range(0, candidates.Count)];
         }
 
         private static void InitDatabase()

@@ -5,7 +5,7 @@ using TheLastArk.Data;
 
 namespace TheLastArk.Managers
 {
-    public class ResourceManager : MonoBehaviour
+    public partial class ResourceManager : MonoBehaviour
     {
         private static ResourceManager instance;
         public static bool IsInitialized => instance != null;
@@ -101,7 +101,7 @@ namespace TheLastArk.Managers
         // --- Consumables ---
         public bool AddConsumable(ConsumableData data)
         {
-            if (data == null || Consumables.Count >= 3) return false;
+            if (data == null || Consumables.Count >= ConsumableCapacity) return false;
             Consumables.Add(data);
             OnConsumablesChanged?.Invoke();
             return true;
@@ -143,7 +143,7 @@ namespace TheLastArk.Managers
 
         public bool HasRelic(string relicID)
         {
-            return Relics.Exists(r => r.relicID == relicID);
+            return Relics.Exists(r => r != null && r.relicID == relicID);
         }
 
         // --- Equipments ---

@@ -8,7 +8,18 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public class RunManager : MonoBehaviour
 {
-    private const string CurrentRegionId = EnemyEncounterPool.DefaultRegionId;
+    public string CurrentRegionId
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(State.currentRegionId))
+            {
+                if (encounterTable == null) encounterTable = BattleEncounterTable.LoadDefault();
+                State.currentRegionId = encounterTable != null ? encounterTable.StartingRegionId : EnemyEncounterPool.DefaultRegionId;
+            }
+            return State.currentRegionId.Trim();
+        }
+    }
     public const int MaxPartySize = 4;
 
     // ── 싱글톤 ────────────────────────────────────────────────────
@@ -136,13 +147,17 @@ public class RunManager : MonoBehaviour
         
         string id = characterData.DataId;
         State.partyDataIDs.Add(id);
-        State.partyStatuses.Add(new CharacterStatus(characterData));
+        var status = new CharacterStatus(characterData);
+        State.equipmentLoadouts.ApplyTo(status);
+        State.partyStatuses.Add(status);
         SynchronizeLeaderWithPartyOrder();
     }
 
     public bool RemovePartyMember(string characterId)
     {
         if (string.IsNullOrEmpty(characterId)) return false;
+        foreach (var status in State.partyStatuses)
+            if (status?.origin != null && status.origin.DataId == characterId) State.equipmentLoadouts.Register(status);
         if (!State.partyDataIDs.Remove(characterId)) return false;
 
         State.partyStatuses.RemoveAll(status =>

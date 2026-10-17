@@ -15,8 +15,9 @@ public static class MapGenerator
     public const int MIN_NODES_PER_FLOOR = 3;
     public const int MAX_NODES_PER_FLOOR = 5; // 최대 5개 노드까지 다채롭게 등장 (3~5개)
     public const int ELITE_FORCED_FLOOR = 9;
+    public const int REST_FORCED_FLOOR = TOTAL_FLOORS - 1;
 
-    private static readonly int[] REST_GUARANTEED_FLOORS = { 5, 14 };
+    private static readonly int[] REST_GUARANTEED_FLOORS = { 5 };
 
     private const int WEIGHT_COMBAT = 50;
     private const int WEIGHT_EVENT = 25;
@@ -51,18 +52,29 @@ public static class MapGenerator
     }
 
     // ─────────────────────────────────────────────
-    // Step 1: 노드 배치 (층당 3~5개로 풍성하게 구성)
+    // Step 1: 노드 배치 (시작/보스 층 1개, 나머지 층 3~5개)
     // ─────────────────────────────────────────────
+
+    // 생성과 검증에서 동일한 층별 노드 수 규칙을 사용합니다.
+    private static void GetNodeCountRange(int floor, out int min, out int max)
+    {
+        if (floor == 1 || floor == TOTAL_FLOORS)
+        {
+            min = max = 1;
+        }
+        else
+        {
+            min = MIN_NODES_PER_FLOOR;
+            max = MAX_NODES_PER_FLOOR;
+        }
+    }
 
     private static void GenerateNodes(MapData mapData, ref int nextId)
     {
         for (int floor = 1; floor <= TOTAL_FLOORS; floor++)
         {
-            int nodeCount;
-            if (floor == 1) nodeCount = 1;                        // 시작 노드 1개
-            else if (floor == TOTAL_FLOORS) nodeCount = 1;        // 보스 노드 1개
-            else if (floor == TOTAL_FLOORS - 1) nodeCount = Random.Range(2, 4); // 보스 직전 2~3개 수렴
-            else nodeCount = Random.Range(MIN_NODES_PER_FLOOR, MAX_NODES_PER_FLOOR + 1); // 3~5개 노드 (4~5개 빈번 등장)
+            GetNodeCountRange(floor, out int min, out int max);
+            int nodeCount = min == max ? min : Random.Range(min, max + 1);
 
             for (int i = 0; i < nodeCount; i++)
             {
@@ -281,10 +293,11 @@ public static class MapGenerator
         foreach (var n in mapData.GetFloorNodes(1)) n.nodeType = NodeType.Start;
         foreach (var n in mapData.GetFloorNodes(TOTAL_FLOORS)) n.nodeType = NodeType.Boss;
         foreach (var n in mapData.GetFloorNodes(ELITE_FORCED_FLOOR)) n.nodeType = NodeType.Elite;
+        foreach (var n in mapData.GetFloorNodes(REST_FORCED_FLOOR)) n.nodeType = NodeType.Rest;
 
         for (int floor = 2; floor <= TOTAL_FLOORS - 1; floor++)
         {
-            if (floor == ELITE_FORCED_FLOOR) continue;
+            if (floor == ELITE_FORCED_FLOOR || floor == REST_FORCED_FLOOR) continue;
             foreach (var n in mapData.GetFloorNodes(floor)) n.nodeType = GetRandomNodeType();
         }
 
@@ -317,15 +330,17 @@ public static class MapGenerator
         for (int floor = 1; floor <= TOTAL_FLOORS; floor++)
         {
             int count = mapData.GetFloorNodes(floor).Count;
-            if (floor == 1 && count != 1) { Debug.LogError("[Validate] 1층 노드 수 오류"); valid = false; }
-            else if (floor == TOTAL_FLOORS && count != 1) { Debug.LogError("[Validate] 15층 노드 수 오류"); valid = false; }
-            else if (floor > 1 && floor < TOTAL_FLOORS && (count < MIN_NODES_PER_FLOOR || count > MAX_NODES_PER_FLOOR))
-            { Debug.LogError($"[Validate] {floor}층 노드 수 범위 초과: {count}"); valid = false; }
+            GetNodeCountRange(floor, out int min, out int max);
+            if (count < min || count > max)
+            { Debug.LogError($"[Validate] {floor}층 노드 수 범위 초과: {count} (허용: {min}~{max})"); valid = false; }
         }
 
         foreach (var n in mapData.GetFloorNodes(1)) if (n.nodeType != NodeType.Start) { valid = false; }
         foreach (var n in mapData.GetFloorNodes(TOTAL_FLOORS)) if (n.nodeType != NodeType.Boss) { valid = false; }
         foreach (var n in mapData.GetFloorNodes(ELITE_FORCED_FLOOR)) if (n.nodeType != NodeType.Elite) { valid = false; }
+        foreach (var n in mapData.GetFloorNodes(REST_FORCED_FLOOR))
+            if (n.nodeType != NodeType.Rest)
+            { Debug.LogError($"[Validate] {REST_FORCED_FLOOR}층에 휴식이 아닌 노드: {n}"); valid = false; }
 
         foreach (int floor in REST_GUARANTEED_FLOORS)
         {

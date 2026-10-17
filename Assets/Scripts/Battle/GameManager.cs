@@ -130,6 +130,10 @@ public class GameManager : MonoBehaviour
                 if (data != null)
                 {
                     pChar.Init(data, isLeader);
+                    TheLastArk.Managers.ResourceManager.Instance.EquipmentLoadouts.ApplyTo(pChar.status);
+                    pChar.status.currentHp = pChar.status.FinalMaxHp;
+                    pChar.status.currentMental = pChar.status.FinalMaxMental;
+                    if (pChar.view != null) pChar.view.UpdateVisual(pChar.status);
                 }
                 else
                 {
@@ -160,7 +164,22 @@ public class GameManager : MonoBehaviour
             skillManager.LinkSkillsToUI();
         }
 
+        TheLastArk.UI.BattleHudLayout.Apply(GameObject.Find("TopBarCanvas")?.transform,
+            battleManager != null && battleManager.UsesDice);
+
+        if (battleManager != null && battleManager.enemyParty.Count > 0)
+        {
+            var layout = GetComponent<TheLastArk.UI.BattleEnemyFormationLayout>();
+            if (layout == null) layout = gameObject.AddComponent<TheLastArk.UI.BattleEnemyFormationLayout>();
+            layout.Initialize(battleManager.enemyParty[0].transform.parent);
+        }
         Debug.Log("[GameManager] BeginBattleSetup() 완료");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        var debugPanel = battleManager != null ? battleManager.GetComponent<TheLastArk.Battle.BattleDebugPanel>() : null;
+        if (battleManager != null && debugPanel == null)
+            debugPanel = battleManager.gameObject.AddComponent<TheLastArk.Battle.BattleDebugPanel>();
+        if (debugPanel != null) debugPanel.Initialize(this);
+#endif
     }
 
     private void EnsureDebugVictoryButton()

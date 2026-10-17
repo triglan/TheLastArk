@@ -118,6 +118,20 @@ public class EnemyEncounterEditorWindow : EditorWindow
         BattleEncounterTable table = GetOrCreateTable();
         table.SyncRegionsFromPools();
 
+        var regionNames = new List<string>();
+        foreach (EnemyEncounterRegionPools region in table.Regions)
+            if (region != null) regionNames.Add(region.RegionId);
+        if (!regionNames.Contains(table.StartingRegionId)) regionNames.Add(table.StartingRegionId);
+        int current = regionNames.IndexOf(table.StartingRegionId);
+        int next = EditorGUILayout.Popup("새 런 시작 지역", current, regionNames.ToArray());
+        if (next != current && next >= 0)
+        {
+            var serialized = new SerializedObject(table);
+            serialized.FindProperty("startingRegionId").stringValue = regionNames[next];
+            serialized.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
+        }
+
         EditorGUILayout.BeginHorizontal();
         newRegionId = EditorGUILayout.TextField(newRegionId);
         if (GUILayout.Button("+ Map", GUILayout.Width(58f)))
@@ -183,6 +197,21 @@ public class EnemyEncounterEditorWindow : EditorWindow
         DrawNameEditor();
         DrawValidationMessage();
         inspectorScroll = EditorGUILayout.BeginScrollView(inspectorScroll);
+        if (selectedAsset is EnemyEncounterData formation)
+        {
+            TheLastArk.Editor.EnemyIllustrationPreview.Draw(formation.EnemySlots);
+            var table = GetOrCreateTable();
+            bool linked = false;
+            foreach (EnemyEncounterPool linkedPool in table.GetAllPools())
+                foreach (EnemyEncounterData entry in linkedPool.Encounters)
+                    if (entry == formation)
+                    {
+                        linked = true;
+                        EditorGUILayout.LabelField($"{linkedPool.RegionId} / {linkedPool.DisplayName} / {linkedPool.MinFloor}~{linkedPool.MaxFloor}층", EditorStyles.wordWrappedMiniLabel);
+                        break;
+                    }
+            if (!linked) EditorGUILayout.HelpBox("연결된 출현 풀이 없습니다. 풀의 Encounters 목록에 이 포메이션을 추가하세요.", MessageType.Warning);
+        }
         if (selectedEditor == null || selectedEditor.target != selectedAsset)
         {
             if (selectedEditor != null) DestroyImmediate(selectedEditor);

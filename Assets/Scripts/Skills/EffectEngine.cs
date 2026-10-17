@@ -19,7 +19,7 @@ public static class EffectEngine
         }
     }
 
-    public static void ProcessSkill(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data, string skillName = "")
+    public static void ProcessSkill(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data, string skillName = "", System.Action<DamageResult> onDamage = null)
     {
         // 스킬 또는 패턴의 효과를 대상들에게 순서대로 적용합니다.
         if (actor == null || actor.status == null || targets == null || data?.effects == null) return;
@@ -62,12 +62,16 @@ public static class EffectEngine
                     ? Mathf.Max(1, effect.hitCount)
                     : 1;
                 for (int i = 0; i < executions; i++)
-                ExecuteEffect(effect, actor, target, skillName, ref lastCalculatedValue);
+                {
+                    if ((effect.type == EffectType.Damage || effect.type == EffectType.MentalDamage)
+                        && (target.status.currentHp <= 0f || actor.status.currentHp <= 0f)) break;
+                    ExecuteEffect(effect, actor, target, skillName, ref lastCalculatedValue, onDamage);
+                }
             }
         }
     }
 
-    private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target, string skillName, ref float lastCalculatedValue)
+    private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target, string skillName, ref float lastCalculatedValue, System.Action<DamageResult> onDamage = null)
     {
         // 1. VFX 재생: 커스텀 지정이 있으면 그것을 재생, 없으면 스킬명/효과 타입별 스마트 VFX 자동 재생
         if (!Application.isPlaying)
@@ -133,7 +137,9 @@ public static class EffectEngine
                     }
                 }
 
-                lastCalculatedValue = target.ReceiveDamage(calculatedValue, actor, effect.damageType);
+                DamageResult damageResult = target.ReceiveDamageDetailed(calculatedValue, actor, effect.damageType);
+                lastCalculatedValue = damageResult.HealthDamage;
+                onDamage?.Invoke(damageResult);
 
                 // [광전사의 도끼] 전사 아군이 적에게 주는 체력 피해의 15%만큼 체력 회복
                 if (actor.status.origin != null && !actor.status.origin.isEnemy &&

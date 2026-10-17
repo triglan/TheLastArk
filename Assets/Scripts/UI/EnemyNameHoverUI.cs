@@ -28,6 +28,16 @@ namespace TheLastArk.UI
 
         public float NormalizedHeight => normalizedHeight;
 
+        public void SetLabelPosition(Vector2 position)
+        {
+            if (labelRoot == null) return;
+            var rect = labelRoot.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(230f, 36f);
+            nameText.fontSize = 22f;
+        }
+
         private void Awake()
         {
             enemy = GetComponent<EnemyBattleCharacter>();

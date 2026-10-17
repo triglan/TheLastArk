@@ -6,6 +6,7 @@ public enum EnemyIntentVisualType { Attack, Defend, Support, Special }
 public sealed class EnemyIntentData
 {
     public string PatternName;
+    public string Forecast;
     public EnemyIntentVisualType VisualType;
     public TargetType TargetType;
     public EnemyTargetSelection TargetSelection;

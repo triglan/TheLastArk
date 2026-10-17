@@ -9,6 +9,7 @@ namespace TheLastArk.UI
     public partial class ExplorationResourceUI : MonoBehaviour
     {
         private TextMeshProUGUI trainHpText;
+        private UnityEngine.UI.Image trainHpFill;
         private TextMeshProUGUI goldText;
         private List<Image> consumableIcons = new List<Image>();
         private List<TextMeshProUGUI> consumableTexts = new List<TextMeshProUGUI>();
@@ -340,6 +341,12 @@ namespace TheLastArk.UI
             if (trainHpText != null && TrainManager.Instance != null)
             {
                 trainHpText.text = $"기차 HP: {TrainManager.Instance.currentTrainDurability}/{TrainManager.Instance.maxTrainDurability}";
+                if (trainHpFill != null)
+                {
+                    trainHpFill.fillAmount = TrainManager.Instance.maxTrainDurability > 0
+                        ? Mathf.Clamp01((float)TrainManager.Instance.currentTrainDurability / TrainManager.Instance.maxTrainDurability)
+                        : 0f;
+                }
             }
         }
 

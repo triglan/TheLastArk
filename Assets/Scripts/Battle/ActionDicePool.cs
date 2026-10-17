@@ -3,61 +3,60 @@ using UnityEngine;
 
 namespace TheLastArk.Battle
 {
-    public sealed class ActionDie
-    {
-        public int Id { get; }
-        public int Value { get; }
-        public bool IsSpent { get; private set; }
-        public bool IsLocked { get; private set; }
-        public bool IsAvailable => !IsSpent && !IsLocked;
-
-        public ActionDie(int id, int value)
-        {
-            Id = id;
-            Value = value;
-        }
-
-        internal void Spend() => IsSpent = true;
-        internal void SetLocked(bool locked) => IsLocked = locked;
-    }
-
+    /// <summary>Turn-local dice. Spent dice remain visible and still count toward the creation cap.</summary>
     public sealed class ActionDicePool
     {
         public const int MaxDicePerTurn = 10;
+        private readonly List<ActionDie> dice = new List<ActionDie>(MaxDicePerTurn);
+        private readonly IReadOnlyList<ActionDie> readOnlyDice;
 
-        private readonly List<ActionDie> _dice = new List<ActionDie>(MaxDicePerTurn);
-        public IReadOnlyList<ActionDie> Dice => _dice;
-        public int CreatedThisTurn => _dice.Count;
+        public IReadOnlyList<ActionDie> Dice => readOnlyDice;
+        public int CreatedThisTurn => dice.Count;
+
+        public ActionDicePool()
+        {
+            readOnlyDice = dice.AsReadOnly();
+        }
 
         public void BeginTurn(int count)
         {
-            _dice.Clear();
-            Roll(count, 6);
+            dice.Clear();
+            Roll(count);
         }
 
-        public int Roll(int count, int sides)
+        /// <returns>The number actually created within this turn's cap.</returns>
+        public int Roll(int count, int sides = 6)
         {
-            if (count <= 0 || sides <= 0) return 0;
-            int rolled = Mathf.Min(count, MaxDicePerTurn - _dice.Count);
-            for (int i = 0; i < rolled; i++)
-                _dice.Add(new ActionDie(_dice.Count, Random.Range(1, sides + 1)));
-            return rolled;
+            if (count <= 0 || sides <= 0 || sides == int.MaxValue) return 0;
+            int added = Mathf.Min(count, MaxDicePerTurn - CreatedThisTurn);
+            for (int i = 0; i < added; i++)
+                dice.Add(new ActionDie(dice.Count, Random.Range(1, sides + 1)));
+            return added;
         }
 
-        public ActionDie Find(int id) => id >= 0 && id < _dice.Count ? _dice[id] : null;
+        public ActionDie Find(int id) => id >= 0 && id < dice.Count ? dice[id] : null;
 
         public void SetLocked(int id, bool locked)
         {
-            Find(id)?.SetLocked(locked);
+            ActionDie die = Find(id);
+            if (die != null) die.IsLocked = locked;
         }
 
+        /// <summary>Validate the entire selection before consuming anything.</summary>
         public bool TrySpend(IReadOnlyList<int> ids)
         {
-            if (ids == null || ids.Count == 0) return false;
-            var unique = new HashSet<int>();
-            foreach (int id in ids)
-                if (!unique.Add(id) || Find(id)?.IsAvailable != true) return false;
-            foreach (int id in ids) _dice[id].Spend();
+            if (ids == null || ids.Count == 0 || ids.Count > MaxDicePerTurn) return false;
+            int selectedMask = 0;
+            for (int i = 0; i < ids.Count; i++)
+            {
+                ActionDie die = Find(ids[i]);
+                if (die == null || !die.IsAvailable) return false;
+                int bit = 1 << die.Id;
+                if ((selectedMask & bit) != 0) return false;
+                selectedMask |= bit;
+            }
+            for (int i = 0; i < dice.Count; i++)
+                if ((selectedMask & (1 << i)) != 0) dice[i].IsSpent = true;
             return true;
         }
     }

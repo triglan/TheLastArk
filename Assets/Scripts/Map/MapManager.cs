@@ -613,6 +613,19 @@ public class MapManager : MonoBehaviour
         UpdateInfoPanel();
         ScrollToCurrentNode();
 
+        var mapScroll = mapContainer.GetComponentInParent<ScrollRect>();
+        if (mapScroll != null)
+        {
+            mapScroll.horizontal = true;
+            mapScroll.vertical = false;
+            // ScrollRect maps vertical wheel input to X; negative sensitivity makes wheel-down advance right.
+            mapScroll.scrollSensitivity = -100f;
+            mapScroll.movementType = ScrollRect.MovementType.Clamped;
+            var annotations = mapScroll.GetComponent<MapAnnotationController>();
+            if (annotations == null) annotations = mapScroll.gameObject.AddComponent<MapAnnotationController>();
+            annotations.Initialize(mapScroll, mapData);
+        }
+
         // 자원 UI 및 디버그 버튼 생성 (읽기 전용 모드에서는 생략)
         if (!isReadOnly)
         {
@@ -882,8 +895,10 @@ tmp.color = Color.white;
                 // 랜덤 오프셋 추가 (1층과 15층 제외) - 상하단 바 침범 방지를 위해 Y 흔들림을 최소화
                 if (floor > 1 && floor < mapData.totalFloors)
                 {
-                    x += Random.Range(-35f, 35f);
-                    y += Random.Range(-8f, 8f);
+                    // Keep node positions stable when returning from battle so map ink still aligns.
+                    var layoutRandom = new System.Random(node.id * 397 ^ floor);
+                    x += (float)layoutRandom.NextDouble() * 70f - 35f;
+                    y += (float)layoutRandom.NextDouble() * 16f - 8f;
                 }
 
                 // 상하단 바를 절대 뚫지 못하도록 Y 위치를 안전 경계 안으로 클램핑

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Text;
@@ -107,6 +107,7 @@ namespace TheLastArk.UI
             string levelTitle = status != null ? status.LevelTitle : "0강";
             int charLevel = status != null ? status.charLevel : 0;
             actorInfoText.text = $"시전: <color=#00FFCE>{charName}</color> | 강화: <color=#79FF5B>{levelTitle} ({charLevel}강)</color>";
+            RefreshActorInfoHeight();
 
             StringBuilder descSb = new StringBuilder();
             float atk = status != null ? status.FinalAttack : 10f;
@@ -204,10 +205,13 @@ namespace TheLastArk.UI
 
             StringBuilder progSb = new StringBuilder();
             progSb.AppendLine("<color=#FFD700>-- 스킬 강화 효과 --</color>");
-            progSb.AppendLine(status != null && status.charLevel >= 2 ? "[달성] <color=#79FF5B>2강 달성: 스킬 효과 +1단계 강화</color>" : "  <color=gray>2강 미달성: 스킬 +1단계 프리뷰</color>");
-            progSb.AppendLine(status != null && status.charLevel >= 3 ? "[달성] <color=#79FF5B>3강 달성: 스킬 효과 +2단계 최고 강화</color>" : "  <color=gray>3강 미달성: 스킬 +2단계 최고 프리뷰</color>");
+            progSb.AppendLine(status != null && status.charLevel >= 2 ? "[달성] <color=#79FF5B>2강 달성: 스킬 효과 +1단계 강화</color>" : "  <color=#8996A5>2강 미달성: 스킬 +1단계 프리뷰</color>");
+            progSb.AppendLine(status != null && status.charLevel >= 3 ? "[달성] <color=#79FF5B>3강 달성: 스킬 효과 +2단계 최고 강화</color>" : "  <color=#8996A5>3강 미달성: 스킬 +2단계 최고 프리뷰</color>");
 
             levelProgressionText.text = progSb.ToString();
+            FitTooltipRow(titleText, 30f);
+            FitTooltipRow(descriptionText, 40f);
+            FitTooltipRow(levelProgressionText, 50f);
 
             tooltipPanel.SetActive(true);
             FollowMousePosition();
@@ -232,6 +236,30 @@ namespace TheLastArk.UI
             CharacterStatus st = actor != null ? actor.status : null;
             string cName = actor != null ? actor.characterName : "아군";
             ShowTooltip(skill, st, cName, slotTransform);
+            var battle = FindObjectOfType<BattleManager>();
+            string restriction = battle != null ? battle.GetDiceSkillUnavailableReason(actor, skill) : null;
+            if (actorInfoText != null && !string.IsNullOrEmpty(restriction))
+            {
+                actorInfoText.text += $"\n<color=#FF998C>{restriction}</color>";
+                RefreshActorInfoHeight();
+            }
+        }
+
+        private void RefreshActorInfoHeight()
+        {
+            FitTooltipRow(actorInfoText, 22f);
+        }
+
+        private void FitTooltipRow(TextMeshProUGUI label, float minimumHeight)
+        {
+            if (label == null) return;
+            var row = label.transform.parent as RectTransform;
+            if (row == null) return;
+            float height = Mathf.Max(minimumHeight, label.GetPreferredValues(label.text, tooltipRect.rect.width - 28f, 0f).y);
+            row.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+            var element = row.GetComponent<LayoutElement>();
+            if (element != null) element.preferredHeight = height;
+            LayoutRebuilder.MarkLayoutForRebuild(tooltipRect);
         }
 
         public void HideTooltip()
@@ -270,7 +298,10 @@ namespace TheLastArk.UI
             VerticalLayoutGroup layout = tooltipPanel.AddComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(14, 14, 12, 12);
             layout.spacing = 8;
-            layout.childControlHeight = false;
+            layout.childControlHeight = true;
+            layout.childControlWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.childForceExpandWidth = true;
 
             ContentSizeFitter fitter = tooltipPanel.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;

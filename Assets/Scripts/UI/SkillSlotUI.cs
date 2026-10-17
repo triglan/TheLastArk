@@ -16,6 +16,42 @@ namespace UI
 
         private SkillInfo currentSkill;
         private BattleCharacter currentActor;
+        private BattleManager _battle;
+        private GameObject _diceBorder;
+
+        private void OnEnable()
+        {
+            DiceDragSource.HeldDieChanged += UpdateDiceHighlight;
+            UpdateDiceHighlight(DiceDragSource.HeldDieId);
+        }
+
+        private void UpdateDiceHighlight(int dieId)
+        {
+            bool visible = dieId >= 0 && _battle != null && _battle.CanAcceptDieOnSkill(dieId, currentActor, currentSkill);
+            if (visible && _diceBorder == null)
+            {
+                _diceBorder = new GameObject("UsableDieBorder", typeof(RectTransform), typeof(LayoutElement));
+                _diceBorder.transform.SetParent(transform, false);
+                _diceBorder.GetComponent<LayoutElement>().ignoreLayout = true;
+                var root = _diceBorder.GetComponent<RectTransform>();
+                root.anchorMin = Vector2.zero; root.anchorMax = Vector2.one;
+                root.offsetMin = new Vector2(-3, -3); root.offsetMax = new Vector2(3, 3);
+                for (int i = 0; i < 4; i++)
+                {
+                    var edge = new GameObject("Edge", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+                    edge.transform.SetParent(root, false);
+                    var rect = edge.GetComponent<RectTransform>();
+                    rect.anchorMin = i == 0 ? new Vector2(0, 1) : i == 3 ? new Vector2(1, 0) : Vector2.zero;
+                    rect.anchorMax = i == 1 ? new Vector2(1, 0) : i == 2 ? new Vector2(0, 1) : Vector2.one;
+                    rect.sizeDelta = i < 2 ? new Vector2(0, 3) : new Vector2(3, 0);
+                    rect.anchoredPosition = Vector2.zero;
+                    var image = edge.GetComponent<UnityEngine.UI.Image>();
+                    image.color = new Color(1f, 0.84f, 0.12f);
+                    image.raycastTarget = false;
+                }
+            }
+            if (_diceBorder != null) _diceBorder.SetActive(visible);
+        }
 
         private void AutoFindComponents()
         {
@@ -50,8 +86,10 @@ namespace UI
         {
             currentSkill = skill;
             currentActor = actor;
+            if (_battle == null) _battle = FindObjectOfType<BattleManager>();
 
             AutoFindComponents();
+            UpdateDiceHighlight(DiceDragSource.HeldDieId);
 
             if (button != null)
             {
@@ -90,15 +128,22 @@ namespace UI
                         if (rule != null && rule.chargeTarget > 0)
                             condition += $" · {manager.GetDiceCharge(actor, skill)}/{rule.chargeTarget}";
                         string reason = manager.GetDiceSkillUnavailableReason(actor, skill);
-                        costText.text = reason == null ? condition : $"{condition}\n{reason}";
+                        // Full restrictions stay in the hover detail; the card keeps a readable short status.
+                        string shortReason = reason;
+                        int separator = reason?.IndexOf('·') ?? -1;
+                        if (separator >= 0) shortReason = reason.Substring(0, separator).Trim();
+                        costText.text = reason == null ? condition : $"{condition}\n{shortReason}";
                         costText.color = reason == null ? Color.white : new Color(1f, 0.6f, 0.55f);
                         costText.enableAutoSizing = true;
-                        costText.fontSizeMin = 10;
+                        costText.fontSizeMin = 12;
+                        costText.fontSizeMax = 14;
+                        costText.overflowMode = TextOverflowModes.Ellipsis;
                     }
                     else
                     {
-                        costText.text = $"{cost}";
-                        costText.color = Color.white;
+                        string reason = manager != null ? manager.GetPanicSkillUnavailableReason(actor, skill) : null;
+                        costText.text = reason == null ? $"{cost}" : $"{cost}\n{reason}";
+                        costText.color = reason == null ? Color.white : new Color(1f, 0.6f, 0.55f);
                     }
                     costText.font = TMPFontManager.MainKoreanFont;
                 }
@@ -159,6 +204,8 @@ namespace UI
 
         private void OnDisable()
         {
+            DiceDragSource.HeldDieChanged -= UpdateDiceHighlight;
+            if (_diceBorder != null) _diceBorder.SetActive(false);
             if (SkillTooltipUI.HasInstance)
             {
                 SkillTooltipUI.Instance.HideTooltip();

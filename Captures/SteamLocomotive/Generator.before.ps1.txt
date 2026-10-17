@@ -1,0 +1,83 @@
+Add-Type -AssemblyName System.Drawing
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
+using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+public static class ArkTrainSprites {
+    static Color C(int a,int r,int g,int b) { return Color.FromArgb(a,r,g,b); }
+    static void Poly(Graphics g, PointF[] p, Color fill, Color line, float width=1.4f) {
+        using(var b=new SolidBrush(fill)) g.FillPolygon(b,p);
+        using(var pen=new Pen(line,width)) g.DrawPolygon(pen,p);
+    }
+    static PointF P(float x,float y) { return new PointF(x,y); }
+    static void Box(Graphics g,float x,float y,float w,float h,Color fill,Color line) {
+        using(var b=new SolidBrush(fill)) g.FillRectangle(b,x,y,w,h);
+        using(var p=new Pen(line,1.1f)) g.DrawRectangle(p,x,y,w,h);
+    }
+    static void Line(Graphics g,float x,float y,float x2,float y2,Color c,float w=1) {
+        using(var p=new Pen(c,w)) g.DrawLine(p,x,y,x2,y2);
+    }
+    public static void Generate(string folder) {
+        for(int variant=0;variant<3;variant++) {
+            bool engine=variant==0, empty=variant==2;
+            using(var bmp=new Bitmap(1200,540,PixelFormat.Format32bppArgb))
+            using(var g=Graphics.FromImage(bmp)) {
+                g.Clear(Color.Transparent); g.SmoothingMode=SmoothingMode.AntiAlias; g.ScaleTransform(3,3);
+                Color edge=empty?C(135,160,184,195):C(220,155,186,201);
+                Color metal=empty?C(115,14,25,34):C(195,14,25,34);
+                Color gold=C(230,221,177,94), cyan=C(180,122,208,216);
+                // Draw running gear first: it remains visible beneath the transparent body.
+                Box(g,engine?62:38,134,engine?316:324,13,C(220,9,17,23),C(120,118,149,164));
+                foreach(float x in new float[]{engine?87:65,engine?123:100,300,335}) {
+                    using(var b=new SolidBrush(C(235,12,21,28))) g.FillEllipse(b,x-14,140,28,28);
+                    using(var p=new Pen(edge,1.6f)) g.DrawEllipse(p,x-14,140,28,28);
+                    using(var p=new Pen(C(170,96,126,140),2)) g.DrawEllipse(p,x-8,146,16,16);
+                    using(var b=new SolidBrush(edge)) g.FillEllipse(b,x-2,152,4,4);
+                }
+                Line(g,engine?87:65,154,engine?123:100,154,edge,3); Line(g,300,154,335,154,edge,3);
+                Box(g,0,117,16,8,C(230,24,37,46),edge); Box(g,384,117,16,8,C(230,24,37,46),edge);
+                PointF[] body=engine? new[]{P(14,129),P(37,91),P(77,37),P(97,25),P(201,25),P(219,46),P(384,46),P(389,55),P(389,137),P(14,137)}
+                    :new[]{P(12,137),P(12,48),P(26,31),P(372,31),P(388,48),P(388,137)};
+                Poly(g,body,metal,edge,1.8f);
+                if(engine) {
+                    Poly(g,new[]{P(43,88),P(81,39),P(99,33),P(118,33),P(118,87)},C(150,62,119,135),cyan);
+                    Poly(g,new[]{P(128,33),P(190,33),P(204,49),P(204,87),P(128,87)},C(130,59,116,130),cyan);
+                    Line(g,54,82,88,44,C(170,162,218,224),2);
+                    Box(g,229,57,142,30,C(100,5,14,21),C(100,118,152,167));
+                    for(int x=237;x<366;x+=10) Line(g,x,61,x,83,C(140,123,153,164),2);
+                    Box(g,47,104,26,6,C(255,250,220,152),gold);
+                    Poly(g,new[]{P(9,136),P(31,136),P(26,149),P(2,149)},C(215,36,48,55),edge);
+                    Box(g,142,16,49,8,C(215,34,48,57),edge);
+                    Line(g,286,45,286,21,edge,2); Line(g,274,21,302,21,edge,2);
+                    Line(g,80,94,375,94,gold,2);
+                } else {
+                    Line(g,27,38,371,38,C(120,172,197,207),2);
+                    if(!empty) {
+                        for(int x=39;x<=267;x+=57) {
+                            Box(g,x,52,44,27,C(115,37,93,111),C(175,130,179,196));
+                            Line(g,x+5,55,x+36,55,C(150,161,217,229),1.5f);
+                        }
+                        Box(g,330,48,34,79,C(45,57,78,90),C(160,117,153,171));
+                        Box(g,337,54,20,25,C(115,37,93,111),C(150,130,179,196));
+                        Line(g,335,96,340,96,gold,2);
+                    } else {
+                        using(var p=new Pen(C(140,145,170,183),1.4f)) {
+                            p.DashPattern=new float[]{5,5}; g.DrawRectangle(p,30,46,340,81);
+                        }
+                        Line(g,192,56,208,56,edge,2); Line(g,200,48,200,64,edge,2);
+                        for(int x=28;x<370;x+=18) Line(g,x,133,x+6,127,C(130,205,171,108),2);
+                    }
+                    Line(g,24,87,375,87,empty?C(90,153,177,184):cyan,1.5f);
+                }
+                Line(g,engine?40:23,129,377,129,engine?gold:C(150,115,164,181),2);
+                for(int x=engine?85:29;x<381;x+=27) {
+                    using(var b=new SolidBrush(C(130,174,192,197))) g.FillEllipse(b,x,133,2,2);
+                }
+                bmp.Save(System.IO.Path.Combine(folder,engine?"ArkLocomotive.png":empty?"ArkExpansionCar.png":"ArkCarriage.png"),ImageFormat.Png);
+            }
+        }
+    }
+}
+'@
+[ArkTrainSprites]::Generate((Join-Path $PSScriptRoot '..\..\Assets\Sprites\UI\Train'))

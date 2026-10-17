@@ -17,9 +17,14 @@ MonoBehaviour:
   jobName: 
   synergies: 
   isEnemy: 1
-  regionId: temp
-  standingSprite: {fileID: 0}
-  portraitSprite: {fileID: 0}
+  regionId: mirage
+  standingSprite: {fileID: 21300000, guid: 8ed521f4035e28549bf9d4b89fc637cb, type: 3}
+  portraitSprite: {fileID: 21300000, guid: 8ed521f4035e28549bf9d4b89fc637cb, type: 3}
+  closedEyesSprite: {fileID: 0}
+  enemyIllustrationScale: 1.5
+  enemyIllustrationHeight: 160
+  enemyIllustrationOffset: {x: 0, y: 0}
+  enemyIllustrationKeepFeet: 1
   maxHp: 10
   maxMental: 18
   baseAttack: 5
@@ -39,14 +44,32 @@ MonoBehaviour:
     baseCost: 3
     levels:
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
       effects: []
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
       effects: []
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
       effects: []
@@ -56,46 +79,32 @@ MonoBehaviour:
     baseCost: 3
     levels:
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
       effects: []
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
       effects: []
     - overrideCost: -1
-      targetType: 0
-      customVfxName: 
-      effects: []
-  - skillName: 
-    skillIcon: {fileID: 0}
-    baseCost: 3
-    levels:
-    - overrideCost: -1
-      targetType: 0
-      customVfxName: 
-      effects: []
-    - overrideCost: -1
-      targetType: 0
-      customVfxName: 
-      effects: []
-    - overrideCost: -1
-      targetType: 0
-      customVfxName: 
-      effects: []
-  - skillName: 
-    skillIcon: {fileID: 0}
-    baseCost: 3
-    levels:
-    - overrideCost: -1
-      targetType: 0
-      customVfxName: 
-      effects: []
-    - overrideCost: -1
-      targetType: 0
-      customVfxName: 
-      effects: []
-    - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
       effects: []
@@ -104,14 +113,100 @@ MonoBehaviour:
     baseCost: 3
     levels:
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
       effects: []
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
       effects: []
     - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      effects: []
+  - skillName: 
+    skillIcon: {fileID: 0}
+    baseCost: 3
+    levels:
+    - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      effects: []
+    - overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        chargeTarget: 0
+        chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
       effects: []
@@ -121,7 +216,8 @@ MonoBehaviour:
   damageBonusPerCycle: 0
   bleedBonusPerCycle: 0
   enemyPatterns:
-  - patternName: "\uCCAB \uBC88\uC9F8 \uD0C0\uC885"
+  - forecastPatternOffset: 0
+    patternName: "\uCCAB \uBC88\uC9F8 \uD0C0\uC885"
     targetType: 0
     targetSelection: 0
     customVfxName: 
@@ -131,66 +227,11 @@ MonoBehaviour:
       intentIcon: {fileID: 0}
       targetType: 0
       targetSelection: 0
-      effect:
-        type: 25
-        damageType: 0
-        multiplier: 0
-        fixedValue: 2
-        useActualResult: 0
-        value: 0
-        secondaryValue: 0
-        hitCount: 1
-        duration: 3
-        charges: 3
-        durationType: 0
-        skillSlot: -1
-        statusIcon: {fileID: 0}
-        customVfxName: 
-      valueVariableId: 
-      hitCountVariableId: 
-      runtimeVariableId: 
-      runtimeValue: 0
-      setRuntimeValue: 0
-  - patternName: "\uB450 \uBC88\uC9F8 \uD0C0\uC885"
-    targetType: 0
-    targetSelection: 0
-    customVfxName: 
-    effects: []
-    actions:
-    - actionType: 0
-      intentIcon: {fileID: 0}
-      targetType: 0
-      targetSelection: 0
-      effect:
-        type: 25
-        damageType: 0
-        multiplier: 0
-        fixedValue: 2
-        useActualResult: 0
-        value: 0
-        secondaryValue: 0
-        hitCount: 1
-        duration: 3
-        charges: 3
-        durationType: 0
-        skillSlot: -1
-        statusIcon: {fileID: 0}
-        customVfxName: 
-      valueVariableId: 
-      hitCountVariableId: 
-      runtimeVariableId: 
-      runtimeValue: 0
-      setRuntimeValue: 0
-  - patternName: "\uC804\uCCB4 \uD0C0\uC885"
-    targetType: 4
-    targetSelection: 0
-    customVfxName: 
-    effects: []
-    actions:
-    - actionType: 0
-      intentIcon: {fileID: 0}
-      targetType: 4
-      targetSelection: 0
+      usePreparedTarget: 0
+      excludeSelf: 0
+      uniqueSummon: 0
+      requireLastHit: 0
+      valueMultiplierVariableId: 
       effect:
         type: 25
         damageType: 0
@@ -208,13 +249,129 @@ MonoBehaviour:
         customVfxName: 
       valueVariableId: mental_damage_bonus
       hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
       runtimeVariableId: 
       runtimeValue: 0
       setRuntimeValue: 0
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames: []
+      limit: 0
+      percent: 0
+      divisor: 1
+      maxBonus: 0
+      chargesVariableId: 
+      additionalValueVariableId: 
+      conditionVariableId: 
+      condition: 0
+      conditionValue: 0
+  - forecastPatternOffset: 0
+    patternName: "\uB450 \uBC88\uC9F8 \uD0C0\uC885"
+    targetType: 0
+    targetSelection: 0
+    customVfxName: 
+    effects: []
+    actions:
+    - actionType: 0
+      intentIcon: {fileID: 0}
+      targetType: 0
+      targetSelection: 0
+      usePreparedTarget: 0
+      excludeSelf: 0
+      uniqueSummon: 0
+      requireLastHit: 0
+      valueMultiplierVariableId: 
+      effect:
+        type: 25
+        damageType: 0
+        multiplier: 0
+        fixedValue: 2
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: mental_damage_bonus
+      hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
+      runtimeVariableId: 
+      runtimeValue: 0
+      setRuntimeValue: 0
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames: []
+      limit: 0
+      percent: 0
+      divisor: 1
+      maxBonus: 0
+      chargesVariableId: 
+      additionalValueVariableId: 
+      conditionVariableId: 
+      condition: 0
+      conditionValue: 0
+  - forecastPatternOffset: 0
+    patternName: "\uC804\uCCB4 \uD0C0\uC885"
+    targetType: 4
+    targetSelection: 0
+    customVfxName: 
+    effects: []
+    actions:
+    - actionType: 0
+      intentIcon: {fileID: 0}
+      targetType: 4
+      targetSelection: 0
+      usePreparedTarget: 0
+      excludeSelf: 0
+      uniqueSummon: 0
+      requireLastHit: 0
+      valueMultiplierVariableId: 
+      effect:
+        type: 25
+        damageType: 0
+        multiplier: 0
+        fixedValue: 2
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+      valueVariableId: mental_damage_bonus
+      hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
+      runtimeVariableId: 
+      runtimeValue: 0
+      setRuntimeValue: 0
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames: []
+      limit: 0
+      percent: 0
+      divisor: 1
+      maxBonus: 0
+      chargesVariableId: 
+      additionalValueVariableId: 
+      conditionVariableId: 
+      condition: 0
+      conditionValue: 0
     - actionType: 1
       intentIcon: {fileID: 0}
       targetType: 0
       targetSelection: 0
+      usePreparedTarget: 0
+      excludeSelf: 0
+      uniqueSummon: 0
+      requireLastHit: 0
+      valueMultiplierVariableId: 
       effect:
         type: 0
         damageType: 0
@@ -232,9 +389,22 @@ MonoBehaviour:
         customVfxName: 
       valueVariableId: 
       hitCountVariableId: 
+      useHitCountVariableAsTotal: 0
       runtimeVariableId: mental_damage_bonus
       runtimeValue: 1
       setRuntimeValue: 0
+      runtimeValueVariableId: 
+      enemyName: 
+      enemyNames: []
+      limit: 0
+      percent: 0
+      divisor: 1
+      maxBonus: 0
+      chargesVariableId: 
+      additionalValueVariableId: 
+      conditionVariableId: 
+      condition: 0
+      conditionValue: 0
   enemyRuntimeVariables:
   - id: mental_damage_bonus
     displayName: "\uC815\uC2E0 \uD53C\uD574 \uAC15\uD654"

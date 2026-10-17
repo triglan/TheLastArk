@@ -17,5 +17,5 @@ MonoBehaviour:
   enemySlots:
   - {fileID: 11400000, guid: 8a65ef82b707f644e9301f4fefc4fbb3, type: 2}
   - {fileID: 11400000, guid: f3517bbf07f477947b4d014d787ae6b2, type: 2}
-  - {fileID: 11400000, guid: 7fb85152f847adf4d83548ce8c83e61e, type: 2}
+  - {fileID: 0}
   - {fileID: 0}

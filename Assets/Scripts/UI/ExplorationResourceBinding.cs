@@ -36,8 +36,11 @@ namespace TheLastArk.UI
             BindButton(buttons.Find("TopBarIcon_캐릭터"), () => ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Character));
             BindButton(buttons.Find("TopBarIcon_가방"), () => ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Inventory));
             BindButton(buttons.Find("TopBarIcon_설정"), () => ManagementUIManager.Instance.ShowSettingsPopup());
-            var mapButton = parent.Find("BattleMapButton");
+            var mapButton = buttons.Find("BattleMapButton");
+            if (mapButton == null) mapButton = parent.Find("BattleMapButton");
             if (mapButton != null) BindButton(mapButton, BattleMapPopupUI.Show);
+            var hpFill = hud.Find("ResourcePanel/TrainHpTrack/TrainHpFill");
+            trainHpFill = hpFill != null ? hpFill.GetComponent<UnityEngine.UI.Image>() : null;
             var synergy = GetComponent<SynergyUIBar>();
             if (synergy == null) synergy = gameObject.AddComponent<SynergyUIBar>();
             synergy.Initialize(hud);

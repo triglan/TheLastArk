@@ -20,6 +20,22 @@ public class CharacterData : ScriptableObject
     // 아군은 초상화와 스탠딩 이미지를 모두 쓰고, 적은 스탠딩 이미지만 씁니다.
     public Sprite standingSprite;
     public Sprite portraitSprite;
+    public Sprite closedEyesSprite;
+    [Tooltip("패닉 발생 시 이 목록에서 무작위 일러스트를 표시합니다. 비어 있으면 기존 일러스트를 사용합니다.")]
+    public List<Sprite> panicIllustrations = new List<Sprite>();
+
+    [Header("적 일러스트 배치")]
+    [SerializeField, Tooltip("Auto는 일러스트 종횡비로 판정합니다. 가로로 넓은 크리쳐는 별도의 두 줄 배치를 사용합니다.")]
+    private TheLastArk.Character.EnemyFormationType enemyFormationType;
+    public TheLastArk.Character.EnemyFormationType EnemyFormationType => enemyFormationType;
+    // Retained only to preserve old serialized data; height now controls rendering.
+    [SerializeField, HideInInspector] private float enemyIllustrationScale = 1f;
+    [SerializeField, Min(1f)] private float enemyIllustrationHeight = 180f;
+    [SerializeField] private Vector2 enemyIllustrationOffset;
+    [SerializeField] private bool enemyIllustrationKeepFeet = true;
+    public float EnemyIllustrationHeight => Mathf.Max(1f, enemyIllustrationHeight);
+    public Vector2 EnemyIllustrationOffset => enemyIllustrationOffset;
+    public bool EnemyIllustrationKeepFeet => enemyIllustrationKeepFeet;
 
     [Header("기본 능력치")]
     public float maxHp = 35f;
@@ -139,6 +155,7 @@ public class EffectEntry
 [System.Serializable]
 public class EnemyPatternData
 {
+    [Min(0)] public int forecastPatternOffset;
     // 적이 자기 턴마다 순서대로 실행할 행동 패턴입니다.
     public string patternName = "패턴";
     public TargetType targetType = TargetType.SingleEnemy;
@@ -169,6 +186,10 @@ public class EnemyPatternAction
     public TargetType targetType = TargetType.SingleEnemy;
     public EnemyTargetSelection targetSelection = EnemyTargetSelection.Random;
     public bool usePreparedTarget;
+    public bool excludeSelf;
+    public bool uniqueSummon;
+    public bool requireLastHit;
+    public string valueMultiplierVariableId;
     public EffectEntry effect = new EffectEntry();
     [Tooltip("효과의 고정 수치에 더할 전투 변수 ID입니다.")]
     public string valueVariableId;
@@ -214,7 +235,7 @@ public enum EnemyPatternActionType
 {
     Effect, ModifyRuntimeVariable, RememberTarget, StealGold, Flee,
     BreakShield, RemoveStatus, TriggerStatus, Summon, SacrificeAllies,
-    BeginDamageCheck, ResolveDamageCheck
+    BeginDamageCheck, ResolveDamageCheck, SetArmor
 }
 public enum EnemyRuntimeComparison { Always, Less, LessOrEqual, Equal, GreaterOrEqual, Greater }
 public enum EffectType

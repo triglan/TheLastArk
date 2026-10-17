@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
@@ -10,7 +10,7 @@ using TheLastArk.Character;
 
 namespace TheLastArk.UI
 {
-    public class TrainManagementUI : MonoBehaviour
+    public partial class TrainManagementUI : MonoBehaviour
     {
         private GameObject popupPanel;
         private Transform carsContainer;
@@ -47,16 +47,12 @@ namespace TheLastArk.UI
 
         public void Show()
         {
-            if (popupPanel == null)
-            {
-                CreateUI();
-            }
-            UpdateUI();
-            popupPanel.SetActive(true);
+            ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Train);
         }
 
         public void Hide()
         {
+            ManagementUIManager.Instance.Hide();
             if (popupPanel != null) popupPanel.SetActive(false);
             if (detailPopupPanel != null) detailPopupPanel.SetActive(false);
             if (partModalPanel != null) partModalPanel.SetActive(false);
@@ -69,16 +65,13 @@ namespace TheLastArk.UI
         {
             mainFont = Resources.Load<TMP_FontAsset>("Fonts/Main_Fonts");
 
-            Canvas canvas = FindObjectOfType<Canvas>();
+            Canvas canvas = HudCanvasUtility.FindOverlayCanvas();
             popupPanel = new GameObject("TrainManagementPopup");
             popupPanel.transform.SetParent(canvas.transform, false);
             popupPanel.transform.SetAsLastSibling();
 
             RectTransform rect = popupPanel.AddComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
+            ManagementPanelLayout.DockRight(rect);
 
             Image bg = popupPanel.AddComponent<Image>();
             bg.color = new Color(0.05f, 0.07f, 0.11f, 0.96f);
@@ -106,10 +99,10 @@ namespace TheLastArk.UI
             titleObj.transform.SetParent(popupPanel.transform, false);
             RectTransform titleRect = titleObj.AddComponent<RectTransform>();
             titleRect.anchorMin = new Vector2(0.05f, 0.93f);
-            titleRect.anchorMax = new Vector2(0.95f, 0.98f);
+            titleRect.anchorMax = new Vector2(0.80f, 0.98f);
             titleRect.offsetMin = Vector2.zero;
             titleRect.offsetMax = Vector2.zero;
-            CreateTextUI(titleObj.transform, "기차 관리 (칸 강화, 파츠 및 선택 칸 관리)", 30, new Color(1f, 0.85f, 0.3f, 1f));
+            CreateTextUI(titleObj.transform, "기차 관리 · 칸 강화 / 파츠", 24, new Color(1f, 0.85f, 0.3f, 1f));
 
             // 기차 체력바 및 상태 요약 영역
             GameObject hpBarArea = new GameObject("TrainHpArea");
@@ -266,11 +259,11 @@ namespace TheLastArk.UI
             charsScroll.content = chContentRect;
             charactersContainer = charsContent.transform;
 
-            CreateDetailPopup(canvas.transform);
-            CreatePartModal(canvas.transform);
-            CreateBuildModal(canvas.transform);
-            CreateSynergyModal(canvas.transform);
-            CreateModuleModal(canvas.transform);
+            CreateDetailPopup(popupPanel.transform);
+            CreatePartModal(popupPanel.transform);
+            CreateBuildModal(popupPanel.transform);
+            CreateSynergyModal(popupPanel.transform);
+            CreateModuleModal(popupPanel.transform);
         }
 
         private void CreateDetailPopup(Transform parent)
@@ -280,8 +273,8 @@ namespace TheLastArk.UI
             detailPopupPanel.transform.SetAsLastSibling();
 
             RectTransform rect = detailPopupPanel.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.2f, 0.15f);
-            rect.anchorMax = new Vector2(0.8f, 0.85f);
+            rect.anchorMin = new Vector2(0.02f, 0.02f);
+            rect.anchorMax = new Vector2(0.98f, 0.98f);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
 
@@ -344,349 +337,22 @@ namespace TheLastArk.UI
 
         private void CreatePartModal(Transform parent)
         {
-            partModalPanel = new GameObject("PartModalPopup");
-            partModalPanel.transform.SetParent(parent, false);
-            partModalPanel.transform.SetAsLastSibling();
-
-            RectTransform rect = partModalPanel.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.25f, 0.2f);
-            rect.anchorMax = new Vector2(0.75f, 0.8f);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            Image bg = partModalPanel.AddComponent<Image>();
-            bg.color = new Color(0.08f, 0.12f, 0.18f, 0.98f);
-
-            // Title
-            GameObject titleObj = new GameObject("PartModalTitle");
-            titleObj.transform.SetParent(partModalPanel.transform, false);
-            RectTransform titleRect = titleObj.AddComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0.05f, 0.88f);
-            titleRect.anchorMax = new Vector2(0.85f, 0.96f);
-            titleRect.offsetMin = Vector2.zero;
-            titleRect.offsetMax = Vector2.zero;
-            partModalTitle = titleObj.AddComponent<TextMeshProUGUI>();
-            partModalTitle.fontSize = 24;
-            partModalTitle.color = Color.yellow;
-            if (mainFont != null) partModalTitle.font = mainFont;
-
-            // Close button
-            GameObject closeBtnObj = new GameObject("ClosePartModalButton");
-            closeBtnObj.transform.SetParent(partModalPanel.transform, false);
-            RectTransform cbRect = closeBtnObj.AddComponent<RectTransform>();
-            cbRect.anchorMin = new Vector2(0.88f, 0.88f);
-            cbRect.anchorMax = new Vector2(0.96f, 0.96f);
-            cbRect.offsetMin = Vector2.zero;
-            cbRect.offsetMax = Vector2.zero;
-            Image cbImg = closeBtnObj.AddComponent<Image>();
-            cbImg.color = new Color(0.8f, 0.2f, 0.2f, 1f);
-            Button cb = closeBtnObj.AddComponent<Button>();
-            cb.onClick.AddListener(() => partModalPanel.SetActive(false));
-            CreateTextUI(closeBtnObj.transform, "X", 22, Color.white);
-
-            // Scroll view for parts
-            GameObject svObj = new GameObject("PartsScrollView");
-            svObj.transform.SetParent(partModalPanel.transform, false);
-            RectTransform svRect = svObj.AddComponent<RectTransform>();
-            svRect.anchorMin = new Vector2(0.05f, 0.05f);
-            svRect.anchorMax = new Vector2(0.95f, 0.85f);
-            svRect.offsetMin = Vector2.zero;
-            svRect.offsetMax = Vector2.zero;
-
-            ScrollRect sv = svObj.AddComponent<ScrollRect>();
-            sv.horizontal = false;
-            sv.vertical = true;
-
-            GameObject vpObj = new GameObject("Viewport");
-            vpObj.transform.SetParent(svObj.transform, false);
-            RectTransform vpRect = vpObj.AddComponent<RectTransform>();
-            vpRect.anchorMin = Vector2.zero;
-            vpRect.anchorMax = Vector2.one;
-            vpRect.sizeDelta = Vector2.zero;
-            vpObj.AddComponent<RectMask2D>();
-
-            GameObject contentObj = new GameObject("Content");
-            contentObj.transform.SetParent(vpObj.transform, false);
-            RectTransform cRect = contentObj.AddComponent<RectTransform>();
-            cRect.anchorMin = new Vector2(0, 1);
-            cRect.anchorMax = new Vector2(1, 1);
-            cRect.pivot = new Vector2(0.5f, 1);
-            cRect.sizeDelta = new Vector2(0, 0);
-
-            VerticalLayoutGroup vlg = contentObj.AddComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(10, 10, 10, 10);
-            vlg.spacing = 10;
-            vlg.childControlWidth = true;
-            vlg.childControlHeight = false;
-
-            ContentSizeFitter csf = contentObj.AddComponent<ContentSizeFitter>();
-            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            sv.viewport = vpRect;
-            sv.content = cRect;
-            partModalContent = contentObj.transform;
-
-            partModalPanel.SetActive(false);
+            partModalPanel = BuildModal(parent, "PartModalPopup", out partModalContent, out partModalTitle);
         }
 
         private void CreateBuildModal(Transform parent)
         {
-            buildModalPanel = new GameObject("BuildModalPopup");
-            buildModalPanel.transform.SetParent(parent, false);
-            buildModalPanel.transform.SetAsLastSibling();
-
-            RectTransform rect = buildModalPanel.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.22f, 0.18f);
-            rect.anchorMax = new Vector2(0.78f, 0.82f);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            Image bg = buildModalPanel.AddComponent<Image>();
-            bg.color = new Color(0.08f, 0.12f, 0.18f, 0.98f);
-
-            // Title
-            GameObject titleObj = new GameObject("BuildModalTitle");
-            titleObj.transform.SetParent(buildModalPanel.transform, false);
-            RectTransform titleRect = titleObj.AddComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0.05f, 0.88f);
-            titleRect.anchorMax = new Vector2(0.85f, 0.96f);
-            titleRect.offsetMin = Vector2.zero;
-            titleRect.offsetMax = Vector2.zero;
-            buildModalTitle = titleObj.AddComponent<TextMeshProUGUI>();
-            buildModalTitle.fontSize = 24;
-            buildModalTitle.color = Color.yellow;
-            if (mainFont != null) buildModalTitle.font = mainFont;
-
-            // Close button
-            GameObject closeBtnObj = new GameObject("CloseBuildModalButton");
-            closeBtnObj.transform.SetParent(buildModalPanel.transform, false);
-            RectTransform cbRect = closeBtnObj.AddComponent<RectTransform>();
-            cbRect.anchorMin = new Vector2(0.88f, 0.88f);
-            cbRect.anchorMax = new Vector2(0.96f, 0.96f);
-            cbRect.offsetMin = Vector2.zero;
-            cbRect.offsetMax = Vector2.zero;
-            Image cbImg = closeBtnObj.AddComponent<Image>();
-            cbImg.color = new Color(0.8f, 0.2f, 0.2f, 1f);
-            Button cb = closeBtnObj.AddComponent<Button>();
-            cb.onClick.AddListener(() => buildModalPanel.SetActive(false));
-            CreateTextUI(closeBtnObj.transform, "X", 22, Color.white);
-
-            // Scroll view
-            GameObject svObj = new GameObject("BuildScrollView");
-            svObj.transform.SetParent(buildModalPanel.transform, false);
-            RectTransform svRect = svObj.AddComponent<RectTransform>();
-            svRect.anchorMin = new Vector2(0.05f, 0.05f);
-            svRect.anchorMax = new Vector2(0.95f, 0.85f);
-            svRect.offsetMin = Vector2.zero;
-            svRect.offsetMax = Vector2.zero;
-
-            ScrollRect sv = svObj.AddComponent<ScrollRect>();
-            sv.horizontal = false;
-            sv.vertical = true;
-
-            GameObject vpObj = new GameObject("Viewport");
-            vpObj.transform.SetParent(svObj.transform, false);
-            RectTransform vpRect = vpObj.AddComponent<RectTransform>();
-            vpRect.anchorMin = Vector2.zero;
-            vpRect.anchorMax = Vector2.one;
-            vpRect.sizeDelta = Vector2.zero;
-            vpObj.AddComponent<RectMask2D>();
-
-            GameObject contentObj = new GameObject("Content");
-            contentObj.transform.SetParent(vpObj.transform, false);
-            RectTransform cRect = contentObj.AddComponent<RectTransform>();
-            cRect.anchorMin = new Vector2(0, 1);
-            cRect.anchorMax = new Vector2(1, 1);
-            cRect.pivot = new Vector2(0.5f, 1);
-            cRect.sizeDelta = new Vector2(0, 0);
-
-            VerticalLayoutGroup vlg = contentObj.AddComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(10, 10, 10, 10);
-            vlg.spacing = 10;
-            vlg.childControlWidth = true;
-            vlg.childControlHeight = false;
-
-            ContentSizeFitter csf = contentObj.AddComponent<ContentSizeFitter>();
-            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            sv.viewport = vpRect;
-            sv.content = cRect;
-            buildModalContent = contentObj.transform;
-
-            buildModalPanel.SetActive(false);
+            buildModalPanel = BuildModal(parent, "BuildModalPopup", out buildModalContent, out buildModalTitle);
         }
 
         private void CreateSynergyModal(Transform parent)
         {
-            synergyModalPanel = new GameObject("SynergyModalPopup");
-            synergyModalPanel.transform.SetParent(parent, false);
-            synergyModalPanel.transform.SetAsLastSibling();
-
-            RectTransform rect = synergyModalPanel.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.22f, 0.15f);
-            rect.anchorMax = new Vector2(0.78f, 0.85f);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            Image bg = synergyModalPanel.AddComponent<Image>();
-            bg.color = new Color(0.08f, 0.12f, 0.18f, 0.98f);
-
-            // Title
-            GameObject titleObj = new GameObject("SynergyModalTitle");
-            titleObj.transform.SetParent(synergyModalPanel.transform, false);
-            RectTransform titleRect = titleObj.AddComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0.05f, 0.88f);
-            titleRect.anchorMax = new Vector2(0.85f, 0.96f);
-            titleRect.offsetMin = Vector2.zero;
-            titleRect.offsetMax = Vector2.zero;
-            synergyModalTitle = titleObj.AddComponent<TextMeshProUGUI>();
-            synergyModalTitle.fontSize = 24;
-            synergyModalTitle.color = Color.yellow;
-            if (mainFont != null) synergyModalTitle.font = mainFont;
-
-            // Close button
-            GameObject closeBtnObj = new GameObject("CloseSynergyModalButton");
-            closeBtnObj.transform.SetParent(synergyModalPanel.transform, false);
-            RectTransform cbRect = closeBtnObj.AddComponent<RectTransform>();
-            cbRect.anchorMin = new Vector2(0.88f, 0.88f);
-            cbRect.anchorMax = new Vector2(0.96f, 0.96f);
-            cbRect.offsetMin = Vector2.zero;
-            cbRect.offsetMax = Vector2.zero;
-            Image cbImg = closeBtnObj.AddComponent<Image>();
-            cbImg.color = new Color(0.8f, 0.2f, 0.2f, 1f);
-            Button cb = closeBtnObj.AddComponent<Button>();
-            cb.onClick.AddListener(() => synergyModalPanel.SetActive(false));
-            CreateTextUI(closeBtnObj.transform, "X", 22, Color.white);
-
-            // Scroll view
-            GameObject svObj = new GameObject("SynergyScrollView");
-            svObj.transform.SetParent(synergyModalPanel.transform, false);
-            RectTransform svRect = svObj.AddComponent<RectTransform>();
-            svRect.anchorMin = new Vector2(0.05f, 0.05f);
-            svRect.anchorMax = new Vector2(0.95f, 0.85f);
-            svRect.offsetMin = Vector2.zero;
-            svRect.offsetMax = Vector2.zero;
-
-            ScrollRect sv = svObj.AddComponent<ScrollRect>();
-            sv.horizontal = false;
-            sv.vertical = true;
-
-            GameObject vpObj = new GameObject("Viewport");
-            vpObj.transform.SetParent(svObj.transform, false);
-            RectTransform vpRect = vpObj.AddComponent<RectTransform>();
-            vpRect.anchorMin = Vector2.zero;
-            vpRect.anchorMax = Vector2.one;
-            vpRect.sizeDelta = Vector2.zero;
-            vpObj.AddComponent<RectMask2D>();
-
-            GameObject contentObj = new GameObject("Content");
-            contentObj.transform.SetParent(vpObj.transform, false);
-            RectTransform cRect = contentObj.AddComponent<RectTransform>();
-            cRect.anchorMin = new Vector2(0, 1);
-            cRect.anchorMax = new Vector2(1, 1);
-            cRect.pivot = new Vector2(0.5f, 1);
-            cRect.sizeDelta = new Vector2(0, 0);
-
-            GridLayoutGroup glg = contentObj.AddComponent<GridLayoutGroup>();
-            glg.padding = new RectOffset(10, 10, 10, 10);
-            glg.spacing = new Vector2(10, 10);
-            glg.cellSize = new Vector2(240, 50);
-
-            ContentSizeFitter csf = contentObj.AddComponent<ContentSizeFitter>();
-            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            sv.viewport = vpRect;
-            sv.content = cRect;
-            synergyModalContent = contentObj.transform;
-
-            synergyModalPanel.SetActive(false);
+            synergyModalPanel = BuildModal(parent, "SynergyModalPopup", out synergyModalContent, out synergyModalTitle, true);
         }
 
         private void CreateModuleModal(Transform parent)
         {
-            moduleModalPanel = new GameObject("ModuleModalPopup");
-            moduleModalPanel.transform.SetParent(parent, false);
-            moduleModalPanel.transform.SetAsLastSibling();
-
-            RectTransform rect = moduleModalPanel.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.20f, 0.15f);
-            rect.anchorMax = new Vector2(0.80f, 0.85f);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            Image bg = moduleModalPanel.AddComponent<Image>();
-            bg.color = new Color(0.08f, 0.12f, 0.18f, 0.98f);
-
-            // Title
-            GameObject titleObj = new GameObject("ModuleModalTitle");
-            titleObj.transform.SetParent(moduleModalPanel.transform, false);
-            RectTransform titleRect = titleObj.AddComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0.05f, 0.88f);
-            titleRect.anchorMax = new Vector2(0.85f, 0.96f);
-            titleRect.offsetMin = Vector2.zero;
-            titleRect.offsetMax = Vector2.zero;
-            moduleModalTitle = titleObj.AddComponent<TextMeshProUGUI>();
-            moduleModalTitle.fontSize = 24;
-            moduleModalTitle.color = Color.yellow;
-            if (mainFont != null) moduleModalTitle.font = mainFont;
-
-            // Close button
-            GameObject closeBtnObj = new GameObject("CloseModuleModalButton");
-            closeBtnObj.transform.SetParent(moduleModalPanel.transform, false);
-            RectTransform cbRect = closeBtnObj.AddComponent<RectTransform>();
-            cbRect.anchorMin = new Vector2(0.88f, 0.88f);
-            cbRect.anchorMax = new Vector2(0.96f, 0.96f);
-            cbRect.offsetMin = Vector2.zero;
-            cbRect.offsetMax = Vector2.zero;
-            Image cbImg = closeBtnObj.AddComponent<Image>();
-            cbImg.color = new Color(0.8f, 0.2f, 0.2f, 1f);
-            Button cb = closeBtnObj.AddComponent<Button>();
-            cb.onClick.AddListener(() => moduleModalPanel.SetActive(false));
-            CreateTextUI(closeBtnObj.transform, "X", 22, Color.white);
-
-            // Scroll view
-            GameObject svObj = new GameObject("ModuleScrollView");
-            svObj.transform.SetParent(moduleModalPanel.transform, false);
-            RectTransform svRect = svObj.AddComponent<RectTransform>();
-            svRect.anchorMin = new Vector2(0.05f, 0.05f);
-            svRect.anchorMax = new Vector2(0.85f, 0.85f);
-            svRect.offsetMin = Vector2.zero;
-            svRect.offsetMax = Vector2.zero;
-
-            ScrollRect sv = svObj.AddComponent<ScrollRect>();
-            sv.horizontal = false;
-            sv.vertical = true;
-
-            GameObject vpObj = new GameObject("Viewport");
-            vpObj.transform.SetParent(svObj.transform, false);
-            RectTransform vpRect = vpObj.AddComponent<RectTransform>();
-            vpRect.anchorMin = Vector2.zero;
-            vpRect.anchorMax = Vector2.one;
-            vpRect.sizeDelta = Vector2.zero;
-            vpObj.AddComponent<RectMask2D>();
-
-            GameObject contentObj = new GameObject("Content");
-            contentObj.transform.SetParent(vpObj.transform, false);
-            RectTransform cRect = contentObj.AddComponent<RectTransform>();
-            cRect.anchorMin = new Vector2(0, 1);
-            cRect.anchorMax = new Vector2(1, 1);
-            cRect.pivot = new Vector2(0.5f, 1);
-            cRect.sizeDelta = new Vector2(0, 0);
-
-            VerticalLayoutGroup vlg = contentObj.AddComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(10, 10, 10, 10);
-            vlg.spacing = 10;
-            vlg.childControlWidth = true;
-            vlg.childControlHeight = false;
-
-            ContentSizeFitter csf = contentObj.AddComponent<ContentSizeFitter>();
-            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            sv.viewport = vpRect;
-            sv.content = cRect;
-            moduleModalContent = contentObj.transform;
-
-            moduleModalPanel.SetActive(false);
+            moduleModalPanel = BuildModal(parent, "ModuleModalPopup", out moduleModalContent, out moduleModalTitle);
         }
 
         private void OpenModuleSelectModal(TrainCar car)
@@ -696,7 +362,7 @@ namespace TheLastArk.UI
             string curModName = NexusModuleDatabase.GetModule(car.installedModuleId)?.moduleName ?? "오리진";
             moduleModalTitle.text = $"넥서스 칸 모듈 교체 (현재: {curModName})";
 
-            foreach (Transform child in moduleModalContent) Destroy(child.gameObject);
+            foreach (Transform child in moduleModalContent) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
 
             var allModules = NexusModuleDatabase.GetAllModules();
             foreach (var mod in allModules)
@@ -728,6 +394,7 @@ namespace TheLastArk.UI
                 infoLe.preferredWidth = 440;
 
                 string badge = isCurrent ? " <color=cyan>[현재 장착 중]</color>" : "";
+                string moduleDescription = modData.moduleId == NexusModuleDatabase.OriginId ? "턴마다 행동 주사위를 제공합니다. 기본 2개이며, 강화 레벨당 1개 증가합니다." : modData.description;
                 string specs = $"<color=#88CCFF>최대 강화: Lv.{modData.maxLevel} | 강화 비용: {modData.baseUpgradeCost}G | 파츠 슬롯: {modData.basePartSlots}개</color>";
                 
                 // Get compatible parts
@@ -735,7 +402,7 @@ namespace TheLastArk.UI
                 string partList = parts.Count > 0 ? string.Join(", ", parts.Select(p => p.partName)) : "없음";
                 string partsInfo = $"<size=13><color=#AAAAAA>전용 파츠: {partList}</color></size>";
 
-                CreateTextUI(infoObj.transform, $"<color=yellow><b>{modData.moduleName}</b></color>{badge}\n<size=14>{modData.description}</size>\n{specs}\n{partsInfo}", 15, Color.white, new Vector2(0, 0.5f), new Vector2(0, 0), new Vector2(1, 1));
+                CreateTextUI(infoObj.transform, $"<color=yellow><b>{modData.moduleName}</b></color>{badge}\n<size=14>{moduleDescription}</size>\n{specs}\n{partsInfo}", 15, Color.white, new Vector2(0, 0.5f), new Vector2(0, 0), new Vector2(1, 1));
 
                 // Action Button
                 GameObject actBtnObj = new GameObject("ActionButton");
@@ -770,6 +437,7 @@ namespace TheLastArk.UI
                 }
             }
 
+            PolishModal(moduleModalPanel);
             moduleModalPanel.SetActive(true);
         }
 
@@ -806,7 +474,7 @@ namespace TheLastArk.UI
         {
             UpdateSummaryText();
             UpdateCarsUI();
-            UpdateCharactersUI();
+            if (charactersContainer != null) UpdateCharactersUI();
         }
 
         private void UpdateSummaryText()
@@ -818,18 +486,19 @@ namespace TheLastArk.UI
             int maxCrew = TrainManager.Instance.GetMaxCrewCapacity();
             int curGold = ResourceManager.Instance != null ? ResourceManager.Instance.Gold : 0;
 
-            statusSummaryText.text = $"<color=yellow>보유 골드: {curGold}G</color>  |  " +
-                                     $"<color=#66CCFF>넥서스 기본 AP: {baseAP}</color>  |  " +
-                                     $"<color=#66FF99>승무원실 수용량: {currentCrew} / {maxCrew}명</color>";
+            statusSummaryText.text = $"보유 골드  {curGold:N0} G     ·     승무원  {currentCrew} / {maxCrew}명";
         }
 
         private void UpdateCarsUI()
         {
-            foreach (Transform child in carsContainer) Destroy(child.gameObject);
+            if (carsContainer == null) return;
+            foreach (Transform child in carsContainer) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
 
             if (TrainManager.Instance == null) return;
 
             var allCars = TrainManager.Instance.GetAllCars();
+            var grid = carsContainer.GetComponent<ManagementGridLayout>();
+            if (grid != null) grid.Configure(carMinimumWidth, 292 + allCars.Where(c => c != null).Max(c => c.MaxPartSlots) * 42, carColumns);
             for (int i = 0; i < allCars.Count; i++)
             {
                 CreateCarCard(allCars[i], i + 1);
@@ -838,292 +507,15 @@ namespace TheLastArk.UI
 
         private void CreateCarCard(TrainCar car, int slotIndex)
         {
-            if (car == null) return;
-
-            GameObject carObj = new GameObject($"Car_Slot_{slotIndex}");
-            carObj.transform.SetParent(carsContainer, false);
-            
-            RectTransform rect = carObj.AddComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(320, 340);
-            LayoutElement layout = carObj.AddComponent<LayoutElement>();
-            layout.preferredWidth = 320;
-            layout.preferredHeight = 340;
-
-            Image bg = carObj.AddComponent<Image>();
-            bg.color = new Color(0.14f, 0.18f, 0.25f, 1f);
-
-            VerticalLayoutGroup vLayout = carObj.AddComponent<VerticalLayoutGroup>();
-            vLayout.padding = new RectOffset(15, 15, 12, 12);
-            vLayout.spacing = 6;
-            vLayout.childControlWidth = true;
-            vLayout.childControlHeight = false;
-
-            // 1. Slot badge & Car Name
-            string badgeText = car.carType switch
-            {
-                TrainCarType.Nexus => $"[고정 {slotIndex}] 넥서스 칸",
-                TrainCarType.CrewQuarters => $"[고정 {slotIndex}] 승무원실",
-                TrainCarType.Infirmary => $"[선택 {slotIndex}] 의무실",
-                TrainCarType.CombatEnhancement => $"[선택 {slotIndex}] 전투 강화소",
-                TrainCarType.PrayerRoom => $"[선택 {slotIndex}] 기도실",
-                TrainCarType.TraitTrainingCamp => $"[선택 {slotIndex}] 특성 훈련소",
-                _ => $"[선택 {slotIndex}] 선택 칸 (미건설)"
-            };
-
-            string levelText = car.carType != TrainCarType.Optional
-                ? $"\n<size=16>강화 레벨: Lv.{car.level} / {car.MaxLevel}</size>"
-                : "\n<size=16><color=gray>미건설 상태</color></size>";
-
-            CreateTextUI(carObj.transform, $"<color=#FFCC00><b>{badgeText}</b></color>{levelText}", 19, Color.white)
-                .rectTransform.sizeDelta = new Vector2(290, 44);
-
-            // 2. Sub Info
-            string subInfo = car.carType switch
-            {
-                TrainCarType.Nexus => car.installedModuleId switch
-                {
-                    NexusModuleDatabase.GambleId => $"<color=#66CCFF>모듈: 갬블 ({Battle.GambleDiceManager.GetDiceDescription(car.level, car.HasPartEffect(TrainPartEffectType.GambleChaosDice))})</color>",
-                    NexusModuleDatabase.LimitId => $"<color=#66CCFF>모듈: 리미트 (전환 {(Battle.LimitCardManager.GetRatio(car.level) * 100):F0}%, 한도 {Battle.LimitCardManager.GetThreshold(car)})</color>",
-                    NexusModuleDatabase.ClusterId => $"<color=#66CCFF>모듈: 클러스터 (재시도 {Battle.ClusterCardManager.GetMaxRerolls(car)}회, 분모 {Mathf.Max(1, 5 - car.level)})</color>",
-                    NexusModuleDatabase.ArcanaId => $"<color=#66CCFF>모듈: 아르카나 (AC = {car.level}, 해금 카드 {Battle.ArcanaCardManager.GetAvailableCardPool(car, null).Count}종)</color>",
-                    NexusModuleDatabase.SinId => $"<color=#66CCFF>모듈: 씬 (3턴 주기, 해금 죄악 {Battle.SinModuleManager.GetAvailableSinPool(car).Count}종)</color>",
-                    _ => $"<color=#66CCFF>모듈: 오리진 (기본 AP +{car.level + 4})</color>"
-                },
-                TrainCarType.CrewQuarters => $"<color=#66FF99>최대 수용: {TrainManager.Instance.GetMaxCrewCapacity()}명 (기본 {8 + car.level}명)</color>",
-                TrainCarType.Infirmary => $"<color=#66FF99>전투 종료 시 아군 체력 +{2 + car.level} 회복</color>",
-                TrainCarType.CombatEnhancement => $"<color=#FF9966>전투 시 공격력/주문력 +{car.level * 5}%</color>",
-                TrainCarType.PrayerRoom => $"<color=#FFCC66>전투 중 치유량 +{(TrainManager.Instance.GetPrayerRoomHealMultiplier() * 100):F0}%</color>",
-                TrainCarType.TraitTrainingCamp => $"<color=#CC99FF>시너지 +1 (선택: {car.selectedSynergies.Count}/{car.MaxSelectableSynergies})</color>",
-                _ => "<color=gray>원하는 칸을 건설하여 효과를 활성화하세요.</color>"
-            };
-            CreateTextUI(carObj.transform, subInfo, 14, Color.white).rectTransform.sizeDelta = new Vector2(290, 20);
-
-            // 3. Action / Upgrade / Build Button
-            if (car.carType == TrainCarType.Optional)
-            {
-                // [선택 칸 건설 버튼 (100G)]
-                GameObject buildBtnObj = new GameObject("BuildButton");
-                buildBtnObj.transform.SetParent(carObj.transform, false);
-                RectTransform bRect = buildBtnObj.AddComponent<RectTransform>();
-                bRect.sizeDelta = new Vector2(290, 36);
-
-                Image bImg = buildBtnObj.AddComponent<Image>();
-                Button bBtn = buildBtnObj.AddComponent<Button>();
-
-                int buildCost = TrainManager.Instance.GetDiscountedCost(TrainCar.OptionalCarBuildCost);
-                bool canAfford = ResourceManager.Instance != null && ResourceManager.Instance.Gold >= buildCost;
-                bImg.color = canAfford ? new Color(0.2f, 0.6f, 0.35f, 1f) : new Color(0.4f, 0.4f, 0.4f, 1f);
-                bBtn.interactable = canAfford;
-
-                CreateTextUI(buildBtnObj.transform, $"+ 선택 칸 건설 ({buildCost}G)", 16, Color.white);
-                int optSlotIdx = slotIndex - 2; // slot 3 -> 1, slot 4 -> 2
-                bBtn.onClick.AddListener(() => OpenBuildOptionalCarModal(optSlotIdx));
-            }
-            else
-            {
-                // Upgrade Button
-                GameObject upBtnObj = new GameObject("UpgradeButton");
-                upBtnObj.transform.SetParent(carObj.transform, false);
-                RectTransform upRect = upBtnObj.AddComponent<RectTransform>();
-                upRect.sizeDelta = new Vector2(290, 32);
-
-                Image upImg = upBtnObj.AddComponent<Image>();
-                Button upBtn = upBtnObj.AddComponent<Button>();
-
-                if (car.CanUpgrade)
-                {
-                    int cost = TrainManager.Instance.GetDiscountedCost(car.UpgradeCost);
-                    bool canAfford = ResourceManager.Instance != null && ResourceManager.Instance.Gold >= cost;
-                    upImg.color = canAfford ? new Color(0.2f, 0.6f, 0.35f, 1f) : new Color(0.4f, 0.4f, 0.4f, 1f);
-                    upBtn.interactable = canAfford;
-
-                    string bonusLabel = car.carType switch
-                    {
-                        TrainCarType.Nexus => car.installedModuleId switch
-                        {
-                            NexusModuleDatabase.GambleId => "주사위 강화",
-                            NexusModuleDatabase.LimitId => "+10% 비율",
-                            NexusModuleDatabase.ClusterId => "재시도 +2회",
-                            NexusModuleDatabase.ArcanaId => "카드 풀 확장",
-                            NexusModuleDatabase.SinId => "죄악 풀 확장",
-                            _ => "+1 AP"
-                        },
-                        TrainCarType.CrewQuarters => "+1명 수용",
-                        TrainCarType.Infirmary => "+1 회복",
-                        TrainCarType.CombatEnhancement => "+5% 공/주",
-                        TrainCarType.PrayerRoom => "치유량 증가",
-                        TrainCarType.TraitTrainingCamp => "+1 슬롯",
-                        _ => "+1"
-                    };
-                    CreateTextUI(upBtnObj.transform, $"강화 ({cost}G) [{bonusLabel}]", 15, Color.white);
-
-                    upBtn.onClick.AddListener(() =>
-                    {
-                        if (TrainManager.Instance.TryUpgradeCar(car))
-                        {
-                            NotificationManager.Instance?.ShowMessage($"{car.carName} Lv.{car.level} 강화 성공!", Color.green);
-                            UpdateUI();
-                        }
-                        else
-                        {
-                            NotificationManager.Instance?.ShowMessage("골드가 부족합니다!", Color.red);
-                        }
-                    });
-                }
-                else
-                {
-                    upImg.color = new Color(0.3f, 0.3f, 0.35f, 1f);
-                    upBtn.interactable = false;
-                    CreateTextUI(upBtnObj.transform, "최대 강화 완료 (MAX)", 15, Color.yellow);
-                }
-
-                // Extra Action Buttons for Nexus (Change Module)
-                if (car.carType == TrainCarType.Nexus)
-                {
-                    GameObject subActionsObj = new GameObject("NexusSubActions");
-                    subActionsObj.transform.SetParent(carObj.transform, false);
-                    RectTransform saRect = subActionsObj.AddComponent<RectTransform>();
-                    saRect.sizeDelta = new Vector2(290, 28);
-
-                    HorizontalLayoutGroup saHlg = subActionsObj.AddComponent<HorizontalLayoutGroup>();
-                    saHlg.spacing = 8;
-                    saHlg.childControlWidth = true;
-                    saHlg.childControlHeight = true;
-
-                    GameObject modBtnObj = new GameObject("ChangeModuleButton");
-                    modBtnObj.transform.SetParent(subActionsObj.transform, false);
-                    Image modImg = modBtnObj.AddComponent<Image>();
-                    modImg.color = new Color(0.25f, 0.45f, 0.70f, 1f);
-                    Button modBtn = modBtnObj.AddComponent<Button>();
-                    CreateTextUI(modBtnObj.transform, "🔄 넥서스 모듈 교체", 14, Color.white);
-                    modBtn.onClick.AddListener(() => OpenModuleSelectModal(car));
-                }
-
-                // Extra Action Buttons for Optional Cars
-                if (car.IsBuiltOptionalCar)
-                {
-                    GameObject subActionsObj = new GameObject("SubActions");
-                    subActionsObj.transform.SetParent(carObj.transform, false);
-                    RectTransform saRect = subActionsObj.AddComponent<RectTransform>();
-                    saRect.sizeDelta = new Vector2(290, 28);
-
-                    HorizontalLayoutGroup saHlg = subActionsObj.AddComponent<HorizontalLayoutGroup>();
-                    saHlg.spacing = 8;
-                    saHlg.childControlWidth = true;
-                    saHlg.childControlHeight = true;
-
-                    // If TraitTrainingCamp, show Synergy Select button
-                    if (car.carType == TrainCarType.TraitTrainingCamp)
-                    {
-                        GameObject synBtnObj = new GameObject("SynergySelectButton");
-                        synBtnObj.transform.SetParent(subActionsObj.transform, false);
-                        Image synImg = synBtnObj.AddComponent<Image>();
-                        synImg.color = new Color(0.45f, 0.25f, 0.65f, 1f);
-                        Button synBtn = synBtnObj.AddComponent<Button>();
-                        CreateTextUI(synBtnObj.transform, "시너지 선택", 14, Color.white);
-                        synBtn.onClick.AddListener(() => OpenSynergySelectModal(car));
-                    }
-
-                    // Dismantle Button
-                    GameObject disBtnObj = new GameObject("DismantleButton");
-                    disBtnObj.transform.SetParent(subActionsObj.transform, false);
-                    Image disImg = disBtnObj.AddComponent<Image>();
-                    int disCost = TrainManager.Instance.GetDiscountedCost(TrainCar.OptionalCarDismantleCost);
-                    bool canAffordDis = ResourceManager.Instance != null && ResourceManager.Instance.Gold >= disCost;
-                    disImg.color = canAffordDis ? new Color(0.7f, 0.25f, 0.25f, 1f) : new Color(0.4f, 0.4f, 0.4f, 1f);
-                    Button disBtn = disBtnObj.AddComponent<Button>();
-                    disBtn.interactable = canAffordDis;
-                    CreateTextUI(disBtnObj.transform, $"철거 ({disCost}G)", 14, Color.white);
-
-                    int optSlotIdx = slotIndex - 2;
-                    disBtn.onClick.AddListener(() =>
-                    {
-                        if (TrainManager.Instance.TryDismantleOptionalCar(optSlotIdx))
-                        {
-                            NotificationManager.Instance?.ShowMessage($"{car.carName} 철거 완료", Color.gray);
-                            UpdateUI();
-                        }
-                        else
-                        {
-                            NotificationManager.Instance?.ShowMessage("골드가 부족합니다!", Color.red);
-                        }
-                    });
-                }
-            }
-
-            // 4. Parts Section Header
-            int maxSlots = car.MaxPartSlots;
-            CreateTextUI(carObj.transform, $"<color=#E0E0E0>장착 파츠 ({car.installedParts.Count}/{maxSlots})</color>", 15, Color.white)
-                .rectTransform.sizeDelta = new Vector2(290, 18);
-
-            // 5. Parts Slots
-            for (int s = 0; s < maxSlots; s++)
-            {
-                int slotIdx = s;
-                bool hasPart = slotIdx < car.installedParts.Count;
-                string partId = hasPart ? car.installedParts[slotIdx] : null;
-                TrainPartData partData = hasPart ? TrainPartDatabase.GetPart(partId) : null;
-
-                GameObject slotObj = new GameObject($"PartSlot_{slotIdx}");
-                slotObj.transform.SetParent(carObj.transform, false);
-                RectTransform sRect = slotObj.AddComponent<RectTransform>();
-                sRect.sizeDelta = new Vector2(290, 28);
-
-                Image sImg = slotObj.AddComponent<Image>();
-                sImg.color = hasPart ? new Color(0.2f, 0.28f, 0.38f, 1f) : new Color(0.1f, 0.13f, 0.18f, 0.8f);
-
-                if (hasPart && partData != null)
-                {
-                    // Slot Content (Part Name + Remove Button)
-                    HorizontalLayoutGroup hlg = slotObj.AddComponent<HorizontalLayoutGroup>();
-                    hlg.padding = new RectOffset(6, 6, 3, 3);
-                    hlg.spacing = 6;
-                    hlg.childControlWidth = false;
-                    hlg.childControlHeight = true;
-
-                    GameObject nameObj = new GameObject("PartName");
-                    nameObj.transform.SetParent(slotObj.transform, false);
-                    LayoutElement nLe = nameObj.AddComponent<LayoutElement>();
-                    nLe.preferredWidth = 220;
-                    CreateTextUI(nameObj.transform, $"<color=cyan>{partData.partName}</color>", 13, Color.white, new Vector2(0, 0.5f), new Vector2(0, 0), new Vector2(1, 1));
-
-                    GameObject unmountBtnObj = new GameObject("UnmountBtn");
-                    unmountBtnObj.transform.SetParent(slotObj.transform, false);
-                    LayoutElement uLe = unmountBtnObj.AddComponent<LayoutElement>();
-                    uLe.preferredWidth = 48;
-                    Image uImg = unmountBtnObj.AddComponent<Image>();
-                    uImg.color = new Color(0.7f, 0.25f, 0.25f, 1f);
-                    Button uBtn = unmountBtnObj.AddComponent<Button>();
-                    CreateTextUI(unmountBtnObj.transform, "해제", 12, Color.white);
-
-                    uBtn.onClick.AddListener(() =>
-                    {
-                        TrainManager.Instance.TryUninstallPart(car, partId);
-                        NotificationManager.Instance?.ShowMessage($"[{partData.partName}] 파츠 해제 완료", Color.gray);
-                        UpdateUI();
-                    });
-                }
-                else
-                {
-                    // Empty Slot -> Mount Part Button
-                    Button sBtn = slotObj.AddComponent<Button>();
-                    sBtn.interactable = car.carType != TrainCarType.Optional;
-                    CreateTextUI(slotObj.transform, "+ 파츠 장착", 13, car.carType != TrainCarType.Optional ? Color.gray : new Color(0.3f, 0.3f, 0.3f, 1f));
-
-                    if (car.carType != TrainCarType.Optional)
-                    {
-                        sBtn.onClick.AddListener(() => OpenPartModal(car));
-                    }
-                }
-            }
+            BuildCarCard(car, slotIndex);
         }
 
         private void OpenBuildOptionalCarModal(int slotIndex)
         {
             currentBuildingSlotIndex = slotIndex;
-            buildModalTitle.text = $"선택 칸 {slotIndex} 모듈 건설 (100G)";
+            buildModalTitle.text = $"선택 차량 {slotIndex}  /  시설 건설";
 
-            foreach (Transform child in buildModalContent) Destroy(child.gameObject);
+            foreach (Transform child in buildModalContent) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
 
             var options = new (TrainCarType type, string name, string desc)[]
             {
@@ -1189,6 +581,7 @@ namespace TheLastArk.UI
                 });
             }
 
+            PolishModal(buildModalPanel);
             buildModalPanel.SetActive(true);
         }
 
@@ -1201,7 +594,7 @@ namespace TheLastArk.UI
 
             synergyModalTitle.text = $"특성 훈련소 시너지 선택 (선택: {car.selectedSynergies.Count} / {maxAllowed})";
 
-            foreach (Transform child in synergyModalContent) Destroy(child.gameObject);
+            foreach (Transform child in synergyModalContent) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
 
             var allSynergies = Enum.GetValues(typeof(SynergyType)).Cast<SynergyType>().ToList();
 
@@ -1253,10 +646,11 @@ namespace TheLastArk.UI
                     }
 
                     OpenSynergySelectModal(car);
-                    UpdateSummaryText();
+                    UpdateUI();
                 });
             }
 
+            PolishModal(synergyModalPanel);
             synergyModalPanel.SetActive(true);
         }
 
@@ -1265,7 +659,7 @@ namespace TheLastArk.UI
             if (car == null) return;
 
             partModalTitle.text = $"[{car.carName}] 파츠 장착 및 구매";
-            foreach (Transform child in partModalContent) Destroy(child.gameObject);
+            foreach (Transform child in partModalContent) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
 
             var availableParts = TrainPartDatabase.GetPartsForCar(car.carType, car.installedModuleId);
             if (availableParts.Count == 0)
@@ -1340,6 +734,7 @@ namespace TheLastArk.UI
                 }
             }
 
+            PolishModal(partModalPanel);
             partModalPanel.SetActive(true);
         }
 

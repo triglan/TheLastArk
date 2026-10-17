@@ -8,6 +8,8 @@ using System.Collections.Generic;
 [System.Serializable]
 public class RunState
 {
+    // Empty until a run first resolves its configured starting region.
+    public string currentRegionId = "";
     // ── 자원 ──────────────────────────────────────────────────────
     public int gold = 0;
 
@@ -17,6 +19,7 @@ public class RunState
 
     /// <summary>현재 파티의 런 타임 상태 (HP, 정신력 등)</summary>
     public List<CharacterStatus> partyStatuses = new List<CharacterStatus>();
+    public TheLastArk.Data.EquipmentLoadouts equipmentLoadouts = new TheLastArk.Data.EquipmentLoadouts();
 
     /// <summary>파티 리더의 캐릭터 ID</summary>
     public string leaderCharacterID = "";
@@ -36,9 +39,11 @@ public class RunState
     // ── 초기화 ────────────────────────────────────────────────────
     public void Reset()
     {
+        currentRegionId = "";
         gold                    = 0;
         partyDataIDs            = new List<string>();
         partyStatuses           = new List<CharacterStatus>();
+        equipmentLoadouts       = new TheLastArk.Data.EquipmentLoadouts();
         leaderCharacterID       = "";
         relicIDs                = new List<string>();
         consumableIDs           = new List<string>();

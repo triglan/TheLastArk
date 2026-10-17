@@ -8,8 +8,12 @@ namespace TheLastArk.UI
 {
     public sealed class BattleDiceUI : MonoBehaviour
     {
+        public const float DieSize = 64f;
         private BattleManager _battle;
         private RectTransform _root;
+        private RectTransform _dragCanvas;
+        private RectTransform _tray;
+        private bool? _dockedDiceMode;
         private readonly List<Image> _faces = new List<Image>(ActionDicePool.MaxDicePerTurn);
         private readonly List<DiceDragSource> _sources = new List<DiceDragSource>(ActionDicePool.MaxDicePerTurn);
         private readonly List<TextMeshProUGUI> _labels = new List<TextMeshProUGUI>(ActionDicePool.MaxDicePerTurn);
@@ -19,31 +23,35 @@ namespace TheLastArk.UI
         {
             _battle = battle;
             if (_root != null) return;
+            _dragCanvas = canvas as RectTransform;
+            _tray = canvas.Find("BattleSkillTray") as RectTransform;
 
-            var panel = new GameObject("BattleDicePool", typeof(RectTransform), typeof(Image), typeof(HorizontalLayoutGroup));
-            panel.transform.SetParent(canvas, false);
+            var panel = new GameObject("BattleDicePool", typeof(RectTransform), typeof(Image), typeof(GridLayoutGroup));
+            panel.transform.SetParent(_tray != null ? _tray : canvas, false);
             _root = panel.GetComponent<RectTransform>();
-            _root.anchorMin = new Vector2(0.5f, 0f);
-            _root.anchorMax = new Vector2(0.5f, 0f);
-            _root.pivot = new Vector2(0.5f, 0f);
-            _root.anchoredPosition = new Vector2(0f, 440f);
-            _root.sizeDelta = new Vector2(650f, 76f);
+            _root.anchorMin = _root.anchorMax = _tray != null ? new Vector2(1f, 0.5f) : new Vector2(0.5f, 0f);
+            _root.pivot = new Vector2(0.5f, 0.5f);
+            _root.anchoredPosition = _tray != null ? new Vector2(-330f, -10f) : new Vector2(0f, 90f);
+            _root.sizeDelta = new Vector2(376f, 152f);
             panel.GetComponent<Image>().color = new Color(0.04f, 0.09f, 0.16f, 0.82f);
-            var layout = panel.GetComponent<HorizontalLayoutGroup>();
-            layout.spacing = 4f;
-            layout.padding = new RectOffset(8, 8, 8, 8);
+            panel.GetComponent<Image>().raycastTarget = false;
+            var layout = panel.GetComponent<GridLayoutGroup>();
+            layout.cellSize = Vector2.one * DieSize;
+            layout.spacing = Vector2.one * 10f;
+            layout.padding = new RectOffset(8, 8, 7, 7);
             layout.childAlignment = TextAnchor.MiddleCenter;
-            layout.childControlWidth = false;
-            layout.childControlHeight = false;
+            layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            layout.constraintCount = 5;
 
             for (int i = 0; i < ActionDicePool.MaxDicePerTurn; i++)
             {
                 var dieObject = new GameObject($"Die_{i + 1}", typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(LayoutElement), typeof(DiceDragSource));
                 dieObject.transform.SetParent(panel.transform, false);
                 var element = dieObject.GetComponent<LayoutElement>();
-                element.preferredWidth = 58f;
-                element.preferredHeight = 58f;
+                element.preferredWidth = DieSize;
+                element.preferredHeight = DieSize;
                 Image face = dieObject.GetComponent<Image>();
+                face.rectTransform.sizeDelta = Vector2.one * DieSize;
                 face.preserveAspect = true;
                 _faces.Add(face);
                 _sources.Add(dieObject.GetComponent<DiceDragSource>());
@@ -62,11 +70,31 @@ namespace TheLastArk.UI
                 TMPFontManager.ApplyFont(label);
                 _labels.Add(label);
             }
+            var hintObject = new GameObject("DiceHint", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+            hintObject.transform.SetParent(_root, false);
+            hintObject.GetComponent<LayoutElement>().ignoreLayout = true;
+            var hint = hintObject.GetComponent<TextMeshProUGUI>();
+            hint.rectTransform.anchorMin = hint.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+            hint.rectTransform.sizeDelta = new Vector2(376f, 26f);
+            hint.rectTransform.anchoredPosition = new Vector2(0f, 16f);
+            hint.text = "대상 선택 후 주사위를 스킬로";
+            hint.fontSize = 18f; hint.alignment = TextAlignmentOptions.Center;
+            hint.color = new Color(0.7f, 0.82f, 0.86f); hint.raycastTarget = false;
+            TMPFontManager.ApplyFont(hint);
+            ApplyTrayLayout(_battle != null && _battle.UsesDice);
+        }
+
+        public void ApplyTrayLayout(bool diceMode)
+        {
+            if (_tray == null || _dockedDiceMode == diceMode) return;
+            _dockedDiceMode = diceMode;
+            BattleHudLayout.ApplySkillGrid(_tray, diceMode);
         }
 
         public void Refresh(IReadOnlyList<ActionDie> dice, IReadOnlyList<int> selected)
         {
             if (_root == null) return;
+            ApplyTrayLayout(_battle != null && _battle.UsesDice);
             _root.gameObject.SetActive(_battle != null && _battle.UsesDice);
             if (!_root.gameObject.activeSelf) return;
 
@@ -78,7 +106,7 @@ namespace TheLastArk.UI
                 if (!exists) continue;
 
                 ActionDie die = dice[i];
-                _sources[i].Configure(die.Id, _root.parent as RectTransform);
+                _sources[i].Configure(die.Id, _dragCanvas);
                 _sources[i].enabled = die.IsAvailable && _battle.IsPlayerTurn;
                 int spriteValue = die.Value <= 6 ? die.Value : 0;
                 if (!_sprites.TryGetValue(spriteValue, out Sprite sprite))

@@ -370,6 +370,8 @@ public class EnemyPatternCombatTests
             attackerData.maxHp = 20f;
             attackerData.baseAttack = 4f;
             defenderData.maxHp = 20f;
+            attackerData.armor = 0f;
+            defenderData.armor = 0f;
 
             var attacker = attackerObject.AddComponent<BattleCharacter>();
             var defender = defenderObject.AddComponent<BattleCharacter>();
@@ -473,6 +475,7 @@ public class EnemyPatternCombatTests
             attackerData.isEnemy = true;
             attackerData.maxHp = 20f;
             targetData.maxHp = 20f;
+            targetData.armor = 0f;
             var attacker = attackerObject.AddComponent<BattleCharacter>();
             var target = targetObject.AddComponent<BattleCharacter>();
             attacker.status = new CharacterStatus(attackerData);
@@ -482,17 +485,13 @@ public class EnemyPatternCombatTests
             {
                 effects = new List<EffectEntry>
                 {
-                    new EffectEntry { type = EffectType.Damage, multiplier = 0f, fixedValue = 3f },
-                    new EffectEntry
-                    {
-                        type = EffectType.Strength,
-                        value = 1f,
-                        durationType = StatusDurationType.Permanent
-                    }
+                    new EffectEntry { type = EffectType.Damage, multiplier = 0f, fixedValue = 3f }
                 }
             };
             EffectEngine.ProcessSkill(attacker, new List<BattleCharacter> { target }, attackThenGrow, "공격 후 성장");
             Assert.AreEqual(17f, target.status.currentHp);
+            // ProcessSkill applies every entry to its provided targets; apply the self buff explicitly.
+            attacker.status.ApplyStatusEffect(EffectType.Strength, 1f, 1, StatusDurationType.Permanent);
 
             var nextAttack = new SkillLevelData
             {
@@ -755,7 +754,8 @@ public class EnemyPatternCombatTests
             Assert.AreEqual(EnemyIntentVisualType.Attack, ai.PreparedIntent.VisualType);
             Assert.AreSame(target, ai.PreparedIntent.Targets[0]);
             Assert.AreEqual(3f, ai.PreparedIntent.Effects[1].Value);
-            Assert.AreEqual(2, ai.PreparedIntent.Effects[1].HitCount);
+            // Initial 1 + this action's increment 1 + the base hit 1.
+            Assert.AreEqual(3, ai.PreparedIntent.Effects[1].HitCount);
             Assert.AreSame(intentIcon, ai.PreparedIntent.Effects[1].Icon);
         }
         finally
@@ -808,9 +808,10 @@ public class EnemyPatternCombatTests
             enemy.status = new CharacterStatus(enemyData);
             enemyObject.AddComponent<EnemyAI>();
             var ui = enemyObject.AddComponent<TheLastArk.UI.EnemyEnhancementUI>();
-            ui.SendMessage("LateUpdate");
+            typeof(TheLastArk.UI.EnemyEnhancementUI).GetMethod("LateUpdate", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(ui, null);
 
-            Assert.AreEqual(12, enemyObject.GetComponentsInChildren<UnityEngine.UI.Image>(true).Length);
+            var images = enemyObject.GetComponentsInChildren<UnityEngine.UI.Image>(true);
+            Assert.AreEqual(11, System.Array.FindAll(images, image => image.name == "Enhancement Icon" && image.sprite == icon).Length);
         }
         finally
         {

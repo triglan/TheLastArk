@@ -8,6 +8,9 @@ using System.Linq;
 [System.Serializable]
 public class MapData
 {
+    // Map-local coordinates survive scene changes and can be sent by a future network adapter.
+    public List<MapAnnotationStroke> annotations = new List<MapAnnotationStroke>();
+
     /// <summary>전체 노드 리스트</summary>
     public List<MapNode> allNodes = new List<MapNode>();
 

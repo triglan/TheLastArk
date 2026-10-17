@@ -1,0 +1,1409 @@
+{
+  "checked_at": "2026-09-27",
+  "endpoint": "https://safebooru.donmai.us/tags.json",
+  "tags": [
+    {
+      "id": 1695790,
+      "name": "leather_apron",
+      "post_count": 43,
+      "category": 0,
+      "created_at": "2021-09-22T18:23:38.042-04:00",
+      "updated_at": "2021-09-22T18:23:38.042-04:00",
+      "is_deprecated": false,
+      "words": [
+        "leather",
+        "apron"
+      ]
+    },
+    {
+      "id": 1631677,
+      "name": "mature_male",
+      "post_count": 45481,
+      "category": 0,
+      "created_at": "2021-02-09T13:17:00.299-05:00",
+      "updated_at": "2021-02-09T13:17:00.299-05:00",
+      "is_deprecated": false,
+      "words": [
+        "mature",
+        "male"
+      ]
+    },
+    {
+      "id": 1451588,
+      "name": "muscular_male",
+      "post_count": 141095,
+      "category": 0,
+      "created_at": "2017-12-18T19:42:43.341-05:00",
+      "updated_at": "2019-08-29T17:44:05.639-04:00",
+      "is_deprecated": false,
+      "words": [
+        "muscular",
+        "male"
+      ]
+    },
+    {
+      "id": 1448570,
+      "name": "gold_earrings",
+      "post_count": 15710,
+      "category": 0,
+      "created_at": "2017-11-29T01:38:07.411-05:00",
+      "updated_at": "2019-09-02T09:12:43.577-04:00",
+      "is_deprecated": false,
+      "words": [
+        "gold",
+        "earrings"
+      ]
+    },
+    {
+      "id": 1365001,
+      "name": "black_robe",
+      "post_count": 12602,
+      "category": 0,
+      "created_at": "2016-05-02T07:44:18.526-04:00",
+      "updated_at": "2019-09-02T04:20:55.826-04:00",
+      "is_deprecated": false,
+      "words": [
+        "black",
+        "robe"
+      ]
+    },
+    {
+      "id": 1217551,
+      "name": "black_armor",
+      "post_count": 11608,
+      "category": 0,
+      "created_at": "2013-03-30T21:21:16.738-04:00",
+      "updated_at": "2019-08-31T21:06:56.302-04:00",
+      "is_deprecated": false,
+      "words": [
+        "black",
+        "armor"
+      ]
+    },
+    {
+      "id": 773347,
+      "name": "leather_armor",
+      "post_count": 2043,
+      "category": 0,
+      "created_at": "2013-02-21T10:44:26.339-05:00",
+      "updated_at": "2019-09-01T20:28:21.061-04:00",
+      "is_deprecated": false,
+      "words": [
+        "leather",
+        "armor"
+      ]
+    },
+    {
+      "id": 612580,
+      "name": "mandibles",
+      "post_count": 685,
+      "category": 0,
+      "created_at": "2013-02-19T18:46:32.489-05:00",
+      "updated_at": "2019-09-02T00:44:34.041-04:00",
+      "is_deprecated": false,
+      "words": [
+        "mandibles"
+      ]
+    },
+    {
+      "id": 607798,
+      "name": "arm_wrap",
+      "post_count": 4566,
+      "category": 0,
+      "created_at": "2013-02-28T14:18:28.145-05:00",
+      "updated_at": "2019-09-01T20:57:26.360-04:00",
+      "is_deprecated": false,
+      "words": [
+        "arm",
+        "wrap"
+      ]
+    },
+    {
+      "id": 590508,
+      "name": "pincers",
+      "post_count": 795,
+      "category": 0,
+      "created_at": "2013-02-27T23:17:49.528-05:00",
+      "updated_at": "2019-09-02T04:16:58.745-04:00",
+      "is_deprecated": false,
+      "words": [
+        "pincers"
+      ]
+    },
+    {
+      "id": 589398,
+      "name": "hood_down",
+      "post_count": 146356,
+      "category": 0,
+      "created_at": "2013-02-27T23:34:43.906-05:00",
+      "updated_at": "2019-09-01T06:33:51.496-04:00",
+      "is_deprecated": false,
+      "words": [
+        "hood",
+        "down"
+      ]
+    },
+    {
+      "id": 566116,
+      "name": "scar_on_face",
+      "post_count": 109084,
+      "category": 0,
+      "created_at": "2013-02-26T12:37:39.082-05:00",
+      "updated_at": "2019-06-04T04:00:25.692-04:00",
+      "is_deprecated": false,
+      "words": [
+        "scar",
+        "on",
+        "face"
+      ]
+    },
+    {
+      "id": 561547,
+      "name": "shoulder_armor",
+      "post_count": 105021,
+      "category": 0,
+      "created_at": "2013-02-22T18:34:13.257-05:00",
+      "updated_at": "2019-09-01T17:46:49.056-04:00",
+      "is_deprecated": false,
+      "words": [
+        "shoulder",
+        "armor"
+      ]
+    },
+    {
+      "id": 543958,
+      "name": "bags_under_eyes",
+      "post_count": 43928,
+      "category": 0,
+      "created_at": "2013-02-28T07:02:48.131-05:00",
+      "updated_at": "2019-08-31T03:14:34.743-04:00",
+      "is_deprecated": false,
+      "words": [
+        "bags",
+        "under",
+        "eyes"
+      ]
+    },
+    {
+      "id": 539584,
+      "name": "fur_trim",
+      "post_count": 236908,
+      "category": 0,
+      "created_at": "2013-02-28T11:35:19.060-05:00",
+      "updated_at": "2019-08-27T04:29:37.259-04:00",
+      "is_deprecated": false,
+      "words": [
+        "fur",
+        "trim"
+      ]
+    },
+    {
+      "id": 538432,
+      "name": "full_armor",
+      "post_count": 11222,
+      "category": 0,
+      "created_at": "2013-02-28T03:25:23.578-05:00",
+      "updated_at": "2019-09-01T12:06:53.982-04:00",
+      "is_deprecated": false,
+      "words": [
+        "full",
+        "armor"
+      ]
+    },
+    {
+      "id": 533783,
+      "name": "reins",
+      "post_count": 3018,
+      "category": 0,
+      "created_at": "2013-02-27T20:17:07.256-05:00",
+      "updated_at": "2019-09-01T01:36:15.516-04:00",
+      "is_deprecated": false,
+      "words": [
+        "reins"
+      ]
+    },
+    {
+      "id": 520554,
+      "name": "blue_fire",
+      "post_count": 13240,
+      "category": 0,
+      "created_at": "2013-02-27T23:54:23.039-05:00",
+      "updated_at": "2019-09-01T14:48:30.293-04:00",
+      "is_deprecated": false,
+      "words": [
+        "blue",
+        "fire"
+      ]
+    },
+    {
+      "id": 513877,
+      "name": "exoskeleton",
+      "post_count": 1150,
+      "category": 0,
+      "created_at": "2013-02-28T00:42:56.475-05:00",
+      "updated_at": "2019-09-02T10:37:02.419-04:00",
+      "is_deprecated": false,
+      "words": [
+        "exoskeleton"
+      ]
+    },
+    {
+      "id": 494245,
+      "name": "red_scarf",
+      "post_count": 49262,
+      "category": 0,
+      "created_at": "2013-02-28T15:31:42.258-05:00",
+      "updated_at": "2019-08-31T22:17:50.200-04:00",
+      "is_deprecated": false,
+      "words": [
+        "red",
+        "scarf"
+      ]
+    },
+    {
+      "id": 475744,
+      "name": "breastplate",
+      "post_count": 41462,
+      "category": 0,
+      "created_at": "2013-02-28T09:13:57.793-05:00",
+      "updated_at": "2019-08-30T12:52:34.624-04:00",
+      "is_deprecated": false,
+      "words": [
+        "breastplate"
+      ]
+    },
+    {
+      "id": 474820,
+      "name": "black_gloves",
+      "post_count": 683565,
+      "category": 0,
+      "created_at": "2013-02-28T00:50:19.247-05:00",
+      "updated_at": "2019-08-25T13:30:16.291-04:00",
+      "is_deprecated": false,
+      "words": [
+        "black",
+        "gloves"
+      ]
+    },
+    {
+      "id": 464573,
+      "name": "plant",
+      "post_count": 103311,
+      "category": 0,
+      "created_at": "2013-02-28T00:13:22.847-05:00",
+      "updated_at": "2019-08-28T17:38:36.297-04:00",
+      "is_deprecated": false,
+      "words": [
+        "plant"
+      ]
+    },
+    {
+      "id": 464566,
+      "name": "monster",
+      "post_count": 43517,
+      "category": 0,
+      "created_at": "2013-02-28T12:51:01.873-05:00",
+      "updated_at": "2019-08-29T12:01:15.486-04:00",
+      "is_deprecated": false,
+      "words": [
+        "monster"
+      ]
+    },
+    {
+      "id": 464546,
+      "name": "chain",
+      "post_count": 144257,
+      "category": 0,
+      "created_at": "2013-02-28T02:50:19.010-05:00",
+      "updated_at": "2019-08-26T14:21:52.613-04:00",
+      "is_deprecated": false,
+      "words": [
+        "chain"
+      ]
+    },
+    {
+      "id": 460502,
+      "name": "dual_wielding",
+      "post_count": 41539,
+      "category": 0,
+      "created_at": "2013-02-27T17:11:12.042-05:00",
+      "updated_at": "2019-08-29T23:24:39.140-04:00",
+      "is_deprecated": false,
+      "words": [
+        "dual",
+        "wielding"
+      ]
+    },
+    {
+      "id": 448692,
+      "name": "saddle",
+      "post_count": 2129,
+      "category": 0,
+      "created_at": "2013-02-27T22:33:46.283-05:00",
+      "updated_at": "2019-09-02T02:37:15.792-04:00",
+      "is_deprecated": false,
+      "words": [
+        "saddle"
+      ]
+    },
+    {
+      "id": 446950,
+      "name": "fangs",
+      "post_count": 158225,
+      "category": 0,
+      "created_at": "2013-02-27T22:10:32.878-05:00",
+      "updated_at": "2019-09-01T23:20:55.567-04:00",
+      "is_deprecated": false,
+      "words": [
+        "fangs"
+      ]
+    },
+    {
+      "id": 446647,
+      "name": "pale_skin",
+      "post_count": 74427,
+      "category": 0,
+      "created_at": "2013-02-28T06:25:25.020-05:00",
+      "updated_at": "2019-09-01T08:42:19.603-04:00",
+      "is_deprecated": false,
+      "words": [
+        "pale",
+        "skin"
+      ]
+    },
+    {
+      "id": 442316,
+      "name": "pouch",
+      "post_count": 52580,
+      "category": 0,
+      "created_at": "2013-02-28T07:10:37.422-05:00",
+      "updated_at": "2019-09-01T23:30:48.521-04:00",
+      "is_deprecated": false,
+      "words": [
+        "pouch"
+      ]
+    },
+    {
+      "id": 435262,
+      "name": "stubble",
+      "post_count": 43858,
+      "category": 0,
+      "created_at": "2013-02-28T00:49:10.984-05:00",
+      "updated_at": "2019-08-30T13:56:17.303-04:00",
+      "is_deprecated": false,
+      "words": [
+        "stubble"
+      ]
+    },
+    {
+      "id": 420749,
+      "name": "turban",
+      "post_count": 4526,
+      "category": 0,
+      "created_at": "2013-02-28T00:36:02.759-05:00",
+      "updated_at": "2019-09-02T05:38:08.527-04:00",
+      "is_deprecated": false,
+      "words": [
+        "turban"
+      ]
+    },
+    {
+      "id": 416388,
+      "name": "stinger",
+      "post_count": 840,
+      "category": 0,
+      "created_at": "2013-02-27T15:02:25.051-05:00",
+      "updated_at": "2019-08-31T23:50:05.629-04:00",
+      "is_deprecated": false,
+      "words": [
+        "stinger"
+      ]
+    },
+    {
+      "id": 413660,
+      "name": "worm",
+      "post_count": 1191,
+      "category": 0,
+      "created_at": "2013-02-28T17:01:19.950-05:00",
+      "updated_at": "2019-09-01T20:11:29.049-04:00",
+      "is_deprecated": false,
+      "words": [
+        "worm"
+      ]
+    },
+    {
+      "id": 404507,
+      "name": "sharp_teeth",
+      "post_count": 125142,
+      "category": 0,
+      "created_at": "2013-02-28T11:30:53.529-05:00",
+      "updated_at": "2019-08-30T17:49:17.265-04:00",
+      "is_deprecated": false,
+      "words": [
+        "sharp",
+        "teeth"
+      ]
+    },
+    {
+      "id": 403286,
+      "name": "toned",
+      "post_count": 61398,
+      "category": 0,
+      "created_at": "2013-02-28T07:39:57.682-05:00",
+      "updated_at": "2019-09-01T17:46:36.179-04:00",
+      "is_deprecated": false,
+      "words": [
+        "toned"
+      ]
+    },
+    {
+      "id": 403060,
+      "name": "gauntlets",
+      "post_count": 69289,
+      "category": 0,
+      "created_at": "2013-02-28T00:52:30.777-05:00",
+      "updated_at": "2019-09-02T08:38:53.712-04:00",
+      "is_deprecated": false,
+      "words": [
+        "gauntlets"
+      ]
+    },
+    {
+      "id": 401836,
+      "name": "messy_hair",
+      "post_count": 92653,
+      "category": 0,
+      "created_at": "2013-02-27T19:45:40.422-05:00",
+      "updated_at": "2019-08-31T20:57:54.747-04:00",
+      "is_deprecated": false,
+      "words": [
+        "messy",
+        "hair"
+      ]
+    },
+    {
+      "id": 401696,
+      "name": "hook",
+      "post_count": 1173,
+      "category": 0,
+      "created_at": "2013-02-28T16:17:43.226-05:00",
+      "updated_at": "2019-09-02T00:07:58.864-04:00",
+      "is_deprecated": false,
+      "words": [
+        "hook"
+      ]
+    },
+    {
+      "id": 401228,
+      "name": "sword",
+      "post_count": 375931,
+      "category": 0,
+      "created_at": "2013-02-27T23:50:24.481-05:00",
+      "updated_at": "2019-08-30T19:30:48.318-04:00",
+      "is_deprecated": false,
+      "words": [
+        "sword"
+      ]
+    },
+    {
+      "id": 400314,
+      "name": "sleeveless",
+      "post_count": 640918,
+      "category": 0,
+      "created_at": "2013-02-27T21:08:57.244-05:00",
+      "updated_at": "2019-08-28T13:48:42.778-04:00",
+      "is_deprecated": false,
+      "words": [
+        "sleeveless"
+      ]
+    },
+    {
+      "id": 399541,
+      "name": "hair_over_one_eye",
+      "post_count": 374756,
+      "category": 0,
+      "created_at": "2013-02-28T03:00:37.946-05:00",
+      "updated_at": "2019-08-28T00:16:48.585-04:00",
+      "is_deprecated": false,
+      "words": [
+        "hair",
+        "over",
+        "one",
+        "eye"
+      ]
+    },
+    {
+      "id": 399404,
+      "name": "skull_necklace",
+      "post_count": 1779,
+      "category": 0,
+      "created_at": "2013-02-28T08:42:52.518-05:00",
+      "updated_at": "2019-09-02T00:54:58.198-04:00",
+      "is_deprecated": false,
+      "words": [
+        "skull",
+        "necklace"
+      ]
+    },
+    {
+      "id": 399003,
+      "name": "skinny",
+      "post_count": 11703,
+      "category": 0,
+      "created_at": "2013-02-28T07:51:20.454-05:00",
+      "updated_at": "2019-09-01T05:13:49.524-04:00",
+      "is_deprecated": false,
+      "words": [
+        "skinny"
+      ]
+    },
+    {
+      "id": 389108,
+      "name": "glowing_eyes",
+      "post_count": 62883,
+      "category": 0,
+      "created_at": "2013-02-27T20:20:37.444-05:00",
+      "updated_at": "2019-08-29T10:30:09.400-04:00",
+      "is_deprecated": false,
+      "words": [
+        "glowing",
+        "eyes"
+      ]
+    },
+    {
+      "id": 382125,
+      "name": "rapier",
+      "post_count": 7039,
+      "category": 0,
+      "created_at": "2013-02-28T08:31:38.851-05:00",
+      "updated_at": "2019-09-01T06:36:43.839-04:00",
+      "is_deprecated": false,
+      "words": [
+        "rapier"
+      ]
+    },
+    {
+      "id": 382030,
+      "name": "beetle",
+      "post_count": 1475,
+      "category": 0,
+      "created_at": "2013-02-28T14:58:55.953-05:00",
+      "updated_at": "2019-09-02T11:48:22.779-04:00",
+      "is_deprecated": false,
+      "words": [
+        "beetle"
+      ]
+    },
+    {
+      "id": 381555,
+      "name": "headband",
+      "post_count": 133272,
+      "category": 0,
+      "created_at": "2013-02-27T22:44:47.669-05:00",
+      "updated_at": "2019-08-26T11:54:54.061-04:00",
+      "is_deprecated": false,
+      "words": [
+        "headband"
+      ]
+    },
+    {
+      "id": 379878,
+      "name": "thorns",
+      "post_count": 9031,
+      "category": 0,
+      "created_at": "2013-02-28T18:45:33.923-05:00",
+      "updated_at": "2019-09-02T01:44:23.757-04:00",
+      "is_deprecated": false,
+      "words": [
+        "thorns"
+      ]
+    },
+    {
+      "id": 379475,
+      "name": "sash",
+      "post_count": 200963,
+      "category": 0,
+      "created_at": "2013-02-27T18:00:08.537-05:00",
+      "updated_at": "2019-09-01T17:53:47.484-04:00",
+      "is_deprecated": false,
+      "words": [
+        "sash"
+      ]
+    },
+    {
+      "id": 376594,
+      "name": "spikes",
+      "post_count": 67611,
+      "category": 0,
+      "created_at": "2013-02-28T18:44:55.439-05:00",
+      "updated_at": "2019-08-31T11:23:55.032-04:00",
+      "is_deprecated": false,
+      "words": [
+        "spikes"
+      ]
+    },
+    {
+      "id": 375020,
+      "name": "fingerless_gloves",
+      "post_count": 376708,
+      "category": 0,
+      "created_at": "2013-02-28T17:28:36.839-05:00",
+      "updated_at": "2019-08-23T09:09:10.710-04:00",
+      "is_deprecated": false,
+      "words": [
+        "fingerless",
+        "gloves"
+      ]
+    },
+    {
+      "id": 374989,
+      "name": "quiver",
+      "post_count": 8051,
+      "category": 0,
+      "created_at": "2013-02-27T23:11:04.961-05:00",
+      "updated_at": "2019-08-31T10:47:15.187-04:00",
+      "is_deprecated": false,
+      "words": [
+        "quiver"
+      ]
+    },
+    {
+      "id": 188238,
+      "name": "crossbow",
+      "post_count": 3019,
+      "category": 0,
+      "created_at": "2013-02-28T09:36:42.950-05:00",
+      "updated_at": "2019-09-01T04:26:33.046-04:00",
+      "is_deprecated": false,
+      "words": [
+        "crossbow"
+      ]
+    },
+    {
+      "id": 125420,
+      "name": "bald",
+      "post_count": 23726,
+      "category": 0,
+      "created_at": "2013-02-28T00:46:23.683-05:00",
+      "updated_at": "2019-08-30T14:22:14.374-04:00",
+      "is_deprecated": false,
+      "words": [
+        "bald"
+      ]
+    },
+    {
+      "id": 106450,
+      "name": "shield",
+      "post_count": 38581,
+      "category": 0,
+      "created_at": "2013-02-28T18:35:10.738-05:00",
+      "updated_at": "2019-08-31T12:48:41.764-04:00",
+      "is_deprecated": false,
+      "words": [
+        "shield"
+      ]
+    },
+    {
+      "id": 89228,
+      "name": "grey_eyes",
+      "post_count": 292278,
+      "category": 0,
+      "created_at": "2013-02-27T20:02:01.900-05:00",
+      "updated_at": "2019-08-31T09:28:59.052-04:00",
+      "is_deprecated": false,
+      "words": [
+        "grey",
+        "eyes"
+      ]
+    },
+    {
+      "id": 89189,
+      "name": "yellow_eyes",
+      "post_count": 1031243,
+      "category": 0,
+      "created_at": "2013-02-27T18:34:56.077-05:00",
+      "updated_at": "2019-12-26T19:20:44.596-05:00",
+      "is_deprecated": false,
+      "words": [
+        "yellow",
+        "eyes"
+      ]
+    },
+    {
+      "id": 71730,
+      "name": "dark_skin",
+      "post_count": 410967,
+      "category": 0,
+      "created_at": "2013-02-27T22:47:46.942-05:00",
+      "updated_at": "2019-09-01T18:05:10.544-04:00",
+      "is_deprecated": false,
+      "words": [
+        "dark",
+        "skin"
+      ]
+    },
+    {
+      "id": 16613,
+      "name": "jewelry",
+      "post_count": 1613760,
+      "category": 0,
+      "created_at": "2013-02-28T16:39:04.583-05:00",
+      "updated_at": "2019-12-26T19:19:27.214-05:00",
+      "is_deprecated": false,
+      "words": [
+        "jewelry"
+      ]
+    },
+    {
+      "id": 16581,
+      "name": "white_hair",
+      "post_count": 1052332,
+      "category": 0,
+      "created_at": "2013-02-28T16:00:12.912-05:00",
+      "updated_at": "2019-08-21T19:22:59.628-04:00",
+      "is_deprecated": false,
+      "words": [
+        "white",
+        "hair"
+      ]
+    },
+    {
+      "id": 16580,
+      "name": "grey_hair",
+      "post_count": 1035803,
+      "category": 0,
+      "created_at": "2013-02-28T18:13:37.100-05:00",
+      "updated_at": "2019-08-29T10:28:57.733-04:00",
+      "is_deprecated": false,
+      "words": [
+        "grey",
+        "hair"
+      ]
+    },
+    {
+      "id": 16139,
+      "name": "mustache",
+      "post_count": 40811,
+      "category": 0,
+      "created_at": "2013-02-28T14:12:02.069-05:00",
+      "updated_at": "2019-08-30T01:51:50.648-04:00",
+      "is_deprecated": false,
+      "words": [
+        "mustache"
+      ]
+    },
+    {
+      "id": 15674,
+      "name": "tail",
+      "post_count": 1209816,
+      "category": 0,
+      "created_at": "2013-02-28T01:02:55.880-05:00",
+      "updated_at": "2019-08-22T12:55:29.038-04:00",
+      "is_deprecated": false,
+      "words": [
+        "tail"
+      ]
+    },
+    {
+      "id": 15260,
+      "name": "beard",
+      "post_count": 68165,
+      "category": 0,
+      "created_at": "2013-02-28T10:08:16.865-05:00",
+      "updated_at": "2019-08-30T15:20:06.402-04:00",
+      "is_deprecated": false,
+      "words": [
+        "beard"
+      ]
+    },
+    {
+      "id": 15200,
+      "name": "robe",
+      "post_count": 69083,
+      "category": 0,
+      "created_at": "2013-02-27T21:42:37.320-05:00",
+      "updated_at": "2019-09-01T00:07:57.159-04:00",
+      "is_deprecated": false,
+      "words": [
+        "robe"
+      ]
+    },
+    {
+      "id": 15080,
+      "name": "short_hair",
+      "post_count": 3150817,
+      "category": 0,
+      "created_at": "2013-02-28T11:41:07.677-05:00",
+      "updated_at": "2019-12-26T19:20:30.580-05:00",
+      "is_deprecated": false,
+      "words": [
+        "short",
+        "hair"
+      ]
+    },
+    {
+      "id": 13207,
+      "name": "bandana",
+      "post_count": 34779,
+      "category": 0,
+      "created_at": "2013-02-28T10:32:33.664-05:00",
+      "updated_at": "2019-08-31T12:32:37.127-04:00",
+      "is_deprecated": false,
+      "words": [
+        "bandana"
+      ]
+    },
+    {
+      "id": 13200,
+      "name": "black_hair",
+      "post_count": 2217610,
+      "category": 0,
+      "created_at": "2013-02-28T11:40:15.678-05:00",
+      "updated_at": "2019-08-15T00:05:34.493-04:00",
+      "is_deprecated": false,
+      "words": [
+        "black",
+        "hair"
+      ]
+    },
+    {
+      "id": 13199,
+      "name": "black_eyes",
+      "post_count": 343308,
+      "category": 0,
+      "created_at": "2013-02-27T19:54:20.660-05:00",
+      "updated_at": "2019-09-01T08:26:10.747-04:00",
+      "is_deprecated": false,
+      "words": [
+        "black",
+        "eyes"
+      ]
+    },
+    {
+      "id": 13197,
+      "name": "long_hair",
+      "post_count": 6250538,
+      "category": 0,
+      "created_at": "2013-02-28T00:04:36.440-05:00",
+      "updated_at": "2019-08-26T20:40:54.525-04:00",
+      "is_deprecated": false,
+      "words": [
+        "long",
+        "hair"
+      ]
+    },
+    {
+      "id": 12858,
+      "name": "bone",
+      "post_count": 9934,
+      "category": 0,
+      "created_at": "2013-02-27T20:09:21.585-05:00",
+      "updated_at": "2019-09-01T20:20:22.327-04:00",
+      "is_deprecated": false,
+      "words": [
+        "bone"
+      ]
+    },
+    {
+      "id": 11906,
+      "name": "open_mouth",
+      "post_count": 3541534,
+      "category": 0,
+      "created_at": "2013-02-27T23:07:51.242-05:00",
+      "updated_at": "2019-08-25T07:37:19.990-04:00",
+      "is_deprecated": false,
+      "words": [
+        "open",
+        "mouth"
+      ]
+    },
+    {
+      "id": 11410,
+      "name": "claws",
+      "post_count": 82358,
+      "category": 0,
+      "created_at": "2013-02-28T01:38:04.123-05:00",
+      "updated_at": "2019-08-31T03:46:17.697-04:00",
+      "is_deprecated": false,
+      "words": [
+        "claws"
+      ]
+    },
+    {
+      "id": 10923,
+      "name": "torn_clothes",
+      "post_count": 213895,
+      "category": 0,
+      "created_at": "2013-02-28T13:43:44.834-05:00",
+      "updated_at": "2019-08-31T17:06:40.746-04:00",
+      "is_deprecated": false,
+      "words": [
+        "torn",
+        "clothes"
+      ]
+    },
+    {
+      "id": 10698,
+      "name": "scorpion",
+      "post_count": 456,
+      "category": 0,
+      "created_at": "2013-02-28T03:47:49.250-05:00",
+      "updated_at": "2019-09-01T18:10:44.881-04:00",
+      "is_deprecated": false,
+      "words": [
+        "scorpion"
+      ]
+    },
+    {
+      "id": 9864,
+      "name": "belt",
+      "post_count": 518111,
+      "category": 0,
+      "created_at": "2013-02-28T17:31:54.985-05:00",
+      "updated_at": "2019-09-01T14:33:48.715-04:00",
+      "is_deprecated": false,
+      "words": [
+        "belt"
+      ]
+    },
+    {
+      "id": 8781,
+      "name": "bomb",
+      "post_count": 3742,
+      "category": 0,
+      "created_at": "2013-02-28T05:55:03.901-05:00",
+      "updated_at": "2019-09-02T01:23:44.577-04:00",
+      "is_deprecated": false,
+      "words": [
+        "bomb"
+      ]
+    },
+    {
+      "id": 8526,
+      "name": "red_eyes",
+      "post_count": 1790724,
+      "category": 0,
+      "created_at": "2013-02-28T11:49:11.310-05:00",
+      "updated_at": "2019-08-13T04:00:46.649-04:00",
+      "is_deprecated": false,
+      "words": [
+        "red",
+        "eyes"
+      ]
+    },
+    {
+      "id": 6536,
+      "name": "bell",
+      "post_count": 164267,
+      "category": 0,
+      "created_at": "2013-02-27T23:56:55.651-05:00",
+      "updated_at": "2019-08-27T10:04:58.484-04:00",
+      "is_deprecated": false,
+      "words": [
+        "bell"
+      ]
+    },
+    {
+      "id": 6346,
+      "name": "cape",
+      "post_count": 305911,
+      "category": 0,
+      "created_at": "2013-02-28T17:57:40.665-05:00",
+      "updated_at": "2019-08-30T12:04:33.650-04:00",
+      "is_deprecated": false,
+      "words": [
+        "cape"
+      ]
+    },
+    {
+      "id": 6176,
+      "name": "vest",
+      "post_count": 326558,
+      "category": 0,
+      "created_at": "2013-02-27T22:13:49.298-05:00",
+      "updated_at": "2019-08-23T05:08:51.322-04:00",
+      "is_deprecated": false,
+      "words": [
+        "vest"
+      ]
+    },
+    {
+      "id": 5948,
+      "name": "hood",
+      "post_count": 445717,
+      "category": 0,
+      "created_at": "2013-02-27T19:35:08.614-05:00",
+      "updated_at": "2019-08-26T06:05:31.276-04:00",
+      "is_deprecated": false,
+      "words": [
+        "hood"
+      ]
+    },
+    {
+      "id": 5827,
+      "name": "boots",
+      "post_count": 708415,
+      "category": 0,
+      "created_at": "2013-02-28T13:16:40.223-05:00",
+      "updated_at": "2019-08-28T04:26:16.837-04:00",
+      "is_deprecated": false,
+      "words": [
+        "boots"
+      ]
+    },
+    {
+      "id": 5735,
+      "name": "gloves",
+      "post_count": 1953382,
+      "category": 0,
+      "created_at": "2013-02-28T12:30:29.196-05:00",
+      "updated_at": "2019-08-07T00:38:02.349-04:00",
+      "is_deprecated": false,
+      "words": [
+        "gloves"
+      ]
+    },
+    {
+      "id": 5403,
+      "name": "red_hair",
+      "post_count": 741183,
+      "category": 0,
+      "created_at": "2013-02-28T00:03:25.413-05:00",
+      "updated_at": "2019-08-26T09:09:39.053-04:00",
+      "is_deprecated": false,
+      "words": [
+        "red",
+        "hair"
+      ]
+    },
+    {
+      "id": 5011,
+      "name": "horse",
+      "post_count": 15224,
+      "category": 0,
+      "created_at": "2013-02-28T17:46:32.493-05:00",
+      "updated_at": "2019-09-01T18:59:28.929-04:00",
+      "is_deprecated": false,
+      "words": [
+        "horse"
+      ]
+    },
+    {
+      "id": 4965,
+      "name": "dagger",
+      "post_count": 21213,
+      "category": 0,
+      "created_at": "2013-02-27T18:41:43.090-05:00",
+      "updated_at": "2019-08-31T18:56:08.941-04:00",
+      "is_deprecated": false,
+      "words": [
+        "dagger"
+      ]
+    },
+    {
+      "id": 4333,
+      "name": "bag",
+      "post_count": 332760,
+      "category": 0,
+      "created_at": "2013-02-28T16:50:09.431-05:00",
+      "updated_at": "2019-08-31T04:57:39.066-04:00",
+      "is_deprecated": false,
+      "words": [
+        "bag"
+      ]
+    },
+    {
+      "id": 4144,
+      "name": "mace",
+      "post_count": 3528,
+      "category": 0,
+      "created_at": "2013-02-27T23:11:51.819-05:00",
+      "updated_at": "2019-09-01T10:47:47.477-04:00",
+      "is_deprecated": false,
+      "words": [
+        "mace"
+      ]
+    },
+    {
+      "id": 4068,
+      "name": "necklace",
+      "post_count": 380786,
+      "category": 0,
+      "created_at": "2013-02-27T19:01:55.314-05:00",
+      "updated_at": "2019-08-26T13:16:58.482-04:00",
+      "is_deprecated": false,
+      "words": [
+        "necklace"
+      ]
+    },
+    {
+      "id": 4033,
+      "name": "lantern",
+      "post_count": 39221,
+      "category": 0,
+      "created_at": "2013-02-28T00:38:26.314-05:00",
+      "updated_at": "2019-08-30T10:11:57.037-04:00",
+      "is_deprecated": false,
+      "words": [
+        "lantern"
+      ]
+    },
+    {
+      "id": 4027,
+      "name": "staff",
+      "post_count": 83727,
+      "category": 0,
+      "created_at": "2013-02-28T00:24:02.879-05:00",
+      "updated_at": "2019-08-29T10:46:35.333-04:00",
+      "is_deprecated": false,
+      "words": [
+        "staff"
+      ]
+    },
+    {
+      "id": 3714,
+      "name": "cannon",
+      "post_count": 19540,
+      "category": 0,
+      "created_at": "2013-02-28T14:27:03.976-05:00",
+      "updated_at": "2019-09-01T00:28:59.578-04:00",
+      "is_deprecated": false,
+      "words": [
+        "cannon"
+      ]
+    },
+    {
+      "id": 3649,
+      "name": "helmet",
+      "post_count": 115199,
+      "category": 0,
+      "created_at": "2013-02-27T21:05:06.090-05:00",
+      "updated_at": "2019-08-31T12:39:38.742-04:00",
+      "is_deprecated": false,
+      "words": [
+        "helmet"
+      ]
+    },
+    {
+      "id": 3473,
+      "name": "giant",
+      "post_count": 19177,
+      "category": 0,
+      "created_at": "2013-02-28T18:05:07.215-05:00",
+      "updated_at": "2019-09-02T08:48:27.195-04:00",
+      "is_deprecated": false,
+      "words": [
+        "giant"
+      ]
+    },
+    {
+      "id": 3152,
+      "name": "lance",
+      "post_count": 6516,
+      "category": 0,
+      "created_at": "2013-02-28T04:08:16.004-05:00",
+      "updated_at": "2019-08-31T10:39:40.703-04:00",
+      "is_deprecated": false,
+      "words": [
+        "lance"
+      ]
+    },
+    {
+      "id": 3102,
+      "name": "greaves",
+      "post_count": 13966,
+      "category": 0,
+      "created_at": "2013-02-27T15:42:08.968-05:00",
+      "updated_at": "2019-09-02T05:40:59.188-04:00",
+      "is_deprecated": false,
+      "words": [
+        "greaves"
+      ]
+    },
+    {
+      "id": 2849,
+      "name": "goggles",
+      "post_count": 88825,
+      "category": 0,
+      "created_at": "2013-02-27T21:21:42.905-05:00",
+      "updated_at": "2019-08-27T17:27:33.409-04:00",
+      "is_deprecated": false,
+      "words": [
+        "goggles"
+      ]
+    },
+    {
+      "id": 2370,
+      "name": "cactus",
+      "post_count": 3082,
+      "category": 0,
+      "created_at": "2013-02-27T18:43:15.865-05:00",
+      "updated_at": "2019-09-02T08:49:03.544-04:00",
+      "is_deprecated": false,
+      "words": [
+        "cactus"
+      ]
+    },
+    {
+      "id": 2355,
+      "name": "ponytail",
+      "post_count": 972480,
+      "category": 0,
+      "created_at": "2013-02-28T14:50:18.803-05:00",
+      "updated_at": "2019-12-26T19:20:02.830-05:00",
+      "is_deprecated": false,
+      "words": [
+        "ponytail"
+      ]
+    },
+    {
+      "id": 2270,
+      "name": "eyepatch",
+      "post_count": 104913,
+      "category": 0,
+      "created_at": "2013-02-27T20:18:16.088-05:00",
+      "updated_at": "2019-08-31T17:04:11.434-04:00",
+      "is_deprecated": false,
+      "words": [
+        "eyepatch"
+      ]
+    },
+    {
+      "id": 2091,
+      "name": "bandages",
+      "post_count": 131829,
+      "category": 0,
+      "created_at": "2013-02-28T02:49:39.917-05:00",
+      "updated_at": "2019-08-27T05:51:15.279-04:00",
+      "is_deprecated": false,
+      "words": [
+        "bandages"
+      ]
+    },
+    {
+      "id": 1556,
+      "name": "backpack",
+      "post_count": 101245,
+      "category": 0,
+      "created_at": "2013-02-28T05:15:05.079-05:00",
+      "updated_at": "2019-08-27T08:21:55.940-04:00",
+      "is_deprecated": false,
+      "words": [
+        "backpack"
+      ]
+    },
+    {
+      "id": 1476842,
+      "name": "extra_teeth",
+      "post_count": 320,
+      "category": 0,
+      "created_at": "2018-05-26T16:49:55.741-04:00",
+      "updated_at": "2019-09-02T01:54:16.788-04:00",
+      "is_deprecated": false,
+      "words": [
+        "extra",
+        "teeth"
+      ]
+    },
+    {
+      "id": 491758,
+      "name": "sleeves_rolled_up",
+      "post_count": 59420,
+      "category": 0,
+      "created_at": "2013-02-27T20:28:42.692-05:00",
+      "updated_at": "2019-09-02T10:33:18.011-04:00",
+      "is_deprecated": false,
+      "words": [
+        "sleeves",
+        "rolled",
+        "up"
+      ]
+    },
+    {
+      "id": 464539,
+      "name": "bug",
+      "post_count": 101048,
+      "category": 0,
+      "created_at": "2013-02-28T18:10:06.508-05:00",
+      "updated_at": "2019-08-27T09:16:22.486-04:00",
+      "is_deprecated": false,
+      "words": [
+        "bug"
+      ]
+    },
+    {
+      "id": 420294,
+      "name": "yellow_skin",
+      "post_count": 8251,
+      "category": 0,
+      "created_at": "2013-02-28T12:28:10.031-05:00",
+      "updated_at": "2019-09-01T20:25:31.929-04:00",
+      "is_deprecated": false,
+      "words": [
+        "yellow",
+        "skin"
+      ]
+    },
+    {
+      "id": 408544,
+      "name": "scimitar",
+      "post_count": 534,
+      "category": 0,
+      "created_at": "2013-02-27T22:52:03.938-05:00",
+      "updated_at": "2019-09-02T03:41:00.154-04:00",
+      "is_deprecated": false,
+      "words": [
+        "scimitar"
+      ]
+    },
+    {
+      "id": 390148,
+      "name": "green_skin",
+      "post_count": 31701,
+      "category": 0,
+      "created_at": "2013-02-28T09:36:01.189-05:00",
+      "updated_at": "2019-09-02T08:40:44.591-04:00",
+      "is_deprecated": false,
+      "words": [
+        "green",
+        "skin"
+      ]
+    },
+    {
+      "id": 4536,
+      "name": "tsurime",
+      "post_count": 65835,
+      "category": 0,
+      "created_at": "2013-02-28T04:24:08.551-05:00",
+      "updated_at": "2019-08-28T06:26:04.985-04:00",
+      "is_deprecated": false,
+      "words": [
+        "tsurime"
+      ]
+    },
+    {
+      "id": 3949,
+      "name": "ring",
+      "post_count": 131099,
+      "category": 0,
+      "created_at": "2013-02-28T05:36:00.803-05:00",
+      "updated_at": "2019-08-30T09:39:53.220-04:00",
+      "is_deprecated": false,
+      "words": [
+        "ring"
+      ]
+    },
+    {
+      "id": 2785,
+      "name": "horns",
+      "post_count": 696184,
+      "category": 0,
+      "created_at": "2013-02-28T15:37:14.182-05:00",
+      "updated_at": "2019-08-28T18:19:35.873-04:00",
+      "is_deprecated": false,
+      "words": [
+        "horns"
+      ]
+    }
+  ]
+}

@@ -164,6 +164,35 @@ public class BattleCharacter : MonoBehaviour, IDamageable
 
     [HideInInspector] public bool hasResurrectedThisStage = false;
     public event System.Action<BattleCharacter> MentalDepleted;
+    public event System.Action<BattleCharacter> PanicChanged;
+
+    public void SynchronizePanic()
+    {
+        if (status?.origin == null || status.origin.isEnemy || status.currentHp <= 0f) return;
+        if (status.panic == null) status.panic = new TheLastArk.Battle.PanicState();
+        if (status.currentMental <= 0f && !status.panic.IsActive)
+        {
+            status.panic.Begin((TheLastArk.Battle.PanicType)Random.Range(1, 7));
+            PanicChanged?.Invoke(this);
+        }
+    }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    // Debug only: allow repeatable panic tests without changing normal battle-end recovery.
+    internal bool DebugSetPanic(TheLastArk.Battle.PanicType type)
+    {
+        if (status?.origin == null || status.origin.isEnemy || status.currentHp <= 0f
+            || !gameObject.activeInHierarchy || (int)type < 0 || (int)type > 6) return false;
+        float mentalBefore = status.currentMental;
+        if (status.panic == null) status.panic = new TheLastArk.Battle.PanicState();
+        status.panic.Begin(type);
+        status.currentMental = type == TheLastArk.Battle.PanicType.None ? status.FinalMaxMental : 0f;
+        PanicChanged?.Invoke(this);
+        view?.UpdateVisual(status);
+        if (mentalBefore > 0f && status.currentMental <= 0f) MentalDepleted?.Invoke(this);
+        return true;
+    }
+#endif
     public event System.Action<DamageResult> DamageResolved;
 
     public float ReceiveDamage(float amount, BattleCharacter attacker)
@@ -309,7 +338,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             var reflect = status.GetStatus(EffectType.Reflect);
             if (reflect != null && attacker.status.currentHp > 0f)
             {
-                float reflectedDamage = resolvedDamage * Mathf.Max(0f, reflect.damagePerTurn) * 0.01f;
+                float reflectedDamage = attacker.status.FinalAttack * Mathf.Max(0f, reflect.damagePerTurn) * 0.01f;
                 status.ConsumeStatusCharge(EffectType.Reflect);
                 if (reflectedDamage > 0f)
                     attacker.ReceiveDamage(reflectedDamage, this, damageType, false);
@@ -331,6 +360,17 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             status.currentHp <= 0f);
         DamageResolved?.Invoke(result);
         return result;
+    }
+
+    // Ritual costs consume HP directly; shields, redirection and retaliation do not pay a cost.
+    public float SpendHealth(float amount)
+    {
+        if (status == null) return 0f;
+        float spent = Mathf.Min(status.currentHp, Mathf.Max(0f, amount));
+        status.currentHp -= spent;
+        view?.UpdateVisual(status);
+        if (status.currentHp <= 0f) GetComponent<EnemyBattleCharacter>()?.ClaimDefeatReward();
+        return spent;
     }
 
     private BattleCharacter FindTaunter()
@@ -379,6 +419,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         }
 
         float appliedDamage = mentalBefore - status.currentMental;
+        SynchronizePanic();
         if (view != null) view.UpdateVisual(status);
         if (mentalBefore > 0f && status.currentMental <= 0f)
             MentalDepleted?.Invoke(this);
@@ -393,6 +434,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         if (despair != null) amount *= Mathf.Clamp01(1f - despair.damagePerTurn * 0.01f);
         float before = status.currentMental;
         status.currentMental = Mathf.Min(status.FinalMaxMental, status.currentMental + amount);
+        SynchronizePanic();
         if (view != null) view.UpdateVisual(status);
         return status.currentMental - before;
     }

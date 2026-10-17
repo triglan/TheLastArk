@@ -29,7 +29,7 @@ public static class BasicEnemyAssetBootstrap
         Debug.Log("[Battle] Created the six basic enemy assets.");
     }
 
-    private static IEnumerable<CharacterData> CreateDefinitions()
+    public static IEnumerable<CharacterData> CreateDefinitions()
     {
         yield return CreateMerchant();
         yield return CreateRogue();
@@ -123,9 +123,9 @@ public static class BasicEnemyAssetBootstrap
             "단일 정신 공격 뒤 전체 정신 피해와 함께 성장하는 정신 공격형 적.");
         data.enemyRuntimeVariables.Add(Variable("mental_damage_bonus", "정신 피해 강화", "정신 피해량", 0));
         data.enemyPatterns.Add(Pattern("첫 번째 타종", TargetType.SingleEnemy,
-            Effect(TargetType.SingleEnemy, EffectType.MentalDamage, fixedValue: 2f)));
+            Effect(TargetType.SingleEnemy, EffectType.MentalDamage, fixedValue: 2f, valueVariableId: "mental_damage_bonus")));
         data.enemyPatterns.Add(Pattern("두 번째 타종", TargetType.SingleEnemy,
-            Effect(TargetType.SingleEnemy, EffectType.MentalDamage, fixedValue: 2f)));
+            Effect(TargetType.SingleEnemy, EffectType.MentalDamage, fixedValue: 2f, valueVariableId: "mental_damage_bonus")));
         data.enemyPatterns.Add(Pattern("전체 타종", TargetType.AllEnemy,
             Effect(TargetType.AllEnemy, EffectType.MentalDamage, fixedValue: 2f, valueVariableId: "mental_damage_bonus"),
             Modify("mental_damage_bonus", 1)));
@@ -134,18 +134,16 @@ public static class BasicEnemyAssetBootstrap
 
     private static CharacterData CreateEnemy(string name, int hp, int mental, int armor, int magicResist, string role)
     {
-        return new CharacterData
-        {
-            characterName = name,
-            isEnemy = true,
-            maxHp = hp,
-            maxMental = mental,
-            armor = armor,
-            magicResist = magicResist,
-            enemyRoleDescription = role,
-            enemyPatterns = new List<EnemyPatternData>(),
-            enemyRuntimeVariables = new List<EnemyRuntimeVariableDefinition>()
-        };
+        var data = ScriptableObject.CreateInstance<CharacterData>();
+        data.characterName = name;
+        data.isEnemy = true;
+        data.regionId = RemainingEnemyAssetBootstrap.MirageRegionId;
+        data.maxHp = hp;
+        data.maxMental = mental;
+        data.armor = armor;
+        data.magicResist = magicResist;
+        data.enemyRoleDescription = role;
+        return data;
     }
 
     private static EnemyRuntimeVariableDefinition Variable(string id, string name, string description, int initialValue)

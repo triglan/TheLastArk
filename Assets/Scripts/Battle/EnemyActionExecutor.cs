@@ -27,6 +27,13 @@ public static class EnemyActionExecutor
         if (action == null || context?.State == null) return;
         if (!MatchesCondition(action, context.State)) return;
 
+        if (action.actionType == EnemyPatternActionType.SetArmor)
+        {
+            context.Actor.status.PatternArmorOverride = action.runtimeValue;
+            context.Actor.view?.UpdateVisual(context.Actor.status);
+            return;
+        }
+
         if (action.actionType == EnemyPatternActionType.ModifyRuntimeVariable)
         {
             int value = action.runtimeValue + context.State.Get(action.runtimeValueVariableId);
@@ -89,8 +96,7 @@ public static class EnemyActionExecutor
             foreach (BattleCharacter target in context.Targets)
             {
                 if (target == null || target == context.Actor || target.status == null) continue;
-                total += Mathf.RoundToInt(target.ReceiveDamage(target.status.currentHp * action.percent * 0.01f,
-                    context.Actor, DamageType.True, false));
+                total += Mathf.CeilToInt(target.SpendHealth(Mathf.Ceil(target.status.currentHp * action.percent * 0.01f)));
             }
             context.State.Add(action.runtimeVariableId, total);
             return;
@@ -122,17 +128,37 @@ public static class EnemyActionExecutor
 
     private static void ExecuteEffect(EnemyPatternAction action, EnemyActionExecutionContext context, List<BattleCharacter> targets)
     {
+        if (action.excludeSelf) targets = targets.FindAll(target => target != context.Actor);
+        if (action.requireLastHit)
+        {
+            BattleCharacter last = context.State.LastHitTarget;
+            if (!context.State.LastAttackCompleted || last?.status == null || last.status.currentHp <= 0f) return;
+            targets = new List<BattleCharacter> { last };
+        }
         if (action.enemyNames != null && action.enemyNames.Length > 0)
             targets = targets.FindAll(target => target?.status?.origin != null
                 && System.Array.IndexOf(action.enemyNames, target.status.origin.characterName) >= 0);
         if (targets.Count == 0) return;
+        EffectEntry effect = BuildEffect(action, context.State);
+        int hits = 0;
+        bool isAttack = effect.type == EffectType.Damage;
+        if (isAttack)
+        {
+            context.State.LastHitTarget = null;
+            context.State.LastAttackCompleted = false;
+        }
         EffectEngine.ProcessSkill(context.Actor, targets, new SkillLevelData
         {
             overrideCost = -1,
             targetType = action.targetType,
             customVfxName = context.CustomVfxName,
-            effects = new List<EffectEntry> { BuildEffect(action, context.State) }
-        }, context.PatternName);
+            effects = new List<EffectEntry> { effect }
+        }, context.PatternName, result =>
+        {
+            hits++;
+            context.State.LastHitTarget = result.FinalTarget;
+        });
+        if (isAttack) context.State.LastAttackCompleted = hits == effect.hitCount * targets.Count;
     }
 
     private static EffectEntry BuildEffect(EnemyPatternAction action, EnemyRuntimeState state)
@@ -162,6 +188,8 @@ public static class EnemyActionExecutor
             statusIcon = source.statusIcon
         };
         result.charges = Mathf.Max(1, result.charges + state.Get(action.chargesVariableId));
+        if (!string.IsNullOrEmpty(action.valueMultiplierVariableId))
+            result.fixedValue *= state.Get(action.valueMultiplierVariableId);
         return result;
     }
 
@@ -204,18 +232,18 @@ public static class EnemyActionExecutor
     {
         BattleManager manager = Object.FindObjectOfType<BattleManager>();
         if (manager == null) return false;
+        if (manager.enemyParty.FindAll(enemy => enemy?.status != null && enemy.status.currentHp > 0f).Count >= EnemyEncounterData.SlotCount) return false;
         string[] names = action.enemyNames != null && action.enemyNames.Length > 0 ? action.enemyNames : new[] { action.enemyName };
         int livingMatches = manager.enemyParty.FindAll(enemy => enemy != null && enemy.status?.origin != null
             && System.Array.IndexOf(names, enemy.status.origin.characterName) >= 0 && enemy.status.currentHp > 0f).Count;
         if (action.limit > 0 && livingMatches >= action.limit) return false;
 
         EnemyBattleCharacter[] slots = Object.FindObjectsOfType<EnemyBattleCharacter>(true);
-        EnemyBattleCharacter slot = System.Array.Find(slots, enemy => enemy != null && !enemy.gameObject.activeSelf);
+        EnemyBattleCharacter slot = System.Array.Find(slots, enemy => enemy != null && enemy.gameObject.scene == actor.gameObject.scene
+            && enemy.gameObject != actor.gameObject && (!enemy.gameObject.activeSelf || (enemy.HasRuntimeStatus && enemy.CurrentHp <= 0f)));
         if (slot == null) return false;
 
-        var candidates = new List<CharacterData>();
-        foreach (CharacterData data in Resources.LoadAll<CharacterData>("Characters/Enemy"))
-            if (data != null && System.Array.IndexOf(names, data.characterName) >= 0) candidates.Add(data);
+        var candidates = GetSummonCandidates(action, manager.enemyParty);
         if (candidates.Count == 0) return false;
 
         slot.AssignAndInitialize(candidates[Random.Range(0, candidates.Count)]);
@@ -225,5 +253,16 @@ public static class EnemyActionExecutor
         ai.allyParty = manager.enemyParty;
         ai.targetParty = manager.playerParty;
         return true;
+    }
+
+    public static List<CharacterData> GetSummonCandidates(EnemyPatternAction action, List<BattleCharacter> party)
+    {
+        string[] names = action.enemyNames != null && action.enemyNames.Length > 0 ? action.enemyNames : new[] { action.enemyName };
+        var candidates = new List<CharacterData>();
+        foreach (CharacterData data in Resources.LoadAll<CharacterData>("Characters/Enemy"))
+            if (data != null && System.Array.IndexOf(names, data.characterName) >= 0
+                && (!action.uniqueSummon || !party.Exists(enemy => enemy?.status?.origin != null
+                    && enemy.status.currentHp > 0f && enemy.status.origin.characterName == data.characterName))) candidates.Add(data);
+        return candidates;
     }
 }

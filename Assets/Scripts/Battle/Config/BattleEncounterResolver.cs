@@ -23,6 +23,7 @@ public static class BattleEncounterResolver
             foreach (EnemyEncounterPool pool in table.GetPoolsForRegion(regionId))
             {
                 if (pool == null || !pool.Matches(regionId, nodeType, floor, combatCount)) continue;
+                if (CollectValidEncounters(pool, appearedEncounterIds, true).Count == 0) continue;
 
                 if (pool.Priority > highestPriority)
                 {
@@ -51,67 +52,7 @@ public static class BattleEncounterResolver
             }
         }
 
-        // 2. Fallback 1: regionId, floor 무시하고 nodeType에 맞는 임의의 풀 검색
-        if (table != null)
-        {
-            List<EnemyEncounterData> fallbackEncounters = new List<EnemyEncounterData>();
-            List<EnemyEncounterPool> fallbackPools = new List<EnemyEncounterPool>();
-            foreach (EnemyEncounterPool pool in table.GetAllPools())
-            {
-                if (pool == null || pool.NodeType != nodeType) continue;
-                var list = CollectValidEncounters(pool, appearedEncounterIds, true);
-                foreach (EnemyEncounterData encounter in list)
-                {
-                    fallbackEncounters.Add(encounter);
-                    fallbackPools.Add(pool);
-                }
-            }
-            if (fallbackEncounters.Count > 0)
-            {
-                int index = Random.Range(0, fallbackEncounters.Count);
-                resolvedPool = fallbackPools[index];
-                return fallbackEncounters[index];
-            }
-        }
-
-        // 3. Fallback 2: Resources에 존재하는 모든 EnemyEncounterData 에셋 검색
-        var allEncounters = Resources.LoadAll<EnemyEncounterData>("");
-        if (allEncounters != null && allEncounters.Length > 0)
-        {
-            List<EnemyEncounterData> validAll = new List<EnemyEncounterData>();
-            foreach (var enc in allEncounters)
-            {
-                if (enc != null && enc.HasAnyEnemy) validAll.Add(enc);
-            }
-            if (validAll.Count > 0) return validAll[Random.Range(0, validAll.Count)];
-        }
-
-        // 4. Fallback 3: 등록된 적 캐릭터(Enemy CharacterData)로 런타임 인카운터 동적 생성
-        var enemyChars = Resources.LoadAll<CharacterData>("Characters/Enemy");
-        if (enemyChars == null || enemyChars.Length == 0)
-        {
-            enemyChars = Resources.LoadAll<CharacterData>("");
-        }
-
-        if (enemyChars != null && enemyChars.Length > 0)
-        {
-            List<CharacterData> validEnemies = new List<CharacterData>();
-            foreach (var c in enemyChars)
-            {
-                if (c != null && c.isEnemy) validEnemies.Add(c);
-            }
-            if (validEnemies.Count == 0)
-            {
-                foreach (var c in enemyChars) if (c != null) validEnemies.Add(c);
-            }
-
-            if (validEnemies.Count > 0)
-            {
-                CharacterData selectedEnemy = validEnemies[Random.Range(0, validEnemies.Count)];
-                return EnemyEncounterData.CreateRuntimeInstance("DynamicFallback", "야생의 적 연합", new CharacterData[4] { selectedEnemy, null, null, null });
-            }
-        }
-
+        // Never cross region, node type or floor boundaries when content is missing.
         return null;
     }
 

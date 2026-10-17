@@ -7,7 +7,7 @@ using UnityEngine.EventSystems;
 /// Button 위에 아이콘 Image를 배치하고, 상태에 따라 색상/이펙트를 변경합니다.
 /// </summary>
 [RequireComponent(typeof(Button))]
-public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
+public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
 {
     // ─────────────────────────────────────────────
     // 참조
@@ -274,6 +274,7 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (eventData.button != PointerEventData.InputButton.Left) return;
         isPressed = true;
         // 마우스를 누르는 순간 쫀득한 시각적 눌림 반응 (0.92배)
         float target = (isAccessible ? 1.20f : (isCurrentNode ? 1.14f : 0.95f)) * 0.92f;
@@ -282,6 +283,7 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
     public void OnPointerUp(PointerEventData eventData)
     {
+        if (eventData.button != PointerEventData.InputButton.Left) return;
         isPressed = false;
         if (isHovered && isAccessible && !isCurrentNode)
         {
@@ -291,12 +293,6 @@ public class MapNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         {
             UpdateVisual();
         }
-    }
-
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        // EventSystem 포인터 클릭 직접 처리 (드래그나 버튼 씹힘 시 100% 보장)
-        OnNodeClicked();
     }
 
     public void OnPointerEnter(PointerEventData eventData)

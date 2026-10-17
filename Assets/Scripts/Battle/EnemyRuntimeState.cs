@@ -11,6 +11,8 @@ public sealed class EnemyRuntimeState
     public bool HasFled { get; private set; }
     public BattleCharacter TrackedTarget { get; private set; }
     public float TrackedDamage { get; private set; }
+    public BattleCharacter LastHitTarget { get; set; }
+    public bool LastAttackCompleted { get; set; }
 
     public EnemyRuntimeState(CharacterData source)
     {
