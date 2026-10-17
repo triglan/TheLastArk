@@ -1130,7 +1130,8 @@ public partial class BattleManager : MonoBehaviour
         }
 
         _selection.Clear();
-        if (targetHandler != null) targetHandler.Deselect(false);
+        // Dice mode keeps a living target selected so the player can keep acting on it.
+        if (targetHandler != null && !(UsesDice && IsKeptTargetAlive())) targetHandler.Deselect(false);
         if (TryEndBattleIfPartyWiped()) return;
         RefreshSkillSlots();
 
@@ -1139,6 +1140,13 @@ public partial class BattleManager : MonoBehaviour
             TryAutoEndDiceTurn();
         }
         else if (currentAP <= 0 && !_resolvingPanicTurn) EndPlayerTurn();
+    }
+
+    private bool IsKeptTargetAlive()
+    {
+        BattleCharacter kept = targetHandler != null && targetHandler.target != null
+            ? targetHandler.target.GetComponent<BattleCharacter>() : null;
+        return kept != null && kept.status != null && kept.status.currentHp > 0f;
     }
 
     private void TryAutoEndDiceTurn()
@@ -1278,6 +1286,7 @@ public partial class BattleManager : MonoBehaviour
             _pendingDiceActor = null;
             _dicePool.EndTurn();
             RefreshDiceUI();
+            if (targetHandler != null) targetHandler.Deselect(false);
         }
 
         // [에너지 저장소] 미사용 행동력 최대 3까지 다음 턴으로 이월 저장
