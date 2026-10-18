@@ -104,6 +104,10 @@ namespace UI
                     goldMultiplier += coinVariance;
                 }
             }
+            // [탐욕의 관] 특수 장비: 전투 보상 골드 +20%
+            if (ResourceManager.Instance != null && ResourceManager.Instance.EquipmentLoadouts?.characters != null
+                && ResourceManager.Instance.EquipmentLoadouts.characters.Exists(c => c.slots != null && System.Array.Exists(c.slots, e => e != null && e.equipmentID == "GreedCrown")))
+                goldMultiplier += 0.2f;
             // [미라주] 시너지: 획득 골드 증가 (골드만)
             var synergyConfig = SynergyBalanceConfig.Instance;
             if (synergyConfig != null)

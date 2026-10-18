@@ -152,6 +152,8 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     }
 
     [HideInInspector] public bool hasResurrectedThisStage = false;
+    /// <summary>마법장 갑주 already negated a hit this battle.</summary>
+    [HideInInspector] public bool magicShellUsed;
     public event System.Action<BattleCharacter> MentalDepleted;
     public event System.Action<BattleCharacter> PanicChanged;
 
@@ -285,9 +287,18 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         float markBonus = context != null && attacker?.status?.origin != null && !attacker.status.origin.isEnemy
             ? status.GetStatusValue(EffectType.HuntMark) * 0.01f : 0f;
         var damageModifier = new ValueModifier().AddIncrease(markBonus).AddDecrease(protectReduction);
+        // 거석 방패 부동: below 20% HP right before the hit, physical damage −50% (protected hits included).
+        if (damageType == DamageType.Physical && status.HasEquipment("MegalithShield") && status.currentHp < status.FinalMaxHp * 0.2f)
+            damageModifier.AddDecrease(0.5f);
         // 수호자: team reduction, plus extra while protecting / taunting (applied before shields).
         if (context != null) TheLastArk.Character.SynergyEffects.AddGuardianReductions(status, viaProtectOrTaunt, damageModifier);
         float resolvedDamage = damageModifier.Apply(damageAfterDefense);
+        // 마법장 갑주: the battle's first direct-attack HP damage hit is negated (after defense, before shields).
+        if (context != null && attacker != null && resolvedDamage > 0f && !magicShellUsed && status.HasEquipment("AegisArmor"))
+        {
+            magicShellUsed = true;
+            resolvedDamage = 0f;
+        }
         float healthDamage = resolvedDamage;
         float shieldDamage = 0f;
 
@@ -450,7 +461,8 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     public float ReceiveMentalHeal(float amount)
     {
         if (status == null || amount <= 0f) return 0f;
-        amount = new ValueModifier().AddDecrease(status.GetStatusValue(EffectType.Despair) * 0.01f).Apply(amount);
+        amount = new ValueModifier().AddIncrease(status.HasEquipment("SaintNecklace") ? SaintNecklaceBonus : 0f)
+            .AddDecrease(status.GetStatusValue(EffectType.Despair) * 0.01f).Apply(amount);
         if (amount <= 0f) return 0f;
         float before = status.currentMental;
         status.currentMental = Mathf.Min(status.FinalMaxMental, status.currentMental + amount);
@@ -565,6 +577,8 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         }
     }
 
+    private const float SaintNecklaceBonus = 0.2f;
+
     public float ReceiveHeal(float amount, BattleCharacter healer) => ReceiveHeal(amount, healer, 0f);
 
     /// <summary>
@@ -586,6 +600,8 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     {
         if (status == null || amount <= 0f) return 0f;
         var heal = new ValueModifier().AddIncrease(healIncrease).AddIncrease(TheLastArk.Character.SynergyEffects.SupportReceiveBonus(status));
+        if (status.HasEquipment("SaintNecklace")) heal.AddIncrease(SaintNecklaceBonus);
+        else if (healer != null && healer != this && healer.status != null && healer.status.HasEquipment("SaintNecklace")) heal.AddIncrease(SaintNecklaceBonus);
 
         // [회광반조] 유물: 잃은 체력에 비례해 치유량이 최대 50%까지 증가 (체력 10%에서 최대)
         // 회광반조: the target's and (for another ally's heal) the healer's lost-HP bonus, each up to +50%.

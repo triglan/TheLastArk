@@ -269,7 +269,7 @@ public partial class BattleManager : MonoBehaviour
             if (die.Kind == DieKind.North) cast.NorthValues.Add(effectValue);
         }
         SkillLevelData level = GetSkillLevel(skill, actor);
-        cast.PhysicalDamageBonus = WarriorBonusFor(actor, level) + EndlessCleaveBonus(actor, skill);
+        cast.PhysicalDamageBonus = WarriorBonusFor(actor, level) + EndlessCleaveBonus(actor, skill) + GearPhysicalBonus(actor);
         cast.FirstDie = dice.Count > 0 ? dice[0] : null;
         ApplyTraitorBeforeAttack(actor, level, cast);
         if (level != null && level.special == SkillSpecial.MatchSecondUse && cast.InputValues.Count > 0)
@@ -313,6 +313,7 @@ public partial class BattleManager : MonoBehaviour
         if (die == null || !die.IsAvailable || !GetDiceRule(skill, actor).AcceptsValue(GetDieInputValue(actor, die))) return false;
         if (!_dicePool.TrySplit(dieId, values, modifierIndex)) return false;
         MarkSkillUsed(actor, skill);
+        CountActualSkillUse(actor);
         actor.status.lastUsedSkill = skill;
         actor.ResolveActionStatusEffects();
         _selectedDiceIds.Clear();
@@ -873,6 +874,7 @@ public partial class BattleManager : MonoBehaviour
         _hasUsedFirstSkillInBattle = false;
 
         OnBattleStartRelics();
+        OnBattleStartEquipment();
 
         // [적응형 보호막 생성기] 전투 시작 시 모든 아군이 잃은 체력의 20%만큼 1턴간 보호막 생성
         if (TheLastArk.Managers.TrainManager.IsInitialized &&
@@ -1317,18 +1319,7 @@ public partial class BattleManager : MonoBehaviour
             }
         }
 
-        // [연속 전투 촉진기] 한 전투에서 스킬을 7번 사용할 때마다 행동력 +2 획득
-        _skillsUsedThisBattle++;
-        if (TheLastArk.Managers.TrainManager.IsInitialized &&
-            TheLastArk.Managers.TrainManager.Instance.HasPartEffectInAnyCar(TheLastArk.Data.TrainPartEffectType.ContinuousCombatCatalyst))
-        {
-            if (_skillsUsedThisBattle % 7 == 0)
-            {
-                currentAP = Mathf.Min(MaxAP, currentAP + 2);
-                UpdateAPUI();
-                Notify("[연속 전투 촉진기] 7회 스킬 사용 달성! 행동력 +2 획득!", Color.cyan);
-            }
-        }
+        CountActualSkillUse(actor);
 
         {
             // Order: 혼란 (at fire) → 도발 → 보호 (per hit in the damage path).
@@ -1336,9 +1327,11 @@ public partial class BattleManager : MonoBehaviour
             BattleCharacter resolvedPrimary = TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor);
             List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
             SkillCast cast = _pendingCast ?? new SkillCast();
+            cast.DamageBonus += TwinStarBonus(actor, levelData, resolvedPrimary);
             EffectEngine.CurrentCast = cast;
             try { EffectEngine.ProcessSkill(actor, targets, levelData, resolvedPrimary, skill.skillName); }
             finally { EffectEngine.CurrentCast = null; }
+            ResolveEquipmentAfterSkill(actor, levelData, cast);
             ResolveRelicsAfterSkill(actor, skill, levelData, cast);
             AfterActualSkillFire(actor, skill, levelData, cast);
 
@@ -1569,6 +1562,7 @@ public partial class BattleManager : MonoBehaviour
             _pendingDiceSkill = null;
             _pendingDiceActor = null;
             PrepareCarryOver();
+            ResetTwinStar();
             _dicePool.EndTurn();
             RefreshDiceUI();
             if (targetHandler != null) targetHandler.Deselect(false);
@@ -1704,9 +1698,11 @@ public partial class BattleManager : MonoBehaviour
         RemoveOwnerPhaseEffects(playerParty);
         ResetSynergyTurnState();
         ResetRelicTurnState();
+        ResetEquipmentTurnState();
         RefreshHuntMarks();
         ApplySynergyTurnStart();
         ApplyRelicTurnStart();
+        ApplyEquipmentTurnStart();
         ClearEnemyTargetMarkers();
         PrepareEnemyIntents();
         Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");

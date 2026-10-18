@@ -36,6 +36,10 @@ namespace TheLastArk.Skills
         public readonly HashSet<(BattleCharacter, string)> Once = new HashSet<(BattleCharacter, string)>();
         /// <summary>This fire put at least one status effect on an enemy.</summary>
         public bool AppliedStatusToEnemy;
+        /// <summary>At least one hit of this fire was a critical hit.</summary>
+        public bool HadCrit;
+        /// <summary>Extra damage % (as a fraction) for every damage type (e.g. 쌍성의 검).</summary>
+        public float DamageBonus;
 
         public static void Add(Dictionary<BattleCharacter, float> map, BattleCharacter key, float value)
         {

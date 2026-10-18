@@ -20,6 +20,9 @@ namespace TheLastArk.Battle
         public bool IsPatternScope { get; private set; }
         /// <summary>Once a hit lands on a taunter, the rest of this attack stays on it.</summary>
         public BattleCharacter LockedTaunter { get; set; }
+        /// <summary>요새화 results: one resist roll per (target, status type) per attack.</summary>
+        public readonly Dictionary<(BattleCharacter, EffectType), bool> ResistRolls = new Dictionary<(BattleCharacter, EffectType), bool>();
+
         /// <summary>Share of the target's defense ignored by the hit currently resolving (0–1).</summary>
         public float ArmorIgnore { get; set; }
 

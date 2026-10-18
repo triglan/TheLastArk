@@ -153,6 +153,7 @@ public static class EffectEngine
 
         int dice = CastDiceSum;
         if (effect.minDie > 0 && dice < effect.minDie) return;
+        if (ResistedByFortress(effect.type, actor, target)) return;
         float chance = effect.chance + effect.chancePerDie * dice;
         // 불확실한 천칭: skill chance effects +25%p for allies (crit excluded).
         if (chance < 100f && TheLastArk.Battle.RelicRules.IsAlly(actor) && TheLastArk.Battle.RelicRules.Has(RelicEffectType.UncertainScales))
@@ -201,7 +202,9 @@ public static class EffectEngine
                     {
                         critMultiplier += 0.25f;
                     }
+                    if (target != null && actor.status.HasEquipment("Odachi")) critMultiplier += OdachiCritDamage;
                     calculatedValue = new TheLastArk.Battle.ValueModifier().AddMultiplier(critMultiplier).Raw(calculatedValue);
+                    if (CurrentCast != null) CurrentCast.HadCrit = true;
                     critScale = critMultiplier;
                     Debug.Log($"[치명타!] {actor.characterName}의 공격이 치명타로 적중! (배율: {critMultiplier}x)");
 
@@ -218,8 +221,10 @@ public static class EffectEngine
                     calculatedValue = new TheLastArk.Battle.ValueModifier()
                         .AddIncrease(target.status.GetStatusValue(EffectType.Bleed) * effect.bonusPercentPerTargetBleed * 0.01f)
                         .Raw(calculatedValue);
-                if (effect.damageType == DamageType.Physical && CurrentCast != null && CurrentCast.PhysicalDamageBonus > 0f)
-                    calculatedValue = new TheLastArk.Battle.ValueModifier().AddIncrease(CurrentCast.PhysicalDamageBonus).Raw(calculatedValue);
+                if (CurrentCast != null)
+                    calculatedValue = new TheLastArk.Battle.ValueModifier()
+                        .AddIncrease(effect.damageType == DamageType.Physical ? CurrentCast.PhysicalDamageBonus : 0f)
+                        .AddIncrease(CurrentCast.DamageBonus).Raw(calculatedValue);
                 if (CurrentCast != null && target.status.origin != null && target.status.origin.isEnemy) CurrentCast.HitTargets.Add(target);
                 var attack = TheLastArk.Battle.AttackContext.Current;
                 float previousIgnore = attack?.ArmorIgnore ?? 0f;
@@ -351,7 +356,7 @@ public static class EffectEngine
 
             case EffectType.Bleed:
                 int bleedTurns = Mathf.Max(1, effect.duration > 0 ? effect.duration : 3);
-                float bleedDmg = TheLastArk.Battle.ValueModifier.Floor((effect.value > 0 ? effect.value : baseValue * effect.multiplier) * DebuffScale(actor, target));
+                float bleedDmg = TheLastArk.Battle.ValueModifier.Floor((effect.value > 0 ? effect.value : baseValue * effect.multiplier) * DotScale(actor, target));
                 ApplyBleed(target, bleedDmg, bleedTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
                 lastCalculatedValue = bleedDmg;
@@ -359,7 +364,7 @@ public static class EffectEngine
 
             case EffectType.Poison:
                 int poisonTurns = Mathf.Max(1, effect.duration > 0 ? effect.duration : 3);
-                float poisonDmg = TheLastArk.Battle.ValueModifier.Floor((effect.value > 0 ? effect.value : baseValue * effect.multiplier) * DebuffScale(actor, target));
+                float poisonDmg = TheLastArk.Battle.ValueModifier.Floor((effect.value > 0 ? effect.value : baseValue * effect.multiplier) * DotScale(actor, target));
                 ApplyPoison(target, poisonDmg, poisonTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
                 lastCalculatedValue = poisonDmg;
@@ -367,7 +372,7 @@ public static class EffectEngine
 
             case EffectType.Burn:
                 int burnTurns = Mathf.Max(1, effect.duration > 0 ? effect.duration : 3);
-                float burnDmg = TheLastArk.Battle.ValueModifier.Floor((effect.value > 0 ? effect.value : effect.multiplier * 100f) * DebuffScale(actor, target));
+                float burnDmg = TheLastArk.Battle.ValueModifier.Floor((effect.value > 0 ? effect.value : effect.multiplier * 100f) * DotScale(actor, target));
                 ApplyBurn(target, burnDmg, burnTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
                 lastCalculatedValue = burnDmg;
@@ -525,8 +530,35 @@ public static class EffectEngine
         => type != EffectType.Damage && type != EffectType.Heal && type != EffectType.Shield && type != EffectType.MentalDamage
            && type != EffectType.MentalHeal && type != EffectType.Resurrection && type != EffectType.DiceBoost && type != EffectType.HuntMark;
 
+    private const float OdachiCritDamage = 0.25f;
+    private const float ElementalAmplify = 1.5f;
+    private const float FortressResistChance = 0.25f;
+
     private static float DebuffScale(BattleCharacter actor, BattleCharacter target)
         => TheLastArk.Character.SynergyEffects.DebuffMultiplier(actor?.status, target?.status);
+
+    /// <summary>원소 증폭: the wearer's skill DoTs on enemies +50% (relic / gear auto effects excluded).</summary>
+    private static float DotScale(BattleCharacter actor, BattleCharacter target)
+        => DebuffScale(actor, target) * (CurrentCast != null && TheLastArk.Battle.RelicRules.IsEnemy(target)
+            && actor.status.HasEquipment("ElementalStaff") ? ElementalAmplify : 1f);
+
+    private static bool IsNegativeStatus(EffectType type)
+        => type == EffectType.Stun || type == EffectType.Bleed || type == EffectType.Poison || type == EffectType.Burn
+           || type == EffectType.Weakness || type == EffectType.Frailty || type == EffectType.Vulnerable || type == EffectType.Corrosion
+           || type == EffectType.Blockade || type == EffectType.Fatigue || type == EffectType.Confusion || type == EffectType.Frost
+           || type == EffectType.Fear || type == EffectType.Pressure || type == EffectType.Despair;
+
+    /// <summary>요새의 반지: an enemy's negative status on the wearer is resisted 25% (first roll per type per attack is kept).</summary>
+    private static bool ResistedByFortress(EffectType type, BattleCharacter actor, BattleCharacter target)
+    {
+        if (!IsNegativeStatus(type) || !TheLastArk.Battle.RelicRules.IsEnemy(actor) || !TheLastArk.Battle.RelicRules.IsAlly(target)
+            || !target.status.HasEquipment("FortressRing")) return false;
+        var attack = TheLastArk.Battle.AttackContext.Current;
+        if (attack == null) return Random.value < FortressResistChance;
+        if (!attack.ResistRolls.TryGetValue((target, type), out bool resisted))
+            attack.ResistRolls[(target, type)] = resisted = Random.value < FortressResistChance;
+        return resisted;
+    }
 
     private static bool IsDebuffStat(EffectType type)
         => type == EffectType.Weakness || type == EffectType.Frailty || type == EffectType.Vulnerable || type == EffectType.Corrosion;

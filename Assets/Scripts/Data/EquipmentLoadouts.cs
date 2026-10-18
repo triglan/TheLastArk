@@ -68,6 +68,11 @@ namespace TheLastArk.Data
             var owner = characters.Find(c => c.characterId == characterId);
             if (owner == null || slot < 0 || slot >= CharacterStatus.EquipmentSlotCount) { reason = "장비 슬롯을 확인할 수 없습니다."; return false; }
             if (equipment == null || Same(owner.slots[slot], equipment)) return true;
+            if (equipment.isSpecial && AssignedCount(equipment) > 0)
+            {
+                reason = "같은 특수 장비는 파티 전체에 1개만 장착할 수 있습니다.";
+                return false;
+            }
             if (AvailableCount(inventory, equipment) > 0) return true;
             reason = OwnedCount(inventory, equipment) == 0 ? "보유하지 않은 장비입니다." : "사용 가능한 장비가 없습니다. 다른 슬롯의 장비를 먼저 해제하세요.";
             return false;

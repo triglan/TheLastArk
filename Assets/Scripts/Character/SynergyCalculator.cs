@@ -31,6 +31,7 @@ namespace TheLastArk.Character
                         continue;
 
                     bool isLeader = (charId == leaderID);
+                    bool polyhedron = WearsPolyhedron(charId);
 
                     if (data.synergies == null) continue;
 
@@ -38,8 +39,8 @@ namespace TheLastArk.Character
                     {
                         if (!counts.ContainsKey(syn)) counts[syn] = 0;
 
-                        // 기본 파티원 +1 카운트
-                        counts[syn] += 1;
+                        // 기본 파티원 +1 카운트, 부등변다면체 착용 시 가상 인원 +1
+                        counts[syn] += polyhedron ? 2 : 1;
 
                         // 리더 시스템 효과 1: 리더 캐릭터는 해당 시너지 카운트 +1 추가 부여 (침묵의 아르카디아 제외)
                         if (isLeader && syn != SynergyType.SilentArcadia)
@@ -112,6 +113,16 @@ namespace TheLastArk.Character
             }
 
             return counts;
+        }
+
+        private static bool WearsPolyhedron(string characterId)
+        {
+            if (!ResourceManager.IsInitialized) return false;
+            var loadout = ResourceManager.Instance.EquipmentLoadouts?.characters?.Find(c => c.characterId == characterId);
+            if (loadout?.slots == null) return false;
+            foreach (var item in loadout.slots)
+                if (item != null && item.equipmentID == "Polyhedron") return true;
+            return false;
         }
 
         private static void AddSynergyCount(Dictionary<SynergyType, int> counts, SynergyType type, int amount)

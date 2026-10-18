@@ -107,17 +107,84 @@ public class CharacterStatus : ISerializationCallbackReceiver
         }
     }
 
-    public float FinalMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + GetSynergyHpMultiplier() + TrainBonusHpMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
+    public float FinalMaxHp => Mathf.Max(0f, BaseMaxHp * (1f + EquipmentPercent(e => e.bonusHpPercent)));
+    private float BaseMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + GetSynergyHpMultiplier() + TrainBonusHpMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
     public float FinalMaxMental => origin != null ? (origin.maxMental * (1 + GetMultiplier() + GetSynergyMentalMultiplier() + TrainBonusMentalMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental;
     public float AttackStatusModifier => GetStatusValue(EffectType.Strength) - GetStatusValue(EffectType.Weakness);
     public float SpellPowerStatusModifier => GetStatusValue(EffectType.Amplification) - GetStatusValue(EffectType.Frailty);
     public float ArmorStatusModifier => GetStatusValue(EffectType.Protection) - GetStatusValue(EffectType.Vulnerable);
     public float MagicResistStatusModifier => GetStatusValue(EffectType.MagicGuard) - GetStatusValue(EffectType.Corrosion);
 
-    public float FinalAttack => Mathf.Max(0f, RawAttack);
-    public float FinalSpellPower => Mathf.Max(0f, RawSpellPower);
-    public float FinalArmor => Mathf.Max(0f, PatternArmorOverride ?? RawArmor);
-    public float FinalMagicResist => Mathf.Max(0f, RawMagicResist);
+    public float FinalAttack => Mathf.Max(0f, (AttackCore + SpellbladeBonus(true)) * (1f + EquipmentPercent(e => e.bonusAttackPercent) + turnAttackSpellPercent));
+    public float FinalSpellPower => Mathf.Max(0f, (SpellCore + SpellbladeBonus(false)) * (1f + EquipmentPercent(e => e.bonusSpellPowerPercent) + turnAttackSpellPercent));
+    public float FinalArmor => Mathf.Max(0f, PatternArmorOverride ?? (RawArmor + AdaptiveShieldBonus(true)) * (1f + EquipmentPercent(e => e.bonusArmorPercent)));
+    public float FinalMagicResist => Mathf.Max(0f, RawMagicResist + AdaptiveShieldBonus(false));
+
+    // ── equipment unique effects (each counted once even with two copies) ──
+    [Tooltip("자율주행 도우미 로봇: 이번 턴 공격력·주문력 증가 (0.3 = +30%)")]
+    public float turnAttackSpellPercent;
+
+    [Tooltip("탐욕의 관: 전투 시작 시점 골드 (-1 = 현재 골드)")]
+    public int greedGoldSnapshot = -1;
+
+    public bool HasEquipment(string equipmentId)
+    {
+        EnsureEquipmentSlots();
+        foreach (var item in equippedItems)
+            if (item != null && item.equipmentID == equipmentId) return true;
+        return false;
+    }
+
+    private float EquipmentPercent(System.Func<TheLastArk.Data.EquipmentData, float> pick)
+    {
+        EnsureEquipmentSlots();
+        float total = 0f;
+        for (int i = 0; i < equippedItems.Length; i++)
+        {
+            var item = equippedItems[i];
+            if (item == null) continue;
+            bool duplicate = false;
+            for (int j = 0; j < i; j++) duplicate |= equippedItems[j] != null && equippedItems[j].equipmentID == item.equipmentID;
+            if (!duplicate) total += pick(item);
+        }
+        return total;
+    }
+
+    private float GreedBonus => HasEquipment("GreedCrown")
+        ? Mathf.Floor(Mathf.Max(0, greedGoldSnapshot >= 0 ? greedGoldSnapshot
+            : TheLastArk.Managers.ResourceManager.IsInitialized ? TheLastArk.Managers.ResourceManager.Instance.Gold : 0) / 100f)
+        : 0f;
+
+    /// <summary>Attack before 마검사: base + 흑요석 방패 (40% DEF) + 거인의 갑옷 (10% max HP) + 탐욕의 관.</summary>
+    private float AttackCore => RawAttack
+        + (HasEquipment("ObsidianShield") ? Mathf.Floor(FinalArmor * 0.4f) : 0f)
+        + (HasEquipment("GiantArmor") ? Mathf.Floor(FinalMaxHp * 0.1f) : 0f)
+        + GreedBonus;
+
+    /// <summary>Spell power before 마검사: base + 별의 완드 (8% max sanity) + 심판자의 목걸이 (10% max HP) + 탐욕의 관.</summary>
+    private float SpellCore => RawSpellPower
+        + (HasEquipment("StarWand") ? Mathf.Floor(FinalMaxMental * 0.08f) : 0f)
+        + (HasEquipment("JudicatorNecklace") ? Mathf.Floor(FinalMaxHp * 0.1f) : 0f)
+        + GreedBonus;
+
+    private const float SpellbladeAmount = 9f;
+    private const float AdaptiveShieldAmount = 7f;
+
+    /// <summary>룬 대검 마검사: +9 to the higher of ATK / SP (excluding itself; tie → ATK).</summary>
+    private float SpellbladeBonus(bool attack)
+    {
+        if (!HasEquipment("RuneGreatsword")) return 0f;
+        bool attackHigher = AttackCore >= SpellCore;
+        return attack == attackHigher ? SpellbladeAmount : 0f;
+    }
+
+    /// <summary>룬 실드 적응형: +7 to the lower of DEF / MRES (excluding itself; tie → DEF).</summary>
+    private float AdaptiveShieldBonus(bool armor)
+    {
+        if (!HasEquipment("RuneShield")) return 0f;
+        bool armorLower = RawArmor <= RawMagicResist;
+        return armor == armorLower ? AdaptiveShieldAmount : 0f;
+    }
 
     private float RawAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + GetSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier)) + AttackStatusModifier + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : AttackStatusModifier + bonusAttack + EquipmentBonusAttack;
     private float RawSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + GetSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + SpellPowerStatusModifier + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : SpellPowerStatusModifier + EquipmentBonusSpellPower;
