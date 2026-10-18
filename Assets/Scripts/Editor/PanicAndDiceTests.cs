@@ -416,4 +416,97 @@ public class PanicAndDiceTests
         }
         finally { PlayerPrefs.SetInt("Battle.AutoEndDiceTurn", previous ? 1 : 0); }
     }
+
+    [Test] public void FrostReducesInputAndSumChargeWithoutDoubleSubtraction()
+    {
+        var actor = Actor();
+        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
+        var skill = ChargeSkill(actor, 20);
+        skill.levels[0].diceInput.condition = DiceCondition.AtLeast;
+        skill.levels[0].diceInput.value = 4;
+        var pool = Pool(6, 5, 1);
+        pool.BeginTurn(3);
+        actor.status.ApplyStatusEffect(EffectType.Frost, 2f, 2);
+        actor.status.ApplyStatusEffect(EffectType.Frost, 1f, 2);
+
+        Assert.AreEqual(2, _battle.GetFrost(actor), "Max-type");
+        Assert.IsTrue(_battle.TryGetFrostPreview(1, actor, out int from, out int to));
+        Assert.AreEqual(5, from); Assert.AreEqual(3, to);
+        Assert.AreEqual(5, pool.Find(1).Value, "Storage keeps the original value");
+        Assert.IsTrue(_battle.CanAcceptDieOnSkill(0, actor, skill), "6 - 2 = 4 meets 4 이상");
+        Assert.IsFalse(_battle.CanAcceptDieOnSkill(1, actor, skill), "5 - 2 = 3 fails");
+        Assert.AreEqual(1, _battle.GetDieInputValue(actor, pool.Find(2)), "Never below 1 for a non-zero die");
+
+        Select(0);
+        _battle.SelectSkill(skill, actor);
+        Assert.AreEqual(4, _battle.GetDiceCharge(actor, skill), "Sum charge adds the frosted effect value once");
+
+        pool.AddModifier(2, -1);
+        var zero = pool.Find(2);
+        Assert.AreEqual(0, _battle.GetDieInputValue(actor, zero));
+        Assert.AreEqual(0, _battle.GetDieEffectValue(actor, zero, 0));
+        Assert.AreEqual(1, _battle.GetDieEffectValue(actor, zero, 3), "0 + 3 - 2");
+        Assert.AreEqual(4, _battle.GetDieEffectValue(actor, zero, 0, true), "Max-value uses faces: 6 - 2");
+        pool.AddModifier(2, 1);
+        Assert.AreEqual(1, _battle.GetDieEffectValue(actor, pool.Find(2), 2), "1 & 냉기2 & +2 -> 1");
+    }
+
+    [Test] public void FrostDoesNotTouchCountCharge()
+    {
+        var actor = Actor();
+        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
+        var skill = ChargeSkill(actor, 3, true);
+        var pool = Pool(6);
+        pool.BeginTurn(1);
+        actor.status.ApplyStatusEffect(EffectType.Frost, 5f, 2);
+        Select(0);
+        _battle.SelectSkill(skill, actor);
+        Assert.AreEqual(1, _battle.GetDiceCharge(actor, skill));
+    }
+
+    [Test] public void ChargeInsertSkipsBleedAndPressureButFireTriggersThemOnce()
+    {
+        var actor = Actor();
+        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
+        var skill = ChargeSkill(actor, 1);
+        var pool = Pool(3);
+        pool.BeginTurn(1);
+        actor.status.ApplyStatusEffect(EffectType.Bleed, 4f, 3);
+        actor.status.ApplyStatusEffect(EffectType.Pressure, 3f, 3);
+        Select(0);
+        _battle.SelectSkill(skill, actor);
+        Assert.IsTrue(_battle.IsChargeReady(actor, skill));
+        Assert.AreEqual(100f, actor.status.currentHp, "Insert does not trigger 출혈");
+        Assert.AreEqual(100f, actor.status.currentMental, "Insert does not trigger 압박");
+
+        Fire(actor, skill, _battle.enemyParty[0]);
+        Assert.AreEqual(98f, actor.status.currentHp, "Fire: extra bleed 4/2");
+        Assert.AreEqual(97f, actor.status.currentMental, "Fire: pressure 3");
+        Assert.AreSame(skill, actor.status.lastUsedSkill, "Only an actual fire changes the last fired skill");
+    }
+
+    [Test] public void BlockadeAndFatigueBlockInsertAndReadyFireButKeepCharge()
+    {
+        var actor = Actor();
+        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
+        var skill = ChargeSkill(actor, 4);
+        var pool = Pool(3, 3);
+        pool.BeginTurn(2);
+        Select(0);
+        _battle.SelectSkill(skill, actor);
+        Assert.AreEqual(3, _battle.GetDiceCharge(actor, skill));
+        Assert.IsNull(actor.status.lastUsedSkill, "Insert does not set the last fired skill");
+
+        actor.status.ApplyStatusEffect(EffectType.Blockade, 0f, 1, 0f, 0, 0, null);
+        Assert.IsFalse(_battle.CanAcceptDieOnSkill(1, actor, skill));
+        Select(1);
+        _battle.SelectSkill(skill, actor);
+        Assert.AreEqual(3, _battle.GetDiceCharge(actor, skill), "Blocked: no insert, charge kept");
+        Assert.AreEqual(1, pool.Dice.Count);
+
+        actor.status.RemoveAllStatusEffects();
+        actor.status.ApplyStatusEffect(EffectType.Stun, 0f, 1);
+        Assert.AreEqual("기절", _battle.GetDiceSkillUnavailableReason(actor, skill));
+        Assert.AreEqual(3, _battle.GetDiceCharge(actor, skill));
+    }
 }

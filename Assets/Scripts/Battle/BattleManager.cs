@@ -183,6 +183,15 @@ public partial class BattleManager : MonoBehaviour
         return Mathf.Max(die.Value == 0 ? 0 : 1, raw);
     }
 
+    /// <summary>Held-die preview for a frosted character's slot: storage value → input value.</summary>
+    public bool TryGetFrostPreview(int dieId, BattleCharacter actor, out int original, out int input)
+    {
+        ActionDie die = _dicePool.Find(dieId);
+        original = die?.Value ?? 0;
+        input = GetDieInputValue(actor, die);
+        return die != null && GetFrost(actor) > 0;
+    }
+
     private int SumEffectValues(BattleCharacter actor, SkillInfo skill)
     {
         int bonus = GetDiceOnUseBonus(actor, skill);

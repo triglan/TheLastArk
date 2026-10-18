@@ -23,6 +23,7 @@ namespace UI
         private BattleCharacter currentActor;
         private BattleManager _battle;
         private GameObject _diceBorder;
+        private TextMeshProUGUI _frostPreview;
 
         private static Color ReasonColor(string reason)
         {
@@ -63,6 +64,33 @@ namespace UI
                 }
             }
             if (_diceBorder != null) _diceBorder.SetActive(visible);
+            UpdateFrostPreview(dieId);
+        }
+
+        /// <summary>냉기: the held die shows its reduced input value on this character's slot (storage keeps the original).</summary>
+        private void UpdateFrostPreview(int dieId)
+        {
+            bool show = dieId >= 0 && _battle != null && _battle.TryGetFrostPreview(dieId, currentActor, out int original, out int input);
+            if (show && _frostPreview == null)
+            {
+                var labelObject = new GameObject("FrostPreview", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+                labelObject.transform.SetParent(transform, false);
+                labelObject.GetComponent<LayoutElement>().ignoreLayout = true;
+                _frostPreview = labelObject.GetComponent<TextMeshProUGUI>();
+                var rect = _frostPreview.rectTransform;
+                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
+                rect.sizeDelta = new Vector2(140f, 22f);
+                rect.anchoredPosition = new Vector2(0f, 12f);
+                _frostPreview.fontSize = 15f;
+                _frostPreview.alignment = TextAlignmentOptions.Center;
+                _frostPreview.color = new Color(0.6f, 0.86f, 1f);
+                _frostPreview.raycastTarget = false;
+                _frostPreview.font = TMPFontManager.MainKoreanFont;
+            }
+            if (_frostPreview == null) return;
+            _frostPreview.gameObject.SetActive(show);
+            if (show && _battle.TryGetFrostPreview(dieId, currentActor, out int from, out int to))
+                _frostPreview.text = $"냉기  {from} → {to}";
         }
 
         private void AutoFindComponents()

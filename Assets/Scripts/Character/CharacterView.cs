@@ -23,6 +23,7 @@ public class CharacterView : MonoBehaviour
     private RectTransform statusIconRoot;
     private readonly List<Image> statusIcons = new List<Image>();
     private EnemyThornChargesUI thornCharges;
+    private BattleHoverTooltip statusTooltip;
     private RectTransform illustrationRect;
     private Vector3 illustrationBaseScale;
     private Vector2 illustrationBasePosition;
@@ -189,18 +190,21 @@ public class CharacterView : MonoBehaviour
         {
             builder.Append("<color=#FF7777>패닉 · ").Append(TheLastArk.Battle.PanicState.Name(status.panic.Type)).Append("</color>");
         }
+        var details = new StringBuilder();
         if (status?.activeStatusEffects != null)
         {
-            foreach (ActiveStatusEffect effect in status.activeStatusEffects)
+            foreach (var entry in status.GetStatusSummaries())
             {
-                if (effect == null || !effect.IsActive) continue;
                 if (builder.Length > 0) builder.AppendLine();
-                builder.Append(effect.GetDisplayText());
+                builder.Append(entry.summary);
+                if (details.Length > 0) details.AppendLine();
+                details.Append(entry.breakdown);
             }
         }
 
         UpdateStatusIcons(status);
         statusText.text = builder.ToString();
+        statusTooltip?.SetContent(details.ToString());
         statusText.gameObject.SetActive(builder.Length > 0);
     }
 
@@ -211,7 +215,10 @@ public class CharacterView : MonoBehaviour
         if (statusIconRoot == null) return;
         statusIconRoot.SetParent(barUI.hpSlider.transform.parent, false);
         statusIconRoot.anchorMin = statusIconRoot.anchorMax = new Vector2(0.5f, 0.5f);
-        var active = status.activeStatusEffects.FindAll(effect => effect != null && effect.IsActive);
+        var summaries = status.GetStatusSummaries();
+        var active = new List<ActiveStatusEffect>(summaries.Count);
+        foreach (var entry in summaries)
+            active.Add(status.activeStatusEffects.Find(effect => effect != null && effect.IsActive && effect.effectType == entry.type));
         while (statusIcons.Count < active.Count)
         {
             var root = new GameObject("Status Icon", typeof(RectTransform), typeof(Image), typeof(BattleHoverTooltip));
@@ -242,15 +249,16 @@ public class CharacterView : MonoBehaviour
             int columns = Mathf.Min(3, active.Count - i / 3 * 3);
             icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0.5f, 1f);
             icon.rectTransform.anchoredPosition = new Vector2((i % 3 - (columns - 1) * 0.5f) * 32f, -i / 3 * 32f);
-            string count = effect.durationType == StatusDurationType.Turns ? effect.remainingTurns.ToString()
-                : effect.durationType == StatusDurationType.Charges ? effect.remainingCharges.ToString()
-                : effect.damagePerTurn > 0f ? effect.damagePerTurn.ToString("0.#") : "";
+            float value = status.GetStatusValue(effect.effectType);
+            string count = value > 0f ? Mathf.Floor(value + 1e-4f).ToString("0")
+                : effect.durationType == StatusDurationType.Turns ? effect.remainingTurns.ToString()
+                : effect.durationType == StatusDurationType.Charges ? effect.remainingCharges.ToString() : "";
             statusCounts[i].text = icon.sprite != null ? count : ActiveStatusEffect.GetDisplayName(effect.effectType) + count;
             statusCountBackgrounds[i].gameObject.SetActive(icon.sprite != null && count.Length > 0);
             statusCounts[i].rectTransform.anchorMin = statusCounts[i].rectTransform.anchorMax = icon.sprite != null ? new Vector2(1f, 0f) : new Vector2(0.5f, 0.5f);
             statusCounts[i].rectTransform.sizeDelta = icon.sprite != null ? new Vector2(24f, 20f) : new Vector2(32f, 30f);
             statusCounts[i].fontSize = icon.sprite != null ? 15f : 11f;
-            icon.GetComponent<BattleHoverTooltip>().SetContent(effect.GetDisplayText());
+            icon.GetComponent<BattleHoverTooltip>().SetContent(summaries[i].breakdown);
         }
         statusIconRoot.gameObject.SetActive(active.Count > 0);
     }
@@ -375,9 +383,10 @@ public class CharacterView : MonoBehaviour
         statusText.fontSize = 14f;
         statusText.alignment = TextAlignmentOptions.Top;
         statusText.color = Color.white;
-        statusText.raycastTarget = false;
+        statusText.raycastTarget = true;
         statusText.enableWordWrapping = false;
         TMPFontManager.ApplyFont(statusText);
+        statusTooltip = statusObject.AddComponent<BattleHoverTooltip>();
 
         RectTransform sourceRect = barUI.mentalText.rectTransform;
         RectTransform rect = statusText.rectTransform;
