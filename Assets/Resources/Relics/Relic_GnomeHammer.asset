@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_GnomeHammer
   relicName: "\uB178\uC6C0\uC758 \uB9CC\uB2A5 \uB9DD\uCE58"
-  description: "\uAE30\uCC28 \uCE78 \uAD6C\uB9E4 \uBC0F \uAC15\uD654 \uBE44\uC6A9\uC774
-    20% \uAC10\uC18C\uD569\uB2C8\uB2E4."
+  description: "\uAE30\uCC28 \uCE78 \uAD6C\uB9E4\u00B7\uAC15\uD654 \uBE44\uC6A9 \u221220%."
   icon: {fileID: 0}
   rarity: 0
   effectType: 13

@@ -13,10 +13,8 @@ MonoBehaviour:
   m_Name: Relic_MegalithShield
   m_EditorClassIdentifier: 
   relicID: Relic_MegalithShield
-  relicName: "\uAC70\uC11D \uBC29\uD328"
-  description: "\uC218\uD638\uC790\uAC00 \uCD5C\uB300 \uCCB4\uB825\uC758 10%\uB9CC\uD07C,
-    \uACF5\uACA9\uB825\uACFC \uC8FC\uBB38\uB825 \uC911 \uB192\uC740 \uC218\uCE58\uB97C
-    \uC5BB\uC2B5\uB2C8\uB2E4."
+  relicName: "\uAC70\uC11D\uC758 \uB9F9\uC138"
+  description: "\uC218\uD638\uC790 \uC18C\uC18D\uC758 \uACF5\uACA9\uB825\u00B7\uC8FC\uBB38\uB825 \uC911 \uB192\uC740 \uCABD\uC5D0 \uCD5C\uB300 \uCCB4\uB825 10%(\uBC84\uB9BC)\uB97C \uB354\uD569\uB2C8\uB2E4 (\uB3D9\uB960\uC740 \uACF5\uACA9\uB825)."
   icon: {fileID: 0}
   rarity: 1
   effectType: 50

@@ -664,6 +664,29 @@ namespace TheLastArk.Managers
             return baseCost;
         }
 
+        /// <summary>
+        /// [암호 해독기]: one built optional car of the player's choice gains +1 level (never above its max).
+        /// One candidate is upgraded directly; two open a choice.
+        /// </summary>
+        public void ApplyDecoderUpgrade()
+        {
+            var candidates = new List<TrainCar>();
+            foreach (var car in new[] { optionalCar1, optionalCar2 })
+                if (car != null && car.IsBuiltOptionalCar && car.CanUpgrade) candidates.Add(car);
+            if (candidates.Count == 0) return;
+            if (candidates.Count == 1 || !Application.isPlaying) { UpgradeForFree(candidates[0]); return; }
+            UI.ChoicePopup.Show("[암호 해독기] 강화할 선택 칸",
+                candidates.ConvertAll(c => $"{c.carName}  Lv.{c.level} → {c.level + 1}"),
+                index => UpgradeForFree(candidates[index]));
+        }
+
+        private void UpgradeForFree(TrainCar car)
+        {
+            if (car == null || !car.CanUpgrade) return;
+            car.level++;
+            OnTrainCarsChanged?.Invoke();
+        }
+
         public int GetEffectiveCommLevel()
         {
             int baseLevel = nexusCar != null ? nexusCar.level : 0;

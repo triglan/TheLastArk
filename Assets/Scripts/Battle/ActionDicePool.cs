@@ -226,6 +226,16 @@ namespace TheLastArk.Battle
             return true;
         }
 
+        /// <summary>Puts a spent die back into storage unchanged (type, roll, modifier). Storage cap applies.</summary>
+        public bool ReturnDie(ActionDie die)
+        {
+            if (die == null || dice.Contains(die) || dice.Count >= MaxStoredDice) return false;
+            usedThisTurn.Remove(die);
+            die.IsLocked = false;
+            dice.Add(die);
+            return true;
+        }
+
         /// <summary>Picks a random index in [0, count) using the pool's roller.</summary>
         public int PickIndex(int count) => count <= 0 ? -1 : Math.Min(count - 1, Math.Max(0, roller(count) - 1));
 

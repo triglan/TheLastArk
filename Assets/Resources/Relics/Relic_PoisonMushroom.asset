@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_PoisonMushroom
   relicName: "\uB9F9\uB3C5 \uBC84\uC12F"
-  description: "\uB3C5\uC744 \uBD80\uC5EC\uD560 \uB54C, \uCD94\uAC00\uB85C 1 \uBD80\uC5EC\uD569\uB2C8\uB2E4."
+  description: "\uC544\uAD70 \uC2A4\uD0AC \uB3C5 \uBD80\uC5EC\uB7C9 +1 (\uAC19\uC740 \uC2A4\uD0AC\u00B7\uB300\uC0C1 \uD569\uC0B0 \uD6C4 1\uD68C)."
   icon: {fileID: 0}
   rarity: 0
   effectType: 27

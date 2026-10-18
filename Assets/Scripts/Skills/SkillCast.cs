@@ -23,6 +23,26 @@ namespace TheLastArk.Skills
         public float PhysicalDamageBonus;
         /// <summary>Effect values of consumed 북방 dice (라이언하트 shields after the effect).</summary>
         public readonly List<int> NorthValues = new List<int>();
+        /// <summary>First die consumed by this fire (기름칠된 톱니바퀴 returns it).</summary>
+        public TheLastArk.Battle.ActionDie FirstDie;
+        /// <summary>배반자: flat damage added once to the primary target's first hit.</summary>
+        public float FirstHitBonus;
+        public bool FirstHitDone;
+        /// <summary>Actual magic HP damage per target (정신 분열의 룬 and similar, resolved once after all hits).</summary>
+        public readonly Dictionary<BattleCharacter, float> MagicHealthDamage = new Dictionary<BattleCharacter, float>();
+        /// <summary>Actual physical HP damage per target.</summary>
+        public readonly Dictionary<BattleCharacter, float> PhysicalHealthDamage = new Dictionary<BattleCharacter, float>();
+        /// <summary>"Once per target per skill" bookkeeping (key = effect name).</summary>
+        public readonly HashSet<(BattleCharacter, string)> Once = new HashSet<(BattleCharacter, string)>();
+        /// <summary>This fire put at least one status effect on an enemy.</summary>
+        public bool AppliedStatusToEnemy;
+
+        public static void Add(Dictionary<BattleCharacter, float> map, BattleCharacter key, float value)
+        {
+            if (key == null || value <= 0f) return;
+            map.TryGetValue(key, out float current);
+            map[key] = current + value;
+        }
 
         public int DiceSum
         {

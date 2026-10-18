@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_GlassBlade
   relicName: "\uC720\uB9AC \uCE7C\uB0A0"
-  description: "\uCE58\uBA85\uD0C0 \uBC1C\uB3D9 \uC2DC \uB300\uC0C1\uC5D0\uAC8C \uCD9C\uD608\uC744
-    3 \uBD80\uC5EC\uD569\uB2C8\uB2E4."
+  description: "\uCE58\uBA85\uD0C0\uAC00 \uB09C \uACF5\uACA9 \uC2A4\uD0AC \uB300\uC0C1\uC5D0\uAC8C \uCD9C\uD608 3\u00B73\uB77C\uC6B4\uB4DC (\uB300\uC0C1\uBCC4 \uC2A4\uD0AC\uB2F9 1\uD68C)."
   icon: {fileID: 0}
   rarity: 0
   effectType: 24

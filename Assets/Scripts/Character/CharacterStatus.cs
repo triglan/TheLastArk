@@ -148,7 +148,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
             
             if (origin.baseAttack >= origin.spellPower)
             {
-                return FinalMaxHp * 0.10f;
+                return Mathf.Floor(FinalMaxHp * 0.10f);
             }
             return 0f;
         }
@@ -164,7 +164,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
             
             if (origin.spellPower > origin.baseAttack)
             {
-                return FinalMaxHp * 0.10f;
+                return Mathf.Floor(FinalMaxHp * 0.10f);
             }
             return 0f;
         }
@@ -177,10 +177,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
             if (origin == null || origin.isEnemy) return 0f;
             if (TheLastArk.Managers.ResourceManager.Instance == null || !TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.AllianceCrest)) return 0f;
             
-            if (HasSynergy(TheLastArk.Data.SynergyType.Assassin) || HasSynergy(TheLastArk.Data.SynergyType.Ranger) || HasSynergy(TheLastArk.Data.SynergyType.Mage))
-            {
-                return 10f;
-            }
+            // 연합의 문장 no longer grants crit (now: sanity at turn start, see BattleManager.Relics).
             return 0f;
         }
     }
@@ -228,12 +225,12 @@ public class CharacterStatus : ISerializationCallbackReceiver
 
     private float GetSynergyHpMultiplier()
     {
-        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyHpMultiplier() : 0f;
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyHpMultiplier() + TheLastArk.Character.SynergyEffects.HpBonus(this) : 0f;
     }
 
     private float GetSynergyMentalMultiplier()
     {
-        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyMentalMultiplier() : 0f;
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyMentalMultiplier() + TheLastArk.Character.SynergyEffects.MentalBonus(this) : 0f;
     }
 
     private float GetSynergyAttackMultiplier()

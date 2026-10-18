@@ -14,10 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_OneMoreDrink
   relicName: "\uD55C \uC794 \uB354!"
-  description: "\uBE44\uC6A9\uC774 0\uC778 \uC2A4\uD0AC\uC744 \uC0AC\uC6A9\uD560
-    \uB54C, \uD589\uB3D9\uB825\uC744 1 \uD68C\uBCF5\uD569\uB2C8\uB2E4."
+  description: "\uD22C\uC785 \uB208\uAE08\uC774 \uBAA8\uB450 0\uC778 \uC77C\uBC18 \uC561\uD2F0\uBE0C \uBC1C\uB3D9 \uC2DC \uC77C\uBC18 D6 1\uAC1C (\uC544\uAD70 \uD134\uB2F9 \uCD5C\uB300 2\uD68C)."
   icon: {fileID: 0}
-  rarity: 1
+  rarity: 0
   effectType: 39
   effectValue: 1
   targetSynergy: 0

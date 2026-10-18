@@ -86,6 +86,7 @@ public partial class BattleManager : MonoBehaviour
     private readonly Dictionary<BattleCharacter, List<BattleCharacter>> _huntMarks = new Dictionary<BattleCharacter, List<BattleCharacter>>();
     private SkillCast _pendingCast;
     private const int SkillExhausted = int.MaxValue / 2;
+    private const int UnityBannerDice = 2;
     private readonly Dictionary<(BattleCharacter, SkillInfo), int> _diceCharge = new Dictionary<(BattleCharacter, SkillInfo), int>();
     private BattleDiceUI _diceUI;
     private OriginPartBalanceConfig _originBalance;
@@ -245,7 +246,8 @@ public partial class BattleManager : MonoBehaviour
 
     private int UsesOf(BattleCharacter actor, SkillInfo skill) => _diceSkillUses.TryGetValue((actor, skill), out int uses) ? uses : 0;
     public int GetSkillUsesThisTurn(BattleCharacter actor, SkillInfo skill) => Mathf.Min(UsesOf(actor, skill), GetSkillUsesPerTurn(actor, skill));
-    public int GetSkillUsesPerTurn(BattleCharacter actor, SkillInfo skill) => Mathf.Max(1, GetSkillLevel(skill, actor)?.usesPerTurn ?? 1);
+    public int GetSkillUsesPerTurn(BattleCharacter actor, SkillInfo skill)
+        => Mathf.Max(Mathf.Max(1, GetSkillLevel(skill, actor)?.usesPerTurn ?? 1), EndlessCleaveUses(actor, skill));
     private bool IsSkillUsedUp(BattleCharacter actor, SkillInfo skill) => UsesOf(actor, skill) >= GetSkillUsesPerTurn(actor, skill);
     private void MarkSkillUsed(BattleCharacter actor, SkillInfo skill) => _diceSkillUses[(actor, skill)] = UsesOf(actor, skill) + 1;
 
@@ -267,7 +269,9 @@ public partial class BattleManager : MonoBehaviour
             if (die.Kind == DieKind.North) cast.NorthValues.Add(effectValue);
         }
         SkillLevelData level = GetSkillLevel(skill, actor);
-        cast.PhysicalDamageBonus = WarriorBonusFor(actor, level);
+        cast.PhysicalDamageBonus = WarriorBonusFor(actor, level) + EndlessCleaveBonus(actor, skill);
+        cast.FirstDie = dice.Count > 0 ? dice[0] : null;
+        ApplyTraitorBeforeAttack(actor, level, cast);
         if (level != null && level.special == SkillSpecial.MatchSecondUse && cast.InputValues.Count > 0)
         {
             if (_firstUseInput.TryGetValue((actor, skill), out int first)) cast.MatchedSecondUse = cast.InputValues[0] == first;
@@ -575,9 +579,14 @@ public partial class BattleManager : MonoBehaviour
         if (parasitic >= 0 && balance != null)
             _parasiticStacks = Mathf.Min(OriginPartBalanceConfig.At(balance.parasiticStackCap, parasitic), _parasiticStacks + 1);
 
-        int normal = TheLastArk.Managers.TrainManager.OriginNormalDiceRequest(car, balance, _parasiticStacks) + SynergyExtraNormalDice();
-        _dicePool.BeginTurn(normal, ActionDicePool.DefaultFaces, SynergySpecialDice(), TakeCarriedDice());
+        int baseNormal = TheLastArk.Managers.TrainManager.OriginNormalDiceRequest(car, balance, _parasiticStacks);
+        int archiumExtra = SynergyExtraNormalDice();
+        int bannerDice = RelicRules.Has(RelicEffectType.UnityBanner) && SynergyEffects.ActiveSynergyCount() == 0 ? UnityBannerDice : 0;
+        _dicePool.BeginTurn(baseNormal + archiumExtra + bannerDice, ActionDicePool.DefaultFaces, SynergySpecialDice(), TakeCarriedDice());
         ApplyArchiumTopBonus();
+        int placedNormal = 0;
+        foreach (ActionDie die in _dicePool.Dice) if (!die.IsCarried && !die.IsSpecial) placedNormal++;
+        ApplyMagitech(Mathf.Clamp(placedNormal - baseNormal, 0, archiumExtra));
 
         int highEnergy = car.GetEquippedPartLevel(TrainPartEffectType.HighEnergyModule);
         var firstBatch = new List<ActionDie>();
@@ -863,19 +872,7 @@ public partial class BattleManager : MonoBehaviour
 
         _hasUsedFirstSkillInBattle = false;
 
-        // [철벽 성채의 조각] 유물: 전투 시작 시 모든 아군에게 보호 20(2턴) 부여
-        if (TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.IronFortressFragment))
-        {
-            foreach (var ally in playerParty)
-            {
-                if (ally != null && ally.status != null)
-                {
-                    ally.status.ApplyStatusEffect(EffectType.Shield, 20f, 2, StatusDurationType.Turns);
-                    Debug.Log($"[철벽 성채의 조각] {ally.characterName}에게 보호막 20 부여!");
-                }
-            }
-        }
+        OnBattleStartRelics();
 
         // [적응형 보호막 생성기] 전투 시작 시 모든 아군이 잃은 체력의 20%만큼 1턴간 보호막 생성
         if (TheLastArk.Managers.TrainManager.IsInitialized &&
@@ -1333,26 +1330,6 @@ public partial class BattleManager : MonoBehaviour
             }
         }
 
-        // [끊임없는 전투] 유물 스킬 발동 처리
-        if (skill != null && !string.IsNullOrEmpty(skill.skillName) && skill.skillName.Contains("끊임없는 전투"))
-        {
-            float lostHp = Mathf.Max(0f, actor.status.FinalMaxHp - actor.status.currentHp);
-            float atkBuff = lostHp * 0.20f;
-            actor.status.bonusAttack += atkBuff;
-            if (actor.view != null) actor.view.UpdateVisual(actor.status);
-
-            int slashCount = skillIdx >= 1 ? 2 : 1;
-            actor.CastSlashOnRandomEnemy(slashCount);
-
-            Notify($"[끊임없는 전투] 잃은 체력 비례 공격력 +{atkBuff:F1} 획득 & 가르기 {slashCount}회 시전!", Color.red);
-
-            if (skillIdx < 2)
-            {
-                actor.status.dynamicActiveSkill.Remove(skill);
-                Notify("[끊임없는 전투] 일회성 스킬 소모 완료.", Color.gray);
-            }
-        }
-        else
         {
             // Order: 혼란 (at fire) → 도발 → 보호 (per hit in the damage path).
             primaryTarget = ApplyConfusion(actor, primaryTarget, levelData.targetType);
@@ -1362,6 +1339,7 @@ public partial class BattleManager : MonoBehaviour
             EffectEngine.CurrentCast = cast;
             try { EffectEngine.ProcessSkill(actor, targets, levelData, resolvedPrimary, skill.skillName); }
             finally { EffectEngine.CurrentCast = null; }
+            ResolveRelicsAfterSkill(actor, skill, levelData, cast);
             AfterActualSkillFire(actor, skill, levelData, cast);
 
             // [탑] 이번 턴 처음 사용하는 스킬 2번 발동 (더블 캐스트)
@@ -1417,23 +1395,6 @@ public partial class BattleManager : MonoBehaviour
                 UpdateAPUI();
                 Notify("[별자리] 스킬 3회 사용 달성! 행동력 +1 획득!", Color.cyan);
             }
-        }
-
-        // [한 잔 더!] 유물: 비용이 0인 스킬을 사용할 때 행동력 1 회복
-        if (!UsesDice && cost == 0 && TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.OneMoreDrink))
-        {
-            currentAP = Mathf.Min(MaxAP, currentAP + 1);
-            UpdateAPUI();
-            Notify("[한 잔 더!] 행동력 1 회복!", Color.cyan);
-        }
-
-        // [기름칠된 톱니바퀴] 유물: 각 전투에서 가장 처음으로 사용하는 스킬에 유지 효과 부여
-        if (!_hasUsedFirstSkillInBattle && TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.OiledGear))
-        {
-            _hasUsedFirstSkillInBattle = true;
-            Notify("[기름칠된 톱니바퀴] 첫 스킬 유지 효과 적용!", Color.yellow);
         }
 
         _selection.Clear();
@@ -1742,8 +1703,10 @@ public partial class BattleManager : MonoBehaviour
     {
         RemoveOwnerPhaseEffects(playerParty);
         ResetSynergyTurnState();
+        ResetRelicTurnState();
         RefreshHuntMarks();
         ApplySynergyTurnStart();
+        ApplyRelicTurnStart();
         ClearEnemyTargetMarkers();
         PrepareEnemyIntents();
         Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");
@@ -2414,33 +2377,8 @@ public partial class BattleManager : MonoBehaviour
                     bool hasBleed = enemy.status.activeStatusEffects.Exists(e => e.effectType == EffectType.Bleed);
                     if (!hasBleed)
                     {
-                        enemy.status.ApplyStatusEffect(EffectType.Bleed, 2f, 2);
+                        enemy.status.ApplyStatusEffect(EffectType.Bleed, RelicRules.Value(TheLastArk.Data.RelicEffectType.RedShoes), 3);
                         Debug.Log($"[빨간 구두] {enemy.characterName}에게 출혈 2 부여!");
-                    }
-                }
-            }
-        }
-
-        // [연합의 문장] 유물: 수호자, 전사, 지원가 아군이 잃은 정신력의 3%만큼 회복
-        if (TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.AllianceCrest))
-        {
-            foreach (var ally in playerParty)
-            {
-                if (ally != null && ally.status != null && ally.status.currentHp > 0)
-                {
-                    if (ally.status.HasSynergy(TheLastArk.Data.SynergyType.Guardian) ||
-                        ally.status.HasSynergy(TheLastArk.Data.SynergyType.Warrior) ||
-                        ally.status.HasSynergy(TheLastArk.Data.SynergyType.Support))
-                    {
-                        float lostMental = ally.status.FinalMaxMental - ally.status.currentMental;
-                        if (lostMental > 0)
-                        {
-                            float recovery = Mathf.Max(1f, lostMental * 0.03f);
-                            ally.ReceiveMentalHeal(recovery);
-                            if (ally.view != null) ally.view.UpdateVisual(ally.status);
-                            Debug.Log($"[연합의 문장] {ally.characterName} 잃은 정신력 3%({recovery:F1}) 회복!");
-                        }
                     }
                 }
             }
@@ -2452,6 +2390,7 @@ public partial class BattleManager : MonoBehaviour
     private IEnumerator RunEnemyTurn()
     {
         RemoveOwnerPhaseEffects(enemyParty);
+        _vengeanceCounts.Clear();
         ClearEnemyTargetMarkers();
         Debug.Log($"[Battle] {_turnCount}턴: 적 턴 시작. 생존 적 수 확인 중...");
         Debug.Log($"[Battle] enemyParty 총 수: {enemyParty.Count}");

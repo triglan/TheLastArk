@@ -12,6 +12,9 @@ public static class StatusEffectPhaseHandler
 {
     private static float _accumulatedPoisonDamage = 0f;
 
+    /// <summary>Battle start: 정신 흡혈 거머리 progress restarts (it carries over within one battle only).</summary>
+    public static void ResetBattleCounters() => _accumulatedPoisonDamage = 0f;
+
     /// <summary>
     /// 파티 전체에 상태이상을 적용합니다. BattleManager.OnEnterStatusEffectPhase()에서 호출하세요.
     /// </summary>

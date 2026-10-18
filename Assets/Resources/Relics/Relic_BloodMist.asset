@@ -14,10 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_BloodMist
   relicName: "\uD53C\uC548\uAC1C"
-  description: "\uCD9C\uD608\uC774 10 \uC774\uC0C1 \uC911\uCCA9\uB41C \uC801\uC740
-    \uC989\uC2DC \uCD9C\uD608\uC774 1\uD68C \uBC1C\uB3D9\uD569\uB2C8\uB2E4."
+  description: "\uC544\uAD70 \uC2A4\uD0AC\uB85C \uCD9C\uD608 \uBD80\uC5EC\u00B7\uAC31\uC2E0 \uD6C4 \uCD9C\uD608 6 \uC774\uC0C1\uC774\uBA74 \uD604\uC7AC \uCD9C\uD608\uB9CC\uD07C \uC989\uC2DC \uD53C\uD574 (\uB300\uC0C1\uBCC4 \uC544\uAD70 \uD134\uB2F9 1\uD68C, \uAE30\uAC04 \uCC28\uAC10 \uC5C6\uC74C)."
   icon: {fileID: 0}
-  rarity: 1
+  rarity: 0
   effectType: 26
-  effectValue: 10
+  effectValue: 6
   targetSynergy: 0

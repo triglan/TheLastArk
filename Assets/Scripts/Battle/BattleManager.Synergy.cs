@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TheLastArk.Battle;
 using TheLastArk.Character;
 using TheLastArk.Data;
@@ -118,6 +118,11 @@ public partial class BattleManager
         if (wriggling > 0 && enemies.Count > 0)
         {
             int fear = SynergyBalanceConfig.At(config.whisperFear, whisper);
+            if (RelicRules.Has(RelicEffectType.WhisperCultRelic))
+            {
+                ResolvePolyhedron(wriggling, enemies, fear, config.whisperFearRounds);
+                wriggling = 0;
+            }
             var rolls = new List<int>();
             for (int i = 0; i < wriggling; i++) rolls.Add(_dicePool.RollImmediate());
             if (whisper >= 3)
@@ -162,13 +167,36 @@ public partial class BattleManager
         }
     }
 
+    /// <summary>
+    /// 빛나는 부등변다면체: each die hits every enemy with the shared value as sanity damage, then the value rises by 1.
+    /// At 10 it also deals 30 physical and 30 extra sanity damage, then resets to 1.
+    /// </summary>
+    private void ResolvePolyhedron(int count, List<BattleCharacter> enemies, int fear, int rounds)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            int value = _polyhedronValue;
+            foreach (var enemy in enemies)
+            {
+                if (enemy?.status == null || enemy.status.currentHp <= 0f) continue;
+                WhisperHit(enemy, value, fear, rounds);
+                if (value >= PolyhedronMax)
+                {
+                    enemy.ReceiveDamage(PolyhedronBurst, null, DamageType.Physical, false);
+                    enemy.TakeMentalDamage(PolyhedronBurst, true);
+                }
+            }
+            _polyhedronValue = value >= PolyhedronMax ? 1 : value + 1;
+        }
+    }
+
     private static void WhisperHit(BattleCharacter enemy, float amount, int fear, int rounds)
     {
         float bonus = 0f;
         var config = SynergyConfig;
         if (config != null && enemy.status.currentMental <= enemy.status.FinalMaxMental * 0.5f)
             bonus = SynergyBalanceConfig.At(config.whisperLowMentalBonusPercent, Tier(SynergyType.WhisperCult)) * 0.01f;
-        enemy.TakeMentalDamage(new ValueModifier().AddIncrease(bonus).Raw(amount));
+        enemy.TakeMentalDamage(new ValueModifier().AddIncrease(bonus).Raw(amount), true);
         if (fear > 0) enemy.status.ApplyStatusEffect(EffectType.Fear, fear, rounds);
         enemy.view?.UpdateVisual(enemy.status);
     }

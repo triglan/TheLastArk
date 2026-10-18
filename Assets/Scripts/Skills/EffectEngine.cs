@@ -154,6 +154,9 @@ public static class EffectEngine
         int dice = CastDiceSum;
         if (effect.minDie > 0 && dice < effect.minDie) return;
         float chance = effect.chance + effect.chancePerDie * dice;
+        // 불확실한 천칭: skill chance effects +25%p for allies (crit excluded).
+        if (chance < 100f && TheLastArk.Battle.RelicRules.IsAlly(actor) && TheLastArk.Battle.RelicRules.Has(RelicEffectType.UncertainScales))
+            chance += TheLastArk.Battle.RelicRules.Value(RelicEffectType.UncertainScales) * 100f;
         if (chance < 100f && Random.value * 100f >= Mathf.Max(0f, chance)) return;
         float multiplier = ScaledMultiplier(effect, dice);
 
@@ -187,6 +190,8 @@ public static class EffectEngine
             case EffectType.Damage:
                 // 치명타 판정
                 bool isCrit = Random.value < (actor.status.FinalCritRate * 0.01f);
+                bool isCritHit = false;
+                float critScale = 1f;
                 if (isCrit)
                 {
                     float critMultiplier = TheLastArk.Character.SynergyEffects.CritDamagePercent(actor.status) * 0.01f;
@@ -197,14 +202,16 @@ public static class EffectEngine
                         critMultiplier += 0.25f;
                     }
                     calculatedValue = new TheLastArk.Battle.ValueModifier().AddMultiplier(critMultiplier).Raw(calculatedValue);
+                    critScale = critMultiplier;
                     Debug.Log($"[치명타!] {actor.characterName}의 공격이 치명타로 적중! (배율: {critMultiplier}x)");
 
-                    // [유리 칼날] 치명타 발동 시 대상에게 출혈 3 부여
-                    if (actor.status.origin != null && !actor.status.origin.isEnemy &&
-                        ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.GlassBlade))
+                    // [유리 칼날] 치명타 공격 스킬 대상에게 출혈 3·3라운드, 대상별 스킬당 1회
+                    if (CurrentCast != null && TheLastArk.Battle.RelicRules.IsAlly(actor) && TheLastArk.Battle.RelicRules.Has(RelicEffectType.GlassBlade)
+                        && CurrentCast.Once.Add((target, "glass")))
                     {
-                        ApplyBleed(target, 3f, 3, actor);
+                        target.status.ApplyStatusEffect(EffectType.Bleed, TheLastArk.Battle.RelicRules.Value(RelicEffectType.GlassBlade), 3, 0f, 0, -1, actor);
                     }
+                    isCritHit = true;
                 }
 
                 if (effect.bonusPercentPerTargetBleed > 0f)
@@ -218,42 +225,31 @@ public static class EffectEngine
                 float previousIgnore = attack?.ArmorIgnore ?? 0f;
                 if (attack != null && CurrentCast != null && CurrentCast.MatchedSecondUse && effect.matchedArmorIgnorePercent > 0f)
                     attack.ArmorIgnore = effect.matchedArmorIgnorePercent * 0.01f;
-                DamageResult damageResult = target.ReceiveDamageDetailed(calculatedValue, actor, effect.damageType);
+                float hitValue = calculatedValue;
+                if (CurrentCast != null && CurrentCast.FirstHitBonus > 0f && !CurrentCast.FirstHitDone && attack != null && target == attack.PrimaryTarget)
+                {
+                    // 배반자: one bonus on the primary target's first hit (defense and crit applied once with it).
+                    hitValue += CurrentCast.FirstHitBonus * critScale;
+                    CurrentCast.FirstHitDone = true;
+                }
+                DamageResult damageResult = target.ReceiveDamageDetailed(hitValue, actor, effect.damageType);
                 if (attack != null) attack.ArmorIgnore = previousIgnore;
                 lastCalculatedValue = damageResult.HealthDamage;
-                if (CurrentCast != null) CurrentCast.HealthDamageDealt += damageResult.HealthDamage;
+                if (CurrentCast != null)
+                {
+                    CurrentCast.HealthDamageDealt += damageResult.HealthDamage;
+                    var receiver = damageResult.FinalTarget != null ? damageResult.FinalTarget : target;
+                    if (effect.damageType == DamageType.Magical) TheLastArk.Skills.SkillCast.Add(CurrentCast.MagicHealthDamage, receiver, damageResult.HealthDamage);
+                    if (effect.damageType == DamageType.Physical) TheLastArk.Skills.SkillCast.Add(CurrentCast.PhysicalHealthDamage, receiver, damageResult.HealthDamage);
+                    // [날카로운 못] 물리 피해 대상에게 고정 피해 1, 대상별 스킬당 1회 (방어·치명 미적용, 보호막 흡수 가능)
+                    if (effect.damageType == DamageType.Physical && TheLastArk.Battle.RelicRules.IsAlly(actor)
+                        && TheLastArk.Battle.RelicRules.Has(RelicEffectType.SharpNail) && receiver.status.currentHp > 0f
+                        && CurrentCast.Once.Add((receiver, "nail")))
+                        CurrentCast.HealthDamageDealt += receiver.ReceiveDamage(SharpNailDamage, null, DamageType.True, false);
+                }
                 onDamage?.Invoke(damageResult);
                 if (effect.splashAdjacentPercent > 0f) SplashAdjacent(effect, actor, target, calculatedValue * effect.splashAdjacentPercent * 0.01f);
 
-                // [광전사의 도끼] 전사 아군이 적에게 주는 체력 피해의 15%만큼 체력 회복
-                if (actor.status.origin != null && !actor.status.origin.isEnemy &&
-                    target.status.origin != null && target.status.origin.isEnemy &&
-                    actor.status.HasSynergy(SynergyType.Warrior) &&
-                    ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.BerserkerAxe))
-                {
-                    if (lastCalculatedValue > 0)
-                    {
-                        float lifesteal = lastCalculatedValue * 0.15f;
-                        actor.ReceiveHeal(lifesteal, actor);
-                        Debug.Log($"[광전사의 도끼] {actor.characterName} 체력 {lifesteal} 흡혈 회복!");
-                    }
-                }
-
-                // [그림자 베일] 암살자 아군이 적을 처치하면 행동력 3 회복
-                if (actor.status.origin != null && !actor.status.origin.isEnemy &&
-                    target.status.origin != null && target.status.origin.isEnemy &&
-                    target.status.currentHp <= 0 &&
-                    actor.status.HasSynergy(SynergyType.Assassin) &&
-                    ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.ShadowVeil))
-                {
-                    var bm = Object.FindObjectOfType<BattleManager>();
-                    if (bm != null && !bm.UsesDice)
-                    {
-                        bm.currentAP = Mathf.Min(bm.MaxAP, bm.currentAP + 3);
-                        bm.UpdateAPUI();
-                        NotificationManager.Instance?.ShowMessage($"[그림자 베일] {actor.characterName} 적 처치! 행동력 +3 회복!", Color.cyan);
-                    }
-                }
                 break;
 
             case EffectType.Heal:
@@ -346,7 +342,7 @@ public static class EffectEngine
             case EffectType.MentalDamage:
                 calculatedValue = new TheLastArk.Battle.ValueModifier()
                     .AddIncrease(TheLastArk.Character.SynergyEffects.LowSanityMentalBonus(actor.status, target.status)).Raw(calculatedValue);
-                lastCalculatedValue = target.TakeMentalDamage(calculatedValue);
+                lastCalculatedValue = target.TakeMentalDamage(calculatedValue, TheLastArk.Battle.RelicRules.IsAlly(actor));
                 break;
 
             case EffectType.MentalHeal:
@@ -509,6 +505,10 @@ public static class EffectEngine
                 break;
         }
 
+        if (CurrentCast != null && TheLastArk.Battle.RelicRules.IsEnemy(target) && IsStatusEffectType(effect.type)
+            && target.status.GetStatus(effect.type) != null)
+            CurrentCast.AppliedStatusToEnemy = true;
+
         if (effect.statusIcon != null)
         {
             ActiveStatusEffect activeEffect = target.status.GetStatus(effect.type);
@@ -518,6 +518,12 @@ public static class EffectEngine
         if (target?.view != null)
             target.view.UpdateVisual(target.status);
     }
+
+    private const float SharpNailDamage = 1f;
+
+    private static bool IsStatusEffectType(EffectType type)
+        => type != EffectType.Damage && type != EffectType.Heal && type != EffectType.Shield && type != EffectType.MentalDamage
+           && type != EffectType.MentalHeal && type != EffectType.Resurrection && type != EffectType.DiceBoost && type != EffectType.HuntMark;
 
     private static float DebuffScale(BattleCharacter actor, BattleCharacter target)
         => TheLastArk.Character.SynergyEffects.DebuffMultiplier(actor?.status, target?.status);
@@ -583,17 +589,13 @@ public static class EffectEngine
         target.status.ApplyStatusEffect(EffectType.Bleed, dmg, turns,
             0f, 0, -1, actor, durationType);
 
-        // [피안개] 출혈이 10 이상 중첩된 적은 즉시 출혈이 1회 발동
-        if (actor != null && actor.status.origin != null && !actor.status.origin.isEnemy &&
-            ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.BloodMist))
+        // [피안개] 아군 스킬로 출혈 부여·갱신 후 출혈 6 이상이면 현재 출혈만큼 즉시 피해, 대상별 아군 턴당 1회
+        if (TheLastArk.Battle.RelicRules.IsAlly(actor) && TheLastArk.Battle.RelicRules.Has(RelicEffectType.BloodMist))
         {
             float bleedValue = target.status.GetStatusValue(EffectType.Bleed);
-            var bleed = target.status.GetStatus(EffectType.Bleed);
-            if (bleed != null && (bleedValue >= 10f || bleed.remainingTurns >= 10))
-            {
+            var bm = Object.FindObjectOfType<BattleManager>();
+            if (bleedValue >= BattleManager.BloodMistMinimum && bm != null && bm.TryBloodMist(target))
                 target.ReceiveDamage(TheLastArk.Battle.ValueModifier.Floor(bleedValue), null, DamageType.True, false);
-                Debug.Log($"[피안개] {target.characterName} 출혈 10 이상 중첩으로 즉시 출혈 1회 발동!");
-            }
         }
     }
 
@@ -601,10 +603,10 @@ public static class EffectEngine
     {
         bool isActorAlly = actor != null && actor.status.origin != null && !actor.status.origin.isEnemy;
 
-        // [맹독 버섯] 독을 부여할 때 추가로 +1 부여
-        if (isActorAlly && ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.PoisonMushroom))
+        // [맹독 버섯] 아군 스킬 독 부여량 +1, 같은 스킬·대상 1회
+        if (isActorAlly && CurrentCast != null && TheLastArk.Battle.RelicRules.Has(RelicEffectType.PoisonMushroom) && CurrentCast.Once.Add((target, "mushroom")))
         {
-            dmg += 1f;
+            dmg += TheLastArk.Battle.RelicRules.Value(RelicEffectType.PoisonMushroom);
         }
 
         // [늪지의 액체] 중독된 적에게 독을 부여할 때, 무작위 적 1명에게 대상 독 수치의 20%만큼 독을 부여
@@ -612,7 +614,8 @@ public static class EffectEngine
         target.status.ApplyStatusEffect(EffectType.Poison, dmg, turns,
             0f, 0, -1, actor, durationType);
 
-        if (wasPoisoned && isActorAlly && ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.SwampLiquid))
+        // [늪지의 액체] 이미 중독된 적에게 아군 스킬로 독 → 부여 후 독 20%(버림)를 다른 무작위 적에게 3라운드 전파, 스킬당 1회 (전파 독은 재발동 없음)
+        if (wasPoisoned && isActorAlly && CurrentCast != null && TheLastArk.Battle.RelicRules.Has(RelicEffectType.SwampLiquid) && CurrentCast.Once.Add((null, "swamp")))
         {
             var bm = Object.FindObjectOfType<BattleManager>();
             if (bm != null && bm.enemyParty != null)
@@ -626,8 +629,8 @@ public static class EffectEngine
                 if (otherEnemies.Count > 0)
                 {
                     var extraTarget = otherEnemies[Random.Range(0, otherEnemies.Count)];
-                    float spreadPoison = Mathf.Max(1f, dmg * 0.20f);
-                    extraTarget.status.ApplyStatusEffect(EffectType.Poison, spreadPoison, turns);
+                    float spreadPoison = Mathf.Floor(target.status.GetStatusValue(EffectType.Poison) * TheLastArk.Battle.RelicRules.Value(RelicEffectType.SwampLiquid));
+                    if (spreadPoison >= 1f) extraTarget.status.ApplyStatusEffect(EffectType.Poison, spreadPoison, 3);
                     Debug.Log($"[늪지의 액체] {extraTarget.characterName}에게 독 {spreadPoison} 전이!");
                 }
             }
@@ -639,40 +642,29 @@ public static class EffectEngine
         bool isActorAlly = actor != null && actor.status.origin != null && !actor.status.origin.isEnemy;
 
         // [불나방] 화상이 시전자에게도 부여됨. 적에게 부여하는 화상 수치가 100% 증가
-        if (isActorAlly && ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.FireMoth))
+        if (isActorAlly && TheLastArk.Battle.RelicRules.IsEnemy(target) && TheLastArk.Battle.RelicRules.Has(RelicEffectType.FireMoth))
         {
-            dmg *= 2f;
-            actor.status.ApplyStatusEffect(EffectType.Burn, dmg * 0.5f, turns);
-            Debug.Log($"[불나방] 시전자 {actor.characterName}에게도 화상 부여! 적 화상 피해 100% 증가!");
+            dmg = Mathf.Floor(dmg * (1f + TheLastArk.Battle.RelicRules.Value(RelicEffectType.FireMoth)));
+            if (CurrentCast == null || CurrentCast.Once.Add((actor, "firemoth")))
+                actor.status.ApplyStatusEffect(EffectType.Burn, 3f, 3);
         }
 
         target.status.ApplyStatusEffect(EffectType.Burn, dmg, turns,
             0f, 0, -1, actor, durationType);
 
         // [화염 망치] 이번 턴에 화상을 3번 이상 같은 적에게 부여하면 즉시 화상이 발동(수치 미감소)
-        if (isActorAlly && ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.FlameHammer))
+        // [화염 망치] 같은 적에게 아군 턴 동안 스킬 3회로 화상 부여 시 현재 화상 피해 즉시 1회 (대상별 턴당 1회, 기간 차감 없음)
+        if (isActorAlly && CurrentCast != null && TheLastArk.Battle.RelicRules.Has(RelicEffectType.FlameHammer) && CurrentCast.Once.Add((target, "flamehammer")))
         {
-            if (!_turnBurnCounts.ContainsKey(target)) _turnBurnCounts[target] = 0;
-            _turnBurnCounts[target]++;
-
-            if (_turnBurnCounts[target] >= 3)
-            {
-                target.ReceiveDamage(dmg, null, DamageType.True);
-                Debug.Log($"[화염 망치] {target.characterName}에게 3회 이상 화상 부여로 즉시 화상 피해 발동!");
-            }
+            var bm = Object.FindObjectOfType<BattleManager>();
+            if (bm != null && bm.RegisterBurnSkill(target))
+                target.ReceiveDamage(Mathf.Floor(target.status.FinalMaxHp * target.status.GetStatusValue(EffectType.Burn) * 0.01f), null, DamageType.True, false);
         }
     }
 
     private static void CheckMageRuneOfCycle(BattleCharacter actor, BattleCharacter target)
     {
-        if (actor != null && actor.status != null && actor.status.origin != null && !actor.status.origin.isEnemy &&
-            target != null && target.status != null && target.status.origin != null && target.status.origin.isEnemy &&
-            actor.status.HasSynergy(SynergyType.Mage) &&
-            ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.RuneOfCycle))
-        {
-            RestoreRandomAllyMental(1f);
-            Debug.Log($"[순환의 룬] 마술사 {actor.characterName}의 상태이상 부여로 아군 정신력 1 회복!");
-        }
+        // 순환의 룬 resolves once per skill in BattleManager (AppliedStatusToEnemy).
     }
 
     public static void RestoreRandomAllyMental(float amount)

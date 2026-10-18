@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_ManaCrusher
   relicName: "\uB9C8\uB098\uBD84\uC1C4\uC790"
-  description: "\uC801\uC758 \uBCF4\uD638\uB9C9\uC5D0 \uC8FC\uB294 \uD53C\uD574\uAC00
-    50% \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  description: "\uC801 \uBCF4\uD638\uB9C9\uC5D0 \uC801\uC6A9\uB418\uB294 \uD53C\uD574 +50% (\uB118\uCE58\uB294 \uCCB4\uB825 \uD53C\uD574\uC5D0\uB294 \uBBF8\uC801\uC6A9)."
   icon: {fileID: 0}
   rarity: 0
   effectType: 35

@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_HealingMallangi
   relicName: "\uD790\uB9C1 \uB9D0\uB791\uC774"
-  description: "\uC9C0\uC6D0\uAC00 (4) \uD574\uAE08: \uBAA8\uB4E0 \uC544\uAD70 \uC9C0\uC6D0\uAC00\uC758
-    \uC2A4\uD0AC\uCE78\uC774 +1 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  description: "\uC11C\uD3EC\uD130 \uC2DC\uB108\uC9C0\uC758 \uB300\uC0C1\uBCC4 \uC815\uC2E0\uB825 \uD68C\uBCF5 \uD55C\uB3C4\uAC00 \uD134\uB2F9 2\uD68C\uAC00 \uB429\uB2C8\uB2E4."
   icon: {fileID: 0}
   rarity: 1
   effectType: 55

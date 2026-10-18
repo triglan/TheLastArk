@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_UncertainScales
   relicName: "\uBD88\uD655\uC2E4\uD55C \uCC9C\uCE6D"
-  description: "\uC804\uD22C \uC2A4\uD0AC \uC911, \uD655\uB960\uC801\uC73C\uB85C
-    \uBC1C\uB3D9\uB418\uB294 \uD6A8\uACFC\uC758 \uBC1C\uB3D9 \uD655\uB960 +25%"
+  description: "\uC2A4\uD0AC\uC5D0 \uBA85\uC2DC\uB41C \uD655\uB960 \uD6A8\uACFC +25%p (\uCD5C\uB300 100%, \uCE58\uBA85 \uD655\uB960 \uC81C\uC678)."
   icon: {fileID: 0}
   rarity: 0
   effectType: 37

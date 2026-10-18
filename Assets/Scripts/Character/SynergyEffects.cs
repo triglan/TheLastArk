@@ -110,6 +110,16 @@ namespace TheLastArk.Character
             return percent * 0.01f;
         }
 
+        private const float SkyCrossPercent = 25f;
+
+        /// <summary>하늘 십자가: 엘리시움 members' max HP / sanity +25% while no other faction synergy is active.</summary>
+        private static float SkyCross(CharacterStatus status)
+            => IsMember(status, SynergyType.Elysium) && Battle.RelicRules.Has(RelicEffectType.SkyCross)
+               && !HasOtherActiveFaction(SynergyType.Elysium) ? SkyCrossPercent * 0.01f : 0f;
+
+        public static float HpBonus(CharacterStatus status) => SkyCross(status);
+        public static float MentalBonus(CharacterStatus status) => SkyCross(status);
+
         /// <summary>Crit rate bonus in %p.</summary>
         public static float CritBonus(CharacterStatus status)
         {

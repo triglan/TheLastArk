@@ -14,10 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_IronFortressFragment
   relicName: "\uCCA0\uBCBD \uC131\uCC44\uC758 \uC870\uAC01"
-  description: "\uC804\uD22C \uC2DC\uC791 \uC2DC \uBAA8\uB4E0 \uC544\uAD70\uC5D0\uAC8C
-    \uBCF4\uD638 20\uC744 \uBD80\uC5EC\uD569\uB2C8\uB2E4."
+  description: "\uC804\uD22C \uC2DC\uC791 \uC2DC \uBC29\uC5B4\uB825\uC774 \uAC00\uC7A5 \uB192\uC740 \uC544\uAD70\uC774 \uB2E4\uB978 \uC0DD\uC874 \uC544\uAD70 \uBAA8\uB450\uC5D0\uAC8C \uBCF4\uD638 2\uD68C."
   icon: {fileID: 0}
   rarity: 0
   effectType: 34
-  effectValue: 20
+  effectValue: 2
   targetSynergy: 0

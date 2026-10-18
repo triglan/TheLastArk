@@ -14,10 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_AuthorityStaff
   relicName: "\uAD8C\uC704\uC790\uC758 \uC9C0\uD321\uC774"
-  description: "\uB9AC\uB354\uB85C \uC9C0\uC815\uB41C \uB3D9\uB8CC\uC758 \uC2A4\uD0AC\uC774
-    \uC804\uBD80 \uD574\uAE08\uB429\uB2C8\uB2E4."
+  description: "\uB9AC\uB354\uB85C \uC9C0\uC815\uB41C \uB3D9\uB8CC\uC758 \uC2A4\uD0AC\uC744 \uC804\uBD80 \uD574\uAE08\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
-  rarity: 1
+  rarity: 0
   effectType: 17
   effectValue: 1
   targetSynergy: 0

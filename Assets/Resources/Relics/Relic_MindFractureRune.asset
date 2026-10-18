@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_MindFractureRune
   relicName: "\uC815\uC2E0 \uBD84\uC5F4\uC758 \uB8EC"
-  description: "\uB9C8\uBC95 \uD53C\uD574\uAC00 \uB300\uC0C1\uC758 \uC815\uC2E0\uB825\uC5D0
-    10% \uCD94\uAC00 \uD53C\uD574\uB97C \uC90D\uB2C8\uB2E4."
+  description: "\uC544\uAD70 \uACF5\uACA9 \uC2A4\uD0AC\uC774 \uC2E4\uC81C \uC900 \uB9C8\uBC95 \uCCB4\uB825 \uD53C\uD574\uC758 10%\uB97C \uC815\uC2E0 \uD53C\uD574\uB85C (\uB300\uC0C1\uBCC4 \uD0C0\uACA9 \uD569\uC0B0 \uD6C4 1\uD68C)."
   icon: {fileID: 0}
   rarity: 0
   effectType: 22

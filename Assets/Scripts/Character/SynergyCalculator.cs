@@ -197,15 +197,6 @@ namespace TheLastArk.Character
                 }
             }
 
-            // [하늘 십자가] 유물: 다른 세력 시너지가 없을 때 주문력 +25%
-            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.SkyCross))
-            {
-                var active = CalculateActiveSynergies();
-                if (active.TryGetValue(SynergyType.Elysium, out int elysiumCount) && elysiumCount >= 2 && !HasOtherActiveFactionSynergies(SynergyType.Elysium))
-                {
-                    totalBonus += 0.25f;
-                }
-            }
 
             // [특성 훈련소 파츠] 다중 재능 연합기 & 단일 특성 집중기 보너스
             totalBonus += GetTraitTrainingCampStatMultiplier();
@@ -268,15 +259,6 @@ namespace TheLastArk.Character
                 }
             }
 
-            // [하늘 십자가] 유물: 다른 세력 시너지가 없을 때 정신력 +25%
-            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.SkyCross))
-            {
-                var active = CalculateActiveSynergies();
-                if (active.TryGetValue(SynergyType.Elysium, out int elysiumCount) && elysiumCount >= 2 && !HasOtherActiveFactionSynergies(SynergyType.Elysium))
-                {
-                    totalBonus += 0.25f;
-                }
-            }
 
             // [특성 훈련소 파츠] 다중 재능 연합기 & 단일 특성 집중기 보너스
             totalBonus += GetTraitTrainingCampStatMultiplier();
