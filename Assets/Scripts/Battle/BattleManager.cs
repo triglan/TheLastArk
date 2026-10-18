@@ -190,6 +190,7 @@ public partial class BattleManager : MonoBehaviour
     {
         if (die == null) return 0;
         int raw = (useMaxValue ? die.Faces : die.Value) + onUseBonus + SynergyEffects.AssassinDiceBonus(actor?.status) - GetFrost(actor);
+        if (PanicOf(actor) == PanicType.Depression) return Mathf.Max(0, raw) / 2;
         return Mathf.Max(die.Value == 0 ? 0 : 1, raw);
     }
 
@@ -200,6 +201,16 @@ public partial class BattleManager : MonoBehaviour
         original = die?.Value ?? 0;
         input = GetDieInputValue(actor, die);
         return die != null && GetFrost(actor) > 0;
+    }
+
+    /// <summary>Slot preview text while a die is held: 냉기 (input value) and 우울 (halved effect value).</summary>
+    public string GetDiePreviewText(int dieId, BattleCharacter actor)
+    {
+        ActionDie die = _dicePool.Find(dieId);
+        if (die == null || actor?.status == null) return null;
+        if (PanicOf(actor) == PanicType.Depression)
+            return $"우울  {die.Value} → {GetDieEffectValue(actor, die, GetDiceOnUseBonus(actor, null))}";
+        return GetFrost(actor) > 0 ? $"냉기  {die.Value} → {GetDieInputValue(actor, die)}" : null;
     }
 
     private List<ActionDie> SelectedDice()
@@ -314,6 +325,7 @@ public partial class BattleManager : MonoBehaviour
         if (!_dicePool.TrySplit(dieId, values, modifierIndex)) return false;
         MarkSkillUsed(actor, skill);
         CountActualSkillUse(actor);
+        LockCompulsion(actor, skill);
         actor.status.lastUsedSkill = skill;
         actor.ResolveActionStatusEffects();
         _selectedDiceIds.Clear();
@@ -360,6 +372,7 @@ public partial class BattleManager : MonoBehaviour
     /// <summary>After an actual fire: 공방일체 shield and 흑사 die generation (attack skills only).</summary>
     private void AfterActualSkillFire(BattleCharacter actor, SkillInfo skill, SkillLevelData level, SkillCast cast)
     {
+        LockCompulsion(actor, skill);
         AfterSynergySkillFire(actor, skill, level, cast);
         bool isAttack = level?.effects != null && level.special != SkillSpecial.SplitDie
             && level.effects.Exists(e => e != null && e.type == EffectType.Damage);
@@ -1323,10 +1336,14 @@ public partial class BattleManager : MonoBehaviour
 
         {
             // Order: 혼란 (at fire) → 도발 → 보호 (per hit in the damage path).
-            primaryTarget = ApplyConfusion(actor, primaryTarget, levelData.targetType);
-            BattleCharacter resolvedPrimary = TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor);
-            List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
+            // 환각: random final target among all living combatants (self included); 혼란 / 도발 skipped, 보호 still applies.
+            bool hallucinating = IsHallucinatingAttack(actor, levelData);
+            if (hallucinating) primaryTarget = HallucinationTarget(actor) ?? primaryTarget;
+            else primaryTarget = ApplyConfusion(actor, primaryTarget, levelData.targetType);
+            BattleCharacter resolvedPrimary = hallucinating ? primaryTarget : TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor);
+            List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor, hallucinating);
             SkillCast cast = _pendingCast ?? new SkillCast();
+            cast.IgnoreTaunt = hallucinating;
             cast.DamageBonus += TwinStarBonus(actor, levelData, resolvedPrimary);
             EffectEngine.CurrentCast = cast;
             try { EffectEngine.ProcessSkill(actor, targets, levelData, resolvedPrimary, skill.skillName); }
@@ -1375,7 +1392,6 @@ public partial class BattleManager : MonoBehaviour
 
         _pendingCast = null;
         actor.status.lastUsedSkill = skill;
-        actor.status.panic?.SkillUsed(skill);
         actor.ResolveActionStatusEffects();
 
         // [별자리] 스킬 3회 사용 시마다 행동력 +1 획득
@@ -1567,6 +1583,7 @@ public partial class BattleManager : MonoBehaviour
             RefreshDiceUI();
             if (targetHandler != null) targetHandler.Deselect(false);
         }
+        ApplySeizure(playerParty);
         TickSideTurnEnd(playerParty);
 
         // [에너지 저장소] 미사용 행동력 최대 3까지 다음 턴으로 이월 저장
@@ -2448,6 +2465,7 @@ public partial class BattleManager : MonoBehaviour
         }
 
         Debug.Log("[Battle] 적 턴 완료. 상태이상 처리로 넘어갑니다.");
+        ApplySeizure(enemyParty);
         TickSideTurnEnd(enemyParty);
         EnterPhase(BattlePhase.StatusEffect);
     }

@@ -179,6 +179,7 @@ public class CharacterView : MonoBehaviour
         if (status?.origin != null && status.origin.isEnemy)
         {
             UpdateEnemyStatusIcons(status);
+            UpdateEnemyPanicLabel(status);
             if (statusText != null) statusText.gameObject.SetActive(false);
             return;
         }
@@ -191,6 +192,9 @@ public class CharacterView : MonoBehaviour
             builder.Append("<color=#FF7777>패닉 · ").Append(TheLastArk.Battle.PanicState.Name(status.panic.Type)).Append("</color>");
         }
         var details = new StringBuilder();
+        if (status?.panic != null && status.panic.IsActive)
+            details.Append("패닉 · ").Append(TheLastArk.Battle.PanicState.Name(status.panic.Type)).Append(": ")
+                .Append(TheLastArk.Battle.PanicState.Description(status.panic.Type));
         if (status?.activeStatusEffects != null)
         {
             foreach (var entry in status.GetStatusSummaries())
@@ -206,6 +210,33 @@ public class CharacterView : MonoBehaviour
         statusText.text = builder.ToString();
         statusTooltip?.SetContent(details.ToString());
         statusText.gameObject.SetActive(builder.Length > 0);
+    }
+
+    private TextMeshProUGUI enemyPanicLabel;
+
+    /// <summary>Enemy panic name above the status icons, one-line description on hover.</summary>
+    private void UpdateEnemyPanicLabel(CharacterStatus status)
+    {
+        bool active = status?.panic != null && status.panic.IsActive;
+        if (!active && enemyPanicLabel == null) return;
+        if (enemyPanicLabel == null && barUI != null && barUI.hpSlider != null)
+        {
+            var labelObject = new GameObject("Enemy Panic", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(BattleHoverTooltip));
+            labelObject.transform.SetParent(barUI.hpSlider.transform.parent, false);
+            enemyPanicLabel = labelObject.GetComponent<TextMeshProUGUI>();
+            enemyPanicLabel.fontSize = 15f;
+            enemyPanicLabel.alignment = TextAlignmentOptions.Center;
+            enemyPanicLabel.color = new Color(1f, 0.47f, 0.47f);
+            enemyPanicLabel.rectTransform.anchorMin = enemyPanicLabel.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+            enemyPanicLabel.rectTransform.sizeDelta = new Vector2(160f, 20f);
+            enemyPanicLabel.rectTransform.anchoredPosition = new Vector2(0f, 14f);
+            TMPFontManager.ApplyFont(enemyPanicLabel);
+        }
+        if (enemyPanicLabel == null) return;
+        enemyPanicLabel.gameObject.SetActive(active);
+        if (!active) return;
+        enemyPanicLabel.text = "패닉 · " + TheLastArk.Battle.PanicState.Name(status.panic.Type);
+        enemyPanicLabel.GetComponent<BattleHoverTooltip>().SetContent(TheLastArk.Battle.PanicState.Description(status.panic.Type));
     }
 
     private void UpdateEnemyStatusIcons(CharacterStatus status)

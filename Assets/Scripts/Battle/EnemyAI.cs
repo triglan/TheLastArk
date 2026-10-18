@@ -9,6 +9,7 @@ public class EnemyAI : MonoBehaviour
 
     private BattleCharacter _self;
     private int _patternIndex;
+    private int _preparedPatternIndex = -1;
     private List<BattleCharacter> _preparedTargets;
     private BattleCharacter _preparedPrimary;
     private EnemyPatternData _preparedPattern;
@@ -71,9 +72,12 @@ public class EnemyAI : MonoBehaviour
         if (patterns == null || patterns.Count == 0)
             return false;
 
-        EnemyPatternData pattern = patterns[Mathf.Abs(_patternIndex) % patterns.Count];
+        int patternIndex = SelectPatternIndex(patterns);
+        if (patternIndex < 0) return false;
+        EnemyPatternData pattern = patterns[patternIndex];
         if (pattern == null || !HasActions(pattern))
             return false;
+        _preparedPatternIndex = patternIndex;
 
         _preparedAction = FindTargetedAction(pattern);
         _preparedTargets = _preparedAction != null
@@ -89,8 +93,17 @@ public class EnemyAI : MonoBehaviour
     {
         if (_preparedTargets == null && !PrepareTurn()) return;
         var attack = TheLastArk.Battle.AttackContext.BeginPattern(_self);
-        try { ExecutePreparedPattern(); }
+        try
+        {
+            ApplyHallucination(attack);
+            ExecutePreparedPattern();
+        }
         finally { attack.End(); }
+
+        // 강박: the first pattern used after the panic began is repeated.
+        var panic = _self.status.panic;
+        if (panic != null && panic.Type == TheLastArk.Battle.PanicType.Compulsion && panic.LockedPatternIndex < 0)
+            panic.LockedPatternIndex = _preparedPatternIndex;
 
         // 출혈·압박 trigger once per pattern, after its effect.
         _self.ResolveActionStatusEffects();
@@ -117,7 +130,7 @@ public class EnemyAI : MonoBehaviour
         }
         else
         {
-            ApplyConfusion(_preparedPattern.targetType, _preparedPattern.targetSelection);
+            if (!_hallucinating) ApplyConfusion(_preparedPattern.targetType, _preparedPattern.targetSelection);
             _preparedTargets.RemoveAll(target => target == null || target.status == null || target.status.currentHp <= 0f);
             if (_preparedTargets.Count > 0)
             {
@@ -437,6 +450,54 @@ public class EnemyAI : MonoBehaviour
         return EnemyIntentVisualType.Special;
     }
 
+    private bool _hallucinating;
+
+    /// <summary>Pattern for this turn: rotation, 강박's locked pattern, or 무기력's next non-attack pattern (-1 = no action).</summary>
+    private int SelectPatternIndex(List<EnemyPatternData> patterns)
+    {
+        int index = Mathf.Abs(_patternIndex) % patterns.Count;
+        var panic = _self.status.panic;
+        if (panic == null || !panic.IsActive) return index;
+        if (panic.Type == TheLastArk.Battle.PanicType.Compulsion && panic.LockedPatternIndex >= 0)
+            return panic.LockedPatternIndex % patterns.Count;
+        if (panic.Type == TheLastArk.Battle.PanicType.Lethargy)
+        {
+            for (int i = 0; i < patterns.Count; i++)
+            {
+                int candidate = (index + i) % patterns.Count;
+                if (patterns[candidate] != null && !IsAttackPattern(patterns[candidate])) return candidate;
+            }
+            return -1;
+        }
+        return index;
+    }
+
+    /// <summary>A pattern that damages the enemy side (players).</summary>
+    public static bool IsAttackPattern(EnemyPatternData pattern)
+    {
+        if (pattern == null) return false;
+        if (pattern.effects != null && pattern.effects.Exists(e => e != null && e.type == EffectType.Damage)) return true;
+        return pattern.actions != null && pattern.actions.Exists(a => a != null && a.actionType == EnemyPatternActionType.Effect
+            && a.effect != null && a.effect.type == EffectType.Damage && a.targetType != TargetType.Self
+            && a.targetType != TargetType.Friendly && a.targetType != TargetType.AllFriendly);
+    }
+
+    /// <summary>환각: a single-target attack pattern goes to a random living combatant (self included); taunt is skipped.</summary>
+    private void ApplyHallucination(TheLastArk.Battle.AttackContext attack)
+    {
+        _hallucinating = false;
+        var panic = _self.status.panic;
+        if (panic == null || panic.Type != TheLastArk.Battle.PanicType.Hallucination || !IsAttackPattern(_preparedPattern)
+            || !TargetResolver.IsTauntAffected(_preparedPattern.targetType)) return;
+        var candidates = GetAlive(targetParty);
+        candidates.AddRange(GetAlive(allyParty));
+        if (candidates.Count == 0) return;
+        var main = candidates[Random.Range(0, candidates.Count)];
+        _preparedTargets = ResolveTargets(_preparedPattern.targetType, EnemyTargetSelection.Random, main);
+        attack.IgnoreTaunt = true;
+        _hallucinating = true;
+    }
+
     /// <summary>혼란: summed % chance to re-centre a single-primary pattern on a random valid target at execution.</summary>
     private void ApplyConfusion(TargetType targetType, EnemyTargetSelection selection)
     {
@@ -569,7 +630,7 @@ public class EnemyAI : MonoBehaviour
     private void AddNeighbor(List<BattleCharacter> result, List<BattleCharacter> party, BattleCharacter main, int offset)
     {
         // 기준 대상의 왼쪽/오른쪽 이웃을 결과에 추가합니다.
-        if (main == null || party == null) return;
+        if (main == null || party == null || party.IndexOf(main) < 0) return;
         int index = party.IndexOf(main) + offset;
         if (index < 0 || index >= party.Count) return;
         AddIfAlive(result, party[index]);

@@ -15,7 +15,10 @@ namespace TheLastArk.Battle
         public BattleCharacter Attacker { get; }
         public BattleCharacter PrimaryTarget { get; private set; }
         /// <summary>Single-primary-target attack (incl. adjacent); all-target attacks ignore taunt.</summary>
-        public bool TauntAffected { get; private set; }
+        public bool TauntAffected { get => _tauntAffected && !IgnoreTaunt; private set => _tauntAffected = value; }
+        private bool _tauntAffected;
+        /// <summary>환각 picks a final target: taunt is skipped (protect still applies).</summary>
+        public bool IgnoreTaunt { get; set; }
         /// <summary>An enemy pattern: all of its actions form one attack for protect and responses.</summary>
         public bool IsPatternScope { get; private set; }
         /// <summary>Once a hit lands on a taunter, the rest of this attack stays on it.</summary>

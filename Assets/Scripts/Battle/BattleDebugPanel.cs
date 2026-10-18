@@ -31,7 +31,7 @@ namespace TheLastArk.Battle
         private CharacterData selectedData;
         private int selectedSlot;
         private int selectedAlly;
-        private PanicType selectedPanic = PanicType.SelfLoathing;
+        private PanicType selectedPanic = PanicType.Hallucination;
         private int page;
         private float nextRefresh;
         private bool openedBefore;
@@ -257,7 +257,7 @@ namespace TheLastArk.Battle
             panicStatusText.text = actor?.status == null ? "테스트할 아군이 없습니다."
                 : $"{actor.characterName}   HP {actor.status.currentHp:0.#}/{actor.status.FinalMaxHp:0.#}  ·  정신력 {actor.status.currentMental:0.#}/{actor.status.FinalMaxMental:0.#}\n"
                 + (actor.status.panic.IsActive ? $"현재 패닉: {PanicState.Name(actor.status.panic.Type)} · 전투 종료까지 유지" : "현재 패닉: 없음")
-                + (actor.status.panic.RequiredSkill != null ? $"\n먼저 사용할 스킬: {actor.status.panic.RequiredSkill.skillName}" : "");
+                + (actor.status.panic.LockedSkill != null ? $"\n고정된 스킬: {actor.status.panic.LockedSkill.skillName}" : "");
         }
 
         private void ShiftPattern(int direction)

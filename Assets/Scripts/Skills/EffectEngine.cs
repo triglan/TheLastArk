@@ -67,6 +67,7 @@ public static class EffectEngine
             return;
         }
         var context = TheLastArk.Battle.AttackContext.Begin(actor, primaryTarget ?? InferPrimary(targets, data.targetType), data.targetType);
+        if (CurrentCast != null && CurrentCast.IgnoreTaunt) context.IgnoreTaunt = true;
         try { ProcessSkillEffects(actor, targets, data, skillName, onDamage); }
         finally { context.End(); }
     }
@@ -221,6 +222,9 @@ public static class EffectEngine
                     calculatedValue = new TheLastArk.Battle.ValueModifier()
                         .AddIncrease(target.status.GetStatusValue(EffectType.Bleed) * effect.bonusPercentPerTargetBleed * 0.01f)
                         .Raw(calculatedValue);
+                if (TheLastArk.Battle.RelicRules.IsEnemy(actor) && actor.status.panic != null
+                    && actor.status.panic.Type == TheLastArk.Battle.PanicType.Depression)
+                    calculatedValue = new TheLastArk.Battle.ValueModifier().AddDecrease(TheLastArk.Battle.PanicState.DepressionEnemyDamageDecrease).Raw(calculatedValue);
                 if (CurrentCast != null)
                     calculatedValue = new TheLastArk.Battle.ValueModifier()
                         .AddIncrease(effect.damageType == DamageType.Physical ? CurrentCast.PhysicalDamageBonus : 0f)

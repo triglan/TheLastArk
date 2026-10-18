@@ -42,10 +42,11 @@ public static class TargetResolver
         TargetType type,
         List<BattleCharacter> playerParty,
         List<BattleCharacter> enemyParty,
-        BattleCharacter attacker = null)
+        BattleCharacter attacker = null,
+        bool ignoreTaunt = false)
     {
         var result = new List<BattleCharacter>();
-        mainTarget = ResolvePrimary(mainTarget, type, enemyParty, attacker);
+        if (!ignoreTaunt) mainTarget = ResolvePrimary(mainTarget, type, enemyParty, attacker);
 
         bool isEnemy = enemyParty.Contains(mainTarget);
         var team     = isEnemy ? enemyParty : playerParty;

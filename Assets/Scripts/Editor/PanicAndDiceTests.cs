@@ -104,51 +104,25 @@ public class PanicAndDiceTests
         typeof(BattleManager).GetMethod("PerformSkillOnTarget", Private).Invoke(_battle, new object[] { target });
     }
 
-    private void RunPanic()
-    {
-        var routine = (IEnumerator)typeof(BattleManager).GetMethod("ResolvePanicTurnStart", Private).Invoke(_battle, null);
-        int guard = 0;
-        while (routine.MoveNext()) Assert.Less(++guard, 30);
-    }
-
-    [Test] public void MentalZeroRollsOnceAndHealingDoesNotClearPanic()
+    [TestCase(PanicType.Hallucination)] [TestCase(PanicType.Depression)]
+    [TestCase(PanicType.Compulsion)] [TestCase(PanicType.Lethargy)]
+    [TestCase(PanicType.Seizure)] [TestCase(PanicType.Agitation)]
+    public void DebugPanicFiresChangeEventWithoutTouchingAssets(PanicType type)
     {
         var actor = Actor();
-        int events = 0; actor.PanicChanged += _ => events++;
-        actor.TakeMentalDamage(100);
-        var type = actor.status.panic.Type;
-        Assert.That((int)type, Is.InRange(1, 6));
-        actor.TakeMentalDamage(10);
-        actor.ReceiveMentalHeal(100);
-        actor.TakeMentalDamage(100);
-        Assert.AreEqual(type, actor.status.panic.Type);
-        Assert.AreEqual(1, events);
-        var enemy = _battle.enemyParty[0];
-        enemy.TakeMentalDamage(100);
-        Assert.IsFalse(enemy.status.panic.IsActive);
-    }
-
-    [TestCase(PanicType.SelfLoathing)] [TestCase(PanicType.Impulse)]
-    [TestCase(PanicType.Delirium)] [TestCase(PanicType.ContagiousFear)]
-    [TestCase(PanicType.Despair)] [TestCase(PanicType.Compulsion)]
-    public void DebugPanicFiresChangeEventAndReplacesTypeWithoutTouchingAssets(PanicType type)
-    {
-        var actor = Actor();
-        actor.status.panic.Begin(PanicType.Compulsion);
-        actor.status.panic.RequiredSkill = Skill(actor);
         int changes = 0, depleted = 0;
         actor.PanicChanged += _ => changes++;
         actor.MentalDepleted += _ => depleted++;
         Assert.IsTrue(_battle.DebugApplyPanic(actor, type));
         Assert.AreEqual(type, actor.status.panic.Type);
-        Assert.IsNull(actor.status.panic.RequiredSkill);
+        Assert.IsNull(actor.status.panic.LockedSkill);
         Assert.AreEqual(0, actor.status.currentMental);
         Assert.AreEqual(100, actor.status.currentHp);
         Assert.AreEqual(100, actor.status.origin.maxMental);
         Assert.AreEqual(1, changes);
         Assert.AreEqual(1, depleted);
-        actor.ReceiveMentalHeal(100);
-        Assert.AreEqual(type, actor.status.panic.Type, "Ordinary healing must still preserve panic");
+        actor.ReceiveMentalHeal(1);
+        Assert.IsFalse(actor.status.panic.IsActive, "Real healing above 0 ends the panic");
     }
 
     [Test] public void DebugResetRecoversMentalAndRandomPanicCanBeRepeated()
@@ -157,7 +131,7 @@ public class PanicAndDiceTests
         for (int i = 0; i < 12; i++)
         {
             Assert.IsTrue(_battle.DebugRollPanic(actor));
-            Assert.That((int)actor.status.panic.Type, Is.InRange(1, 6));
+            Assert.That((int)actor.status.panic.Type, Is.InRange(1, PanicState.TypeCount));
             Assert.IsTrue(_battle.DebugClearPanic(actor));
             actor.SynchronizePanic();
             Assert.IsFalse(actor.status.panic.IsActive);
@@ -168,8 +142,8 @@ public class PanicAndDiceTests
     [Test] public void DebugPanicRejectsInvalidTargetsAndBusyTurns()
     {
         var actor = Actor();
-        Assert.IsFalse(_battle.DebugApplyPanic(null, PanicType.Despair));
-        Assert.IsFalse(_battle.DebugApplyPanic(_battle.enemyParty[0], PanicType.Despair));
+        Assert.IsFalse(_battle.DebugApplyPanic(null, PanicType.Lethargy));
+        Assert.IsFalse(_battle.DebugApplyPanic(_battle.enemyParty[0], PanicType.Lethargy));
         Assert.IsFalse(_battle.DebugApplyPanic(actor, PanicType.None));
         Assert.IsFalse(_battle.DebugApplyPanic(actor, (PanicType)999));
         actor.status.currentHp = 0;
@@ -185,95 +159,12 @@ public class PanicAndDiceTests
         foreach (var phase in new[] { BattlePhase.EnemyTurn, BattlePhase.BattleEnd })
         {
             typeof(BattleManager).GetField("_currentPhase", Private).SetValue(_battle, phase);
-            Assert.IsFalse(_battle.DebugApplyPanic(actor, PanicType.Despair));
+            Assert.IsFalse(_battle.DebugApplyPanic(actor, PanicType.Lethargy));
             Assert.IsFalse(_battle.DebugClearPanic(actor));
         }
         typeof(BattleManager).GetField("_currentPhase", Private).SetValue(_battle, BattlePhase.PlayerTurn);
-        typeof(BattleManager).GetField("_resolvingPanicTurn", Private).SetValue(_battle, true);
-        Assert.IsFalse(_battle.DebugRollPanic(actor));
         Assert.AreEqual(100, actor.status.currentMental);
         Assert.IsFalse(actor.status.panic.IsActive);
-    }
-
-    [Test] public void DebugPanicDoesNotRepeatAnAlreadyResolvedTurn()
-    {
-        var actor = Actor();
-        Assert.IsTrue(_battle.DebugApplyPanic(actor, PanicType.SelfLoathing));
-        RunPanic();
-        Assert.AreEqual(90, actor.status.currentHp);
-        Assert.IsTrue(_battle.DebugApplyPanic(actor, PanicType.SelfLoathing));
-        RunPanic();
-        Assert.AreEqual(90, actor.status.currentHp);
-        typeof(BattleManager).GetField("_turnCount", Private).SetValue(_battle, 2);
-        RunPanic();
-        Assert.AreEqual(80, actor.status.currentHp);
-    }
-
-    [TestCase(100f, 90f)] [TestCase(5f, 1f)] [TestCase(0.5f, 0.5f)]
-    public void SelfLoathingCannotKillOrHeal(float hp, float expected)
-    {
-        var actor = Actor(); actor.status.currentHp = hp;
-        actor.status.panic.Begin(PanicType.SelfLoathing);
-        RunPanic();
-        Assert.AreEqual(expected, actor.status.currentHp, 0.001);
-        RunPanic();
-        Assert.AreEqual(expected, actor.status.currentHp, 0.001, "Once per turn only");
-    }
-
-    [Test] public void DeliriumHitsOtherAllyUsingPhysicalDamage()
-    {
-        var actor = Actor(); var victim = Actor();
-        actor.status.panic.Begin(PanicType.Delirium);
-        RunPanic();
-        Assert.AreEqual(91, victim.status.currentHp, 0.001);
-        Assert.AreEqual(100, actor.status.currentHp);
-    }
-
-    [Test] public void FearUsesMaximumMentalAndDoesNotTriggerNewPanicTurnEffect()
-    {
-        var actor = Actor(); var victim = Actor();
-        actor.status.panic.Begin(PanicType.ContagiousFear);
-        victim.status.currentMental = 5;
-        victim.PanicChanged += target => target.status.panic.Begin(PanicType.SelfLoathing);
-        RunPanic();
-        Assert.AreEqual(0, victim.status.currentMental);
-        Assert.AreEqual(100, victim.status.currentHp, "New panic waits until next turn");
-    }
-
-    [Test] public void DespairBlocksAPAndDiceSkills()
-    {
-        var actor = Actor(); var skill = Skill(actor);
-        actor.status.panic.Begin(PanicType.Despair);
-        Assert.IsFalse(_battle.CanUseDiceSkill(actor, skill));
-        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
-        Assert.IsFalse(_battle.CanUseDiceSkill(actor, skill));
-    }
-
-    [Test] public void CompulsionRequiresChosenSkillAndReleasesWhenUnavailable()
-    {
-        var actor = Actor(); var first = Skill(actor); var second = Skill(actor);
-        actor.status.panic.Begin(PanicType.Compulsion);
-        RunPanic();
-        var chosen = actor.status.panic.RequiredSkill;
-        Assert.IsNotNull(chosen);
-        var other = chosen == first ? second : first;
-        Assert.IsNull(_battle.GetPanicSkillUnavailableReason(actor, chosen));
-        Assert.IsNotNull(_battle.GetPanicSkillUnavailableReason(actor, other));
-        actor.status.panic.SkillUsed(chosen);
-        Assert.IsNull(_battle.GetPanicSkillUnavailableReason(actor, other));
-        actor.status.panic.RequiredSkill = chosen;
-        _battle.enemyParty[0].status.currentHp = 0;
-        Assert.IsNull(_battle.GetPanicSkillUnavailableReason(actor, other));
-    }
-
-    [Test] public void ImpulseExecutesOneValidSkillAndConsumesItsCost()
-    {
-        var actor = Actor(); Skill(actor);
-        actor.status.panic.Begin(PanicType.Impulse);
-        RunPanic();
-        Assert.Less(_battle.enemyParty[0].status.currentHp, 100);
-        Assert.AreEqual(19, _battle.currentAP);
-        Assert.AreSame(actor.status.dynamicActiveSkill[0], actor.status.lastUsedSkill);
     }
 
     [Test] public void HeldThreeHighlightsMaxFourButFiveAndSpentDiceDoNot()
@@ -286,8 +177,8 @@ public class PanicAndDiceTests
         Assert.IsFalse(_battle.CanAcceptDieOnSkill(1, actor, skill));
         pool.TrySpend(new[] { 0 });
         Assert.IsFalse(_battle.CanAcceptDieOnSkill(0, actor, skill));
-        actor.status.panic.Begin(PanicType.Despair);
-        Assert.IsFalse(_battle.CanAcceptDieOnSkill(2, actor, skill));
+        actor.status.panic.Begin(PanicType.Lethargy);
+        Assert.IsFalse(_battle.CanAcceptDieOnSkill(2, actor, skill), "무기력 blocks attack skills");
     }
 
     [Test] public void ManagementPanelKeepsLeftHalfVisible()
@@ -306,7 +197,7 @@ public class PanicAndDiceTests
     [Test] public void BattleCleanupClearsPanicWithoutRefreshingDestroyedUI()
     {
         var actor = Actor();
-        actor.status.panic.Begin(PanicType.Despair);
+        actor.status.panic.Begin(PanicType.Lethargy);
         var actors = (List<BattleCharacter>)typeof(BattleManager).GetField("_panicActors", Private).GetValue(_battle);
         actors.Add(actor);
         typeof(BattleManager).GetMethod("ClearBattlePanic", Private).Invoke(_battle, new object[] { false });
@@ -324,19 +215,6 @@ public class PanicAndDiceTests
         Assert.IsTrue(group.GetComponent<Canvas>().isRootCanvas);
         Assert.IsNull(group.transform.parent);
         Assert.AreEqual(RenderMode.ScreenSpaceOverlay, group.GetComponent<Canvas>().renderMode);
-    }
-
-    [Test] public void DiceImpulseConsumesMatchingDieAndMarksSkillUsed()
-    {
-        var actor = Actor(); var skill = Skill(actor);
-        actor.status.panic.Begin(PanicType.Impulse);
-        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
-        var pool = (ActionDicePool)typeof(BattleManager).GetField("_dicePool", Private).GetValue(_battle);
-        pool.BeginTurn(2);
-        RunPanic();
-        Assert.Less(_battle.enemyParty[0].status.currentHp, 100);
-        Assert.AreEqual(1, pool.UsedThisTurn.Count);
-        Assert.IsFalse(_battle.CanUseDiceSkill(actor, skill));
     }
 
     [Test] public void ChargeBecomesReadyAndFiresManuallyWithoutDice()

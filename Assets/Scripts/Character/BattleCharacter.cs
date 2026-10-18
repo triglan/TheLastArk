@@ -157,13 +157,22 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     public event System.Action<BattleCharacter> MentalDepleted;
     public event System.Action<BattleCharacter> PanicChanged;
 
+    /// <summary>
+    /// Shared panic for players and enemies: sanity 0 starts one of the six panics (uniform); real healing that lifts
+    /// sanity above 0 ends it. While panicking, more sanity damage never stacks or rerolls.
+    /// </summary>
     public void SynchronizePanic()
     {
-        if (status?.origin == null || status.origin.isEnemy || status.currentHp <= 0f) return;
+        if (status?.origin == null || status.currentHp <= 0f) return;
         if (status.panic == null) status.panic = new TheLastArk.Battle.PanicState();
         if (status.currentMental <= 0f && !status.panic.IsActive)
         {
-            status.panic.Begin((TheLastArk.Battle.PanicType)Random.Range(1, 7));
+            status.panic.Begin(TheLastArk.Battle.PanicState.Roll());
+            PanicChanged?.Invoke(this);
+        }
+        else if (status.currentMental > 0f && status.panic.IsActive)
+        {
+            status.panic.Clear();
             PanicChanged?.Invoke(this);
         }
     }
@@ -173,7 +182,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     internal bool DebugSetPanic(TheLastArk.Battle.PanicType type)
     {
         if (status?.origin == null || status.origin.isEnemy || status.currentHp <= 0f
-            || !gameObject.activeInHierarchy || (int)type < 0 || (int)type > 6) return false;
+            || !gameObject.activeInHierarchy || (int)type < 0 || (int)type > TheLastArk.Battle.PanicState.TypeCount) return false;
         float mentalBefore = status.currentMental;
         if (status.panic == null) status.panic = new TheLastArk.Battle.PanicState();
         status.panic.Begin(type);
@@ -287,6 +296,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         float markBonus = context != null && attacker?.status?.origin != null && !attacker.status.origin.isEnemy
             ? status.GetStatusValue(EffectType.HuntMark) * 0.01f : 0f;
         var damageModifier = new ValueModifier().AddIncrease(markBonus).AddDecrease(protectReduction);
+        if (status.panic != null && status.panic.Type == PanicType.Agitation) damageModifier.AddMultiplier(PanicState.AgitationDamageMultiplier);
         // 거석 방패 부동: below 20% HP right before the hit, physical damage −50% (protected hits included).
         if (damageType == DamageType.Physical && status.HasEquipment("MegalithShield") && status.currentHp < status.FinalMaxHp * 0.2f)
             damageModifier.AddDecrease(0.5f);

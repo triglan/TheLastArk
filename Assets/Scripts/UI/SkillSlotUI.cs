@@ -70,7 +70,8 @@ namespace UI
         /// <summary>냉기: the held die shows its reduced input value on this character's slot (storage keeps the original).</summary>
         private void UpdateFrostPreview(int dieId)
         {
-            bool show = dieId >= 0 && _battle != null && _battle.TryGetFrostPreview(dieId, currentActor, out int original, out int input);
+            string preview = dieId >= 0 && _battle != null ? _battle.GetDiePreviewText(dieId, currentActor) : null;
+            bool show = preview != null;
             if (show && _frostPreview == null)
             {
                 var labelObject = new GameObject("FrostPreview", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
@@ -89,8 +90,7 @@ namespace UI
             }
             if (_frostPreview == null) return;
             _frostPreview.gameObject.SetActive(show);
-            if (show && _battle.TryGetFrostPreview(dieId, currentActor, out int from, out int to))
-                _frostPreview.text = $"냉기  {from} → {to}";
+            if (show) _frostPreview.text = preview;
         }
 
         private void AutoFindComponents()
