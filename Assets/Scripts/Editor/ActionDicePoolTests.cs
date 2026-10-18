@@ -283,4 +283,60 @@ public class ActionDicePoolTests
         Assert.AreEqual(6, pool.Dice[9].Faces);
         Assert.IsFalse(pool.AddFixedDie(6, 0), "Storage full: cancelled");
     }
+
+    [Test]
+    public void NorthKindGoesOnlyToTheChosenSplitResult()
+    {
+        var pool = new ActionDicePool(Seq(5));
+        pool.BeginTurn(0, 6, new[] { new DieSpec(6, DieKind.North) }, null);
+        int id = pool.Dice[0].Id;
+        Assert.AreEqual(DieKind.North, pool.Dice[0].Kind);
+        Assert.IsTrue(pool.TrySplit(id, new[] { 2, 3 }, 1));
+        Assert.AreEqual(DieKind.Normal, pool.Dice[0].Kind);
+        Assert.AreEqual(DieKind.North, pool.Dice[1].Kind);
+    }
+
+    [Test]
+    public void CloudDiceKeepTheirFixedRollThroughRerolls()
+    {
+        var pool = new ActionDicePool(Seq(6));
+        pool.BeginTurn(1, 6, new[] { new DieSpec(6, DieKind.Cloud, 1) }, null);
+        ActionDie cloud = pool.Dice[0];
+        Assert.AreEqual(1, cloud.Value);
+        Assert.IsTrue(pool.Reroll(cloud.Id));
+        Assert.IsTrue(pool.TryRerollAll());
+        Assert.AreEqual(1, cloud.OriginalRoll, "Original roll fixed");
+        Assert.IsTrue(pool.AddModifier(cloud.Id, 1));
+        Assert.AreEqual(2, cloud.Value);
+    }
+
+    [Test]
+    public void CarriedDicePlacedFirstAndKeepEverything()
+    {
+        var pool = new ActionDicePool(Seq(4, 2));
+        pool.BeginTurn(2);
+        pool.AddModifier(pool.Dice[0].Id, 3);
+        var carried = pool.TakeForCarry(new[] { pool.Dice[0].Id });
+        Assert.AreEqual(1, carried.Count);
+        pool.BeginTurn(10, 6, null, carried);
+        Assert.AreSame(carried[0], pool.Dice[0]);
+        Assert.IsTrue(pool.Dice[0].IsCarried);
+        Assert.AreEqual(7, pool.Dice[0].Value, "Roll and modifier kept, no reroll");
+        Assert.AreEqual(ActionDicePool.MaxStoredDice, pool.Dice.Count, "Carried dice count toward the 10 slots");
+    }
+
+    [Test]
+    public void ReturnedDieComesBackUnchanged()
+    {
+        var pool = new ActionDicePool(Seq(5));
+        pool.BeginTurn(1);
+        ActionDie die = pool.Dice[0];
+        pool.AddModifier(die.Id, 1);
+        Assert.IsTrue(pool.TrySpend(new[] { die.Id }));
+        Assert.IsTrue(pool.ReturnDie(die));
+        Assert.AreEqual(1, pool.Dice.Count);
+        Assert.AreEqual(6, pool.Dice[0].Value);
+        Assert.AreEqual(0, pool.UsedThisTurn.Count);
+        Assert.IsFalse(pool.ReturnDie(die), "Already back in storage");
+    }
 }
