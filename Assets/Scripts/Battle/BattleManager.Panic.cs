@@ -171,7 +171,7 @@ public partial class BattleManager
                     else
                     {
                         if (Application.isPlaying)
-                            NotificationManager.Instance?.ShowMessage($"[충동] {actor.characterName} · 주사위 {roll}/{skills.Count} → {skill.skillName}", Color.yellow);
+                            Notify($"[충동] {actor.characterName} · 주사위 {roll}/{skills.Count} → {skill.skillName}", Color.yellow);
                         var targets = PanicTargets(actor, skill);
                         _selectedDiceIds.Clear();
                         if (UsesDice) _selectedDiceIds.AddRange(PanicDice(actor, skill));

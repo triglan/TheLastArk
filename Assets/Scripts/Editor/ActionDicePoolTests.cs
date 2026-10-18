@@ -246,4 +246,41 @@ public class ActionDicePoolTests
         Assert.IsTrue(count.Accepts(new[] { 0 }));
         Assert.AreEqual(1, count.ChargeFrom(new[] { 0 }));
     }
+
+    [Test]
+    public void SplitKeepsTotalMovesModifierAndChecksStorage()
+    {
+        var pool = new ActionDicePool(Seq(3));
+        pool.BeginTurn(1);
+        int id = pool.Dice[0].Id;
+        pool.AddModifier(id, 2);
+        Assert.IsFalse(pool.TrySplit(id, new[] { 2, 2 }, 0), "Sum must equal the actual value 5");
+        Assert.IsFalse(pool.TrySplit(id, new[] { -1, 6 }, 0), "Each result at least 0");
+        Assert.IsFalse(pool.TrySplit(id, new[] { 5 }, 0), "At least two results");
+        Assert.IsTrue(pool.TrySplit(id, new[] { 0, 1, 4 }, 2));
+        Assert.AreEqual(3, pool.Dice.Count);
+        Assert.AreEqual(0, pool.Dice[0].Value);
+        Assert.AreEqual(4, pool.Dice[2].Value);
+        Assert.AreEqual(2, pool.Dice[2].Modifier, "Only the chosen die inherits the modifier");
+        Assert.AreEqual(0, pool.Dice[1].Modifier);
+        Assert.AreEqual(1, pool.UsedThisTurn.Count, "The original goes to the usage log");
+        Assert.IsTrue(pool.Reroll(pool.Dice[2].Id));
+        Assert.AreEqual(5, pool.Dice[2].Value, "Reroll keeps the inherited modifier (3 + 2)");
+
+        var full = new ActionDicePool(Seq(4));
+        full.BeginTurn(10);
+        Assert.IsFalse(full.TrySplit(full.Dice[0].Id, new[] { 2, 2 }, 0), "Would exceed 10 waiting dice");
+        Assert.AreEqual(10, full.Dice.Count);
+    }
+
+    [Test]
+    public void FixedZeroDieRespectsStorage()
+    {
+        var pool = new ActionDicePool(Seq(4));
+        pool.BeginTurn(9);
+        Assert.IsTrue(pool.AddFixedDie(6, 0));
+        Assert.AreEqual(0, pool.Dice[9].Value);
+        Assert.AreEqual(6, pool.Dice[9].Faces);
+        Assert.IsFalse(pool.AddFixedDie(6, 0), "Storage full: cancelled");
+    }
 }

@@ -380,7 +380,7 @@ public partial class BattleManager : MonoBehaviour
         string unavailableReason = GetDiceSkillUnavailableReason(actor, skill);
         if (unavailableReason != null)
         {
-            NotificationManager.Instance?.ShowMessage($"스킬 사용 불가: {unavailableReason}", Color.red);
+            Notify($"스킬 사용 불가: {unavailableReason}", Color.red);
             return;
         }
         ActionDie die = _dicePool.Find(dieId);
@@ -423,14 +423,14 @@ public partial class BattleManager : MonoBehaviour
             ? targetHandler.target.GetComponent<BattleCharacter>() : null);
         if (target == null)
         {
-            NotificationManager.Instance?.ShowMessage("먼저 대상을 지정하세요.", Color.yellow);
+            Notify("먼저 대상을 지정하세요.", Color.yellow);
             return;
         }
         if (level == null || (level.excludeSelf && target == actor) || !(level.targetType == TargetType.Self
             ? target == actor
             : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty, actor)))
         {
-            NotificationManager.Instance?.ShowMessage("이 스킬에 맞는 대상이 아닙니다.", Color.red);
+            Notify("이 스킬에 맞는 대상이 아닙니다.", Color.red);
             return;
         }
 
@@ -664,7 +664,7 @@ public partial class BattleManager : MonoBehaviour
         }
         if (!TryGetSelectedDice(actor, rule, out List<int> values))
         {
-            NotificationManager.Instance?.ShowMessage($"주사위 조건을 확인하세요: {rule.Describe()}", Color.red);
+            Notify($"주사위 조건을 확인하세요: {rule.Describe()}", Color.red);
             return false;
         }
         List<ActionDie> spent = SelectedDice();
@@ -1014,7 +1014,7 @@ public partial class BattleManager : MonoBehaviour
         string panicReason = GetPanicSkillUnavailableReason(actor, skill);
         if (panicReason != null)
         {
-            NotificationManager.Instance?.ShowMessage(panicReason, Color.red);
+            Notify(panicReason, Color.red);
             return;
         }
 
@@ -1022,12 +1022,12 @@ public partial class BattleManager : MonoBehaviour
         {
             if (actor.status.GetStatus(EffectType.Stun) != null)
             {
-                NotificationManager.Instance?.ShowMessage("[기절] 행동할 수 없습니다.", Color.red);
+                Notify("[기절] 행동할 수 없습니다.", Color.red);
                 return;
             }
             if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
             {
-                NotificationManager.Instance?.ShowMessage("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
+                Notify("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
                 return;
             }
             string diceReason = GetDiceSkillUnavailableReason(actor, skill);
@@ -1053,7 +1053,7 @@ public partial class BattleManager : MonoBehaviour
             }
             else if (!TryGetSelectedDice(actor, rule, out _))
             {
-                NotificationManager.Instance?.ShowMessage($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
+                Notify($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
                 return;
             }
         }
@@ -1078,14 +1078,14 @@ public partial class BattleManager : MonoBehaviour
         if (SkillFirstTargeting)
         {
             if (targetHandler != null) targetHandler.Deselect(false);
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
+            Notify("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
             return;
         }
 
         if (targetHandler != null && targetHandler.target != null)
             PerformSkill();
         else
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
+            Notify("대상을 선택하세요.", Color.yellow);
     }
 
     public void SelectConsumable(int consumableIndex)
@@ -1108,14 +1108,14 @@ public partial class BattleManager : MonoBehaviour
         if (SkillFirstTargeting)
         {
             if (targetHandler != null) targetHandler.Deselect(false);
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
+            Notify("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
             return;
         }
 
         if (targetHandler != null && targetHandler.target != null)
             PerformConsumable();
         else
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
+            Notify("대상을 선택하세요.", Color.yellow);
     }
 
     public void PerformSkill() => PerformSkillOnTarget(null);
@@ -1134,12 +1134,12 @@ public partial class BattleManager : MonoBehaviour
         string panicReason = GetPanicSkillUnavailableReason(actor, skill);
         if (panicReason != null)
         {
-            NotificationManager.Instance?.ShowMessage(panicReason, Color.red);
+            Notify(panicReason, Color.red);
             return;
         }
         if (actor.status.GetStatus(EffectType.Stun) != null)
         {
-            NotificationManager.Instance.ShowMessage("[기절] 행동할 수 없습니다.", Color.red);
+            Notify("[기절] 행동할 수 없습니다.", Color.red);
             return;
         }
         int selectedSkillSlot = actor.status.dynamicActiveSkill.IndexOf(skill);
@@ -1147,12 +1147,12 @@ public partial class BattleManager : MonoBehaviour
             && e.IsActive && (e.skillSlot < 0 || e.skillSlot == selectedSkillSlot));
         if (isBlocked)
         {
-            NotificationManager.Instance.ShowMessage("[봉쇄] 해당 스킬칸을 사용할 수 없습니다.", Color.red);
+            Notify("[봉쇄] 해당 스킬칸을 사용할 수 없습니다.", Color.red);
             return;
         }
         if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
         {
-            NotificationManager.Instance.ShowMessage("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
+            Notify("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
             return;
         }
         int skillIdx = actor.status.SkillLevelIndex;
@@ -1168,7 +1168,7 @@ public partial class BattleManager : MonoBehaviour
                 && TargetResolver.FindTauntTarget(enemyParty) != null
                 ? "[도발] 도발 상태의 적만 공격할 수 있습니다."
                 : $"{skill.skillName}에 맞는 대상이 아닙니다.";
-            NotificationManager.Instance.ShowMessage(message, Color.red);
+            Notify(message, Color.red);
             if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
@@ -1176,7 +1176,7 @@ public partial class BattleManager : MonoBehaviour
         // [색욕] 매혹된 캐릭터 직접 조종 제한
         if (_sinState.charmedCharacters != null && _sinState.charmedCharacters.Contains(actor))
         {
-            NotificationManager.Instance.ShowMessage($"[매혹] {actor.characterName}(은)는 매혹되어 이번 턴에 직접 조종할 수 없습니다!", Color.magenta);
+            Notify($"[매혹] {actor.characterName}(은)는 매혹되어 이번 턴에 직접 조종할 수 없습니다!", Color.magenta);
             if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
@@ -1187,7 +1187,7 @@ public partial class BattleManager : MonoBehaviour
         {
             if (_sinState.skillsUsedThisTurn >= 3)
             {
-                NotificationManager.Instance.ShowMessage("[나태의 죄] 이번 턴에는 스킬을 최대 3회까지만 사용할 수 있습니다!", Color.red);
+                Notify("[나태의 죄] 이번 턴에는 스킬을 최대 3회까지만 사용할 수 있습니다!", Color.red);
                 if (!SkillFirstTargeting) _selection.Clear();
                 return;
             }
@@ -1196,7 +1196,7 @@ public partial class BattleManager : MonoBehaviour
         // [황제] 이전 턴 사용 스킬 금지 체크
         if (_arcanaState.emperorBannedSkillsNextTurn != null && _arcanaState.emperorBannedSkillsNextTurn.Contains(skill))
         {
-            NotificationManager.Instance.ShowMessage("[황제] 이전 턴에 사용했던 스킬은 이번 턴에 사용할 수 없습니다!", Color.red);
+            Notify("[황제] 이전 턴에 사용했던 스킬은 이번 턴에 사용할 수 없습니다!", Color.red);
             if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
@@ -1204,7 +1204,7 @@ public partial class BattleManager : MonoBehaviour
         // [황제] 이번 턴 이미 사용한 스킬 중복 시전 금지 체크
         if (_arcanaState.isEmperorActiveThisTurn && _arcanaState.emperorUsedSkillsThisTurn.Contains(skill))
         {
-            NotificationManager.Instance.ShowMessage("[황제] 이번 턴에 이미 사용한 스킬은 다시 사용할 수 없습니다!", Color.red);
+            Notify("[황제] 이번 턴에 이미 사용한 스킬은 다시 사용할 수 없습니다!", Color.red);
             if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
@@ -1230,14 +1230,14 @@ public partial class BattleManager : MonoBehaviour
             {
                 cost = 0;
                 _arcanaState.foolFreeSkillsRemaining--;
-                NotificationManager.Instance?.ShowMessage($"[광대] 스킬 비용 0 소모! (남은 횟수: {_arcanaState.foolFreeSkillsRemaining})", Color.yellow);
+                Notify($"[광대] 스킬 비용 0 소모! (남은 횟수: {_arcanaState.foolFreeSkillsRemaining})", Color.yellow);
             }
             // [완전수 모듈] 수치가 6 또는 28일 때 이번 턴 첫 스킬 비용 0 소모
             else if (_limitFirstSkillFreeThisTurn)
             {
                 cost = 0;
                 _limitFirstSkillFreeThisTurn = false;
-                NotificationManager.Instance?.ShowMessage("[완전수 모듈] 첫 스킬 비용 0 소모!", Color.green);
+                Notify("[완전수 모듈] 첫 스킬 비용 0 소모!", Color.green);
             }
 
             // [교황] 3코스트 이상 스킬 비용 -1
@@ -1280,11 +1280,11 @@ public partial class BattleManager : MonoBehaviour
                 _nextTurnLockedAP = needed;
                 _overloadedThisTurn = true;
                 currentAP += needed;
-                NotificationManager.Instance.ShowMessage($"[과부하 모듈] 다음 턴 행동력 {needed}를 미리 사용합니다! (다음 턴 {needed} 잠김)", Color.yellow);
+                Notify($"[과부하 모듈] 다음 턴 행동력 {needed}를 미리 사용합니다! (다음 턴 {needed} 잠김)", Color.yellow);
             }
             else
             {
-                NotificationManager.Instance.ShowMessage(canOverload ? "행동력이 부족합니다. (과부하는 최대 5까지 가능)" : "행동력이 부족합니다.", Color.red);
+                Notify(canOverload ? "행동력이 부족합니다. (과부하는 최대 5까지 가능)" : "행동력이 부족합니다.", Color.red);
                 return;
             }
         }
@@ -1305,7 +1305,7 @@ public partial class BattleManager : MonoBehaviour
                 var victim = livingAllies[UnityEngine.Random.Range(0, livingAllies.Count)];
                 victim.TakeMentalDamage(6f);
                 if (victim.view != null) victim.view.UpdateVisual(victim.status);
-                NotificationManager.Instance?.ShowMessage($"[오만의 죄] 스킬 사용으로 {victim.characterName} 정신력 -6 감소!", Color.magenta);
+                Notify($"[오만의 죄] 스킬 사용으로 {victim.characterName} 정신력 -6 감소!", Color.magenta);
             }
         }
 
@@ -1318,7 +1318,7 @@ public partial class BattleManager : MonoBehaviour
             {
                 currentAP = Mathf.Min(MaxAP, currentAP + 2);
                 UpdateAPUI();
-                NotificationManager.Instance?.ShowMessage("[연속 전투 촉진기] 7회 스킬 사용 달성! 행동력 +2 획득!", Color.cyan);
+                Notify("[연속 전투 촉진기] 7회 스킬 사용 달성! 행동력 +2 획득!", Color.cyan);
             }
         }
 
@@ -1333,12 +1333,12 @@ public partial class BattleManager : MonoBehaviour
             int slashCount = skillIdx >= 1 ? 2 : 1;
             actor.CastSlashOnRandomEnemy(slashCount);
 
-            NotificationManager.Instance.ShowMessage($"[끊임없는 전투] 잃은 체력 비례 공격력 +{atkBuff:F1} 획득 & 가르기 {slashCount}회 시전!", Color.red);
+            Notify($"[끊임없는 전투] 잃은 체력 비례 공격력 +{atkBuff:F1} 획득 & 가르기 {slashCount}회 시전!", Color.red);
 
             if (skillIdx < 2)
             {
                 actor.status.dynamicActiveSkill.Remove(skill);
-                NotificationManager.Instance.ShowMessage("[끊임없는 전투] 일회성 스킬 소모 완료.", Color.gray);
+                Notify("[끊임없는 전투] 일회성 스킬 소모 완료.", Color.gray);
             }
         }
         else
@@ -1361,7 +1361,7 @@ public partial class BattleManager : MonoBehaviour
                 EffectEngine.CurrentCast = cast;
                 try { EffectEngine.ProcessSkill(actor, doubleTargets, levelData, TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor), skill.skillName); }
                 finally { EffectEngine.CurrentCast = null; }
-                NotificationManager.Instance?.ShowMessage("[탑] 첫 스킬이 2번 연속 발동되었습니다!", Color.red);
+                Notify("[탑] 첫 스킬이 2번 연속 발동되었습니다!", Color.red);
             }
 
             // [식탐] 적 처치 시 추가 행동력 획득
@@ -1386,7 +1386,7 @@ public partial class BattleManager : MonoBehaviour
 
                     currentAP = Mathf.Min(MaxAP + 10, currentAP + bonus);
                     UpdateAPUI();
-                    NotificationManager.Instance?.ShowMessage($"[식탐의 죄] 적 처치 달성! 행동력 +{bonus} 획득!", Color.yellow);
+                    Notify($"[식탐의 죄] 적 처치 달성! 행동력 +{bonus} 획득!", Color.yellow);
                 }
             }
         }
@@ -1404,7 +1404,7 @@ public partial class BattleManager : MonoBehaviour
             {
                 currentAP = Mathf.Min(MaxAP + 5, currentAP + 1);
                 UpdateAPUI();
-                NotificationManager.Instance?.ShowMessage("[별자리] 스킬 3회 사용 달성! 행동력 +1 획득!", Color.cyan);
+                Notify("[별자리] 스킬 3회 사용 달성! 행동력 +1 획득!", Color.cyan);
             }
         }
 
@@ -1450,7 +1450,7 @@ public partial class BattleManager : MonoBehaviour
         {
             currentAP = Mathf.Min(MaxAP, currentAP + 1);
             UpdateAPUI();
-            NotificationManager.Instance.ShowMessage("[한 잔 더!] 행동력 1 회복!", Color.cyan);
+            Notify("[한 잔 더!] 행동력 1 회복!", Color.cyan);
         }
 
         // [기름칠된 톱니바퀴] 유물: 각 전투에서 가장 처음으로 사용하는 스킬에 유지 효과 부여
@@ -1458,7 +1458,7 @@ public partial class BattleManager : MonoBehaviour
             TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.OiledGear))
         {
             _hasUsedFirstSkillInBattle = true;
-            NotificationManager.Instance.ShowMessage("[기름칠된 톱니바퀴] 첫 스킬 유지 효과 적용!", Color.yellow);
+            Notify("[기름칠된 톱니바퀴] 첫 스킬 유지 효과 적용!", Color.yellow);
         }
 
         _selection.Clear();
@@ -1544,7 +1544,7 @@ public partial class BattleManager : MonoBehaviour
             case TheLastArk.Data.ConsumableEffectType.DamageSingle:
                 if (primaryTarget == null || playerParty.Contains(primaryTarget))
                 {
-                    NotificationManager.Instance.ShowMessage("적을 선택하세요.", Color.red);
+                    Notify("적을 선택하세요.", Color.red);
                     if (!SkillFirstTargeting) _selection.Clear();
                     return;
                 }
@@ -1555,7 +1555,7 @@ public partial class BattleManager : MonoBehaviour
             case TheLastArk.Data.ConsumableEffectType.HealMental:
                 if (primaryTarget == null || enemyParty.Contains(primaryTarget))
                 {
-                    NotificationManager.Instance.ShowMessage("아군을 선택하세요.", Color.red);
+                    Notify("아군을 선택하세요.", Color.red);
                     if (!SkillFirstTargeting) _selection.Clear();
                     return;
                 }
@@ -1586,7 +1586,7 @@ public partial class BattleManager : MonoBehaviour
             }
         }
 
-        NotificationManager.Instance.ShowMessage($"{consumable.consumableName} 사용.", Color.cyan);
+        Notify($"{consumable.consumableName} 사용.", Color.cyan);
 
         var resMgr = TheLastArk.Managers.ResourceManager.Instance;
         if (resMgr != null) resMgr.RemoveConsumable(_selection.ConsumableIndex);
@@ -1665,7 +1665,7 @@ public partial class BattleManager : MonoBehaviour
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
             }
-            NotificationManager.Instance?.ShowMessage("[죽음] 턴 종료로 모든 아군 체력/정신력 -4 감소", Color.black);
+            Notify("[죽음] 턴 종료로 모든 아군 체력/정신력 -4 감소", Color.black);
         }
 
         // [악마 계약] 턴 종료 시 지속 효과 처리
@@ -1679,7 +1679,7 @@ public partial class BattleManager : MonoBehaviour
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
             }
-            NotificationManager.Instance?.ShowMessage("[악마 계약] 턴 종료로 모든 아군 정신력 -6 감소", Color.red);
+            Notify("[악마 계약] 턴 종료로 모든 아군 정신력 -6 감소", Color.red);
         }
         else if (_arcanaState.activeDevilContract == TheLastArk.Battle.DevilContractType.Option3_EveryTurnAP_GainDebuffs)
         {
@@ -1690,7 +1690,7 @@ public partial class BattleManager : MonoBehaviour
                     a.status.ApplyStatusEffect(EffectType.Bleed, 1f, 2);
                 }
             }
-            NotificationManager.Instance?.ShowMessage("[악마 계약] 턴 종료로 모든 아군 약화/취약 획득", Color.red);
+            Notify("[악마 계약] 턴 종료로 모든 아군 약화/취약 획득", Color.red);
         }
 
         // [황제] 다음 턴 스킬 밴 목록 갱신 및 턴 플래그 리셋
@@ -1705,7 +1705,7 @@ public partial class BattleManager : MonoBehaviour
                 bool hasMartyr = TheLastArk.Managers.TrainManager.IsInitialized && TheLastArk.Managers.TrainManager.Instance.nexusCar != null && TheLastArk.Managers.TrainManager.Instance.nexusCar.HasPartEffect(TrainPartEffectType.SinMartyrVow);
                 bool hasGevil = TheLastArk.Managers.TrainManager.IsInitialized && TheLastArk.Managers.TrainManager.Instance.nexusCar != null && TheLastArk.Managers.TrainManager.Instance.nexusCar.HasPartEffect(TrainPartEffectType.SinGreaterEvil);
                 _sinState.pendingGluttonyPenaltyNextTurn = hasMartyr ? 9 : (hasGevil ? 6 : 3);
-                NotificationManager.Instance?.ShowMessage($"[식탐의 죄] 적 미처치로 다음 턴 행동력 -{_sinState.pendingGluttonyPenaltyNextTurn} 감소 예정", Color.red);
+                Notify($"[식탐의 죄] 적 미처치로 다음 턴 행동력 -{_sinState.pendingGluttonyPenaltyNextTurn} 감소 예정", Color.red);
             }
         }
 
@@ -1732,7 +1732,7 @@ public partial class BattleManager : MonoBehaviour
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
             }
-            NotificationManager.Instance?.ShowMessage($"[탐욕의 죄] 미사용 행동력({currentAP}) 비례 모든 아군 정신력 감소!", Color.red);
+            Notify($"[탐욕의 죄] 미사용 행동력({currentAP}) 비례 모든 아군 정신력 감소!", Color.red);
         }
 
         // 씬 턴 카운터 리셋
@@ -1892,7 +1892,7 @@ public partial class BattleManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(result.summary))
         {
-            NotificationManager.Instance?.ShowMessage($"[아르카나 개방] {result.summary}", Color.yellow);
+            Notify($"[아르카나 개방] {result.summary}", Color.yellow);
         }
     }
 
@@ -1924,7 +1924,7 @@ public partial class BattleManager : MonoBehaviour
         {
             case TarotCardType.Fool:
                 _arcanaState.foolFreeSkillsRemaining = 2;
-                NotificationManager.Instance?.ShowMessage("[광대] 이번 턴 사용하는 첫 스킬 2개의 비용이 0이 됩니다!", Color.yellow);
+                Notify("[광대] 이번 턴 사용하는 첫 스킬 2개의 비용이 0이 됩니다!", Color.yellow);
                 break;
 
             case TarotCardType.HighPriestess:
@@ -1932,12 +1932,12 @@ public partial class BattleManager : MonoBehaviour
                 {
                     a.status.ApplyStatusEffect(EffectType.Shield, 1f, 1);
                 }
-                NotificationManager.Instance?.ShowMessage("[여사제] 모든 아군에게 보호(방어막) 1 부여!", Color.cyan);
+                Notify("[여사제] 모든 아군에게 보호(방어막) 1 부여!", Color.cyan);
                 break;
 
             case TarotCardType.Lovers:
                 _arcanaState.isLoversActiveThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[연인] 이번 턴 아군이 얻는 힘/보호 효과가 전체에게 공유됩니다!", Color.magenta);
+                Notify("[연인] 이번 턴 아군이 얻는 힘/보호 효과가 전체에게 공유됩니다!", Color.magenta);
                 break;
 
             case TarotCardType.Chariot:
@@ -1946,7 +1946,7 @@ public partial class BattleManager : MonoBehaviour
                     a.status.bonusAttack += 1;
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
-                NotificationManager.Instance?.ShowMessage("[전차] 모든 아군 힘(공격력) +1 증가!", Color.cyan);
+                Notify("[전차] 모든 아군 힘(공격력) +1 증가!", Color.cyan);
                 break;
 
             case TarotCardType.Strength:
@@ -1956,12 +1956,12 @@ public partial class BattleManager : MonoBehaviour
                     a.status.bonusAttack += 3;
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
-                NotificationManager.Instance?.ShowMessage("[힘] 모든 아군 힘 +3 증가! (이번 턴 공격 스킬 비용 +1)", Color.red);
+                Notify("[힘] 모든 아군 힘 +3 증가! (이번 턴 공격 스킬 비용 +1)", Color.red);
                 break;
 
             case TarotCardType.WheelOfFortune:
                 _arcanaState.isWheelOfFortunePending = true;
-                NotificationManager.Instance?.ShowMessage("[운명] 다음 턴에 얻는 행동력이 2배로 증가합니다!", Color.yellow);
+                Notify("[운명] 다음 턴에 얻는 행동력이 2배로 증가합니다!", Color.yellow);
                 break;
 
             case TarotCardType.Justice:
@@ -1969,27 +1969,27 @@ public partial class BattleManager : MonoBehaviour
                 {
                     e.status.ApplyStatusEffect(EffectType.Bleed, 3f, 3);
                 }
-                NotificationManager.Instance?.ShowMessage("[정의] 모든 적에게 약화 3 / 취약 3(출혈) 부여!", Color.cyan);
+                Notify("[정의] 모든 적에게 약화 3 / 취약 3(출혈) 부여!", Color.cyan);
                 break;
 
             case TarotCardType.Hierophant:
                 _arcanaState.isHierophantActiveThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[교황] 비용 3 이상인 스킬들의 비용이 -1 감소합니다!", Color.yellow);
+                Notify("[교황] 비용 3 이상인 스킬들의 비용이 -1 감소합니다!", Color.yellow);
                 break;
 
             case TarotCardType.HangedMan:
                 _arcanaState.hangedManPenaltyPending = 4;
-                NotificationManager.Instance?.ShowMessage("[매달린 사람] 대량 AP 획득! (다음 턴 행동력 -4)", Color.magenta);
+                Notify("[매달린 사람] 대량 AP 획득! (다음 턴 행동력 -4)", Color.magenta);
                 break;
 
             case TarotCardType.Temperance:
                 _arcanaState.temperanceAccumulatedAP += 1;
-                NotificationManager.Instance?.ShowMessage($"[절제] 매 턴 행동력 +1 영구 누적! (현재 누적: +{_arcanaState.temperanceAccumulatedAP} AP)", Color.green);
+                Notify($"[절제] 매 턴 행동력 +1 영구 누적! (현재 누적: +{_arcanaState.temperanceAccumulatedAP} AP)", Color.green);
                 break;
 
             case TarotCardType.Tower:
                 _arcanaState.isTowerDoubleCastActive = true;
-                NotificationManager.Instance?.ShowMessage("[탑] 이번 턴에 처음 사용하는 스킬이 2번 발동(더블 캐스트)됩니다!", Color.red);
+                Notify("[탑] 이번 턴에 처음 사용하는 스킬이 2번 발동(더블 캐스트)됩니다!", Color.red);
                 break;
 
             case TarotCardType.Empress:
@@ -1999,34 +1999,34 @@ public partial class BattleManager : MonoBehaviour
                     a.ReceiveMentalHeal(5f);
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
-                NotificationManager.Instance?.ShowMessage("[여제] 모든 아군 체력 +5, 정신력 +5 회복!", Color.green);
+                Notify("[여제] 모든 아군 체력 +5, 정신력 +5 회복!", Color.green);
                 break;
 
             case TarotCardType.Emperor:
                 _arcanaState.isEmperorActiveThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[황제] 이번 턴 모든 스킬 비용 0 고정! (스킬당 1회 제한, 사용 스킬 다음 턴 사용 불가)", Color.red);
+                Notify("[황제] 이번 턴 모든 스킬 비용 0 고정! (스킬당 1회 제한, 사용 스킬 다음 턴 사용 불가)", Color.red);
                 break;
 
             case TarotCardType.Death:
                 _arcanaState.isDeathPendingThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[죽음] 막대한 AP 획득! (턴 종료 시 모든 아군 체력/정신력 -4 감소)", Color.black);
+                Notify("[죽음] 막대한 AP 획득! (턴 종료 시 모든 아군 체력/정신력 -4 감소)", Color.black);
                 break;
 
             case TarotCardType.Devil:
                 if (devilChoice == DevilContractType.Option1_MoreAP_MoreDevil)
                 {
                     _arcanaState.devilOption1PickCount++;
-                    NotificationManager.Instance?.ShowMessage("[악마] 탐욕 계약 체결! (악마 AP 및 등장 확률 증가)", Color.red);
+                    Notify("[악마] 탐욕 계약 체결! (악마 AP 및 등장 확률 증가)", Color.red);
                 }
                 else if (devilChoice == DevilContractType.Option2_EveryTurnAP_LoseMental_NoMoreDevil)
                 {
                     _arcanaState.activeDevilContract = DevilContractType.Option2_EveryTurnAP_LoseMental_NoMoreDevil;
-                    NotificationManager.Instance?.ShowMessage("[악마] 광기 계약 체결! (매 턴 +6 AP, 매 턴 전원 정신력 -6, 악마 등장 제외)", Color.red);
+                    Notify("[악마] 광기 계약 체결! (매 턴 +6 AP, 매 턴 전원 정신력 -6, 악마 등장 제외)", Color.red);
                 }
                 else if (devilChoice == DevilContractType.Option3_EveryTurnAP_GainDebuffs)
                 {
                     _arcanaState.activeDevilContract = DevilContractType.Option3_EveryTurnAP_GainDebuffs;
-                    NotificationManager.Instance?.ShowMessage("[악마] 고통 계약 체결! (매 턴 +6 AP, 매 턴 전원 약화/취약 획득)", Color.red);
+                    Notify("[악마] 고통 계약 체결! (매 턴 +6 AP, 매 턴 전원 약화/취약 획득)", Color.red);
                 }
                 break;
 
@@ -2039,13 +2039,13 @@ public partial class BattleManager : MonoBehaviour
                         if (e.status.currentHp > highestHpEnemy.status.currentHp) highestHpEnemy = e;
                     }
                     highestHpEnemy.status.ApplyStatusEffect(EffectType.Stun, 0f, 1);
-                    NotificationManager.Instance?.ShowMessage($"[심판] 최고 체력 적 {highestHpEnemy.characterName} 1턴 기절!", Color.yellow);
+                    Notify($"[심판] 최고 체력 적 {highestHpEnemy.characterName} 1턴 기절!", Color.yellow);
                 }
                 break;
 
             case TarotCardType.Sun:
                 _arcanaState.isSunRetainActiveThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[태양] 이번 턴 모든 스킬에 유지(Retain) 효과 부여!", Color.yellow);
+                Notify("[태양] 이번 턴 모든 스킬에 유지(Retain) 효과 부여!", Color.yellow);
                 break;
 
             case TarotCardType.Moon:
@@ -2066,13 +2066,13 @@ public partial class BattleManager : MonoBehaviour
                 {
                     currentAP = Mathf.Min(MaxAP + 10, currentAP + highMentalCount);
                     UpdateAPUI();
-                    NotificationManager.Instance?.ShowMessage($"[달] 정신력 50% 이상 아군({highMentalCount}명) 비례 행동력 +{highMentalCount} 추가 획득 & 회복!", Color.cyan);
+                    Notify($"[달] 정신력 50% 이상 아군({highMentalCount}명) 비례 행동력 +{highMentalCount} 추가 획득 & 회복!", Color.cyan);
                 }
                 break;
 
             case TarotCardType.Star:
                 _arcanaState.isConstellationActive = true;
-                NotificationManager.Instance?.ShowMessage("[별] 별자리 효과 획득! (스킬 3회 사용 시마다 행동력 +1 충전)", Color.cyan);
+                Notify("[별] 별자리 효과 획득! (스킬 3회 사용 시마다 행동력 +1 충전)", Color.cyan);
                 break;
 
             case TarotCardType.World:
@@ -2081,7 +2081,7 @@ public partial class BattleManager : MonoBehaviour
                     a.status.RemoveAllStatusEffects();
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
-                NotificationManager.Instance?.ShowMessage("[세계] 모든 아군의 모든 상태이상이 완전히 정화되었습니다!", Color.green);
+                Notify("[세계] 모든 아군의 모든 상태이상이 완전히 정화되었습니다!", Color.green);
                 break;
         }
     }
@@ -2096,7 +2096,7 @@ public partial class BattleManager : MonoBehaviour
         {
             currentAP = Mathf.Max(1, currentAP - _sinState.pendingGluttonyPenaltyNextTurn);
             UpdateAPUI();
-            NotificationManager.Instance?.ShowMessage($"<color=#FF5555>[식탐 페널티] 이전 턴 적 미처치로 행동력 -{_sinState.pendingGluttonyPenaltyNextTurn} 감소</color>", Color.red);
+            Notify($"<color=#FF5555>[식탐 페널티] 이전 턴 적 미처치로 행동력 -{_sinState.pendingGluttonyPenaltyNextTurn} 감소</color>", Color.red);
             _sinState.pendingGluttonyPenaltyNextTurn = 0;
         }
 
@@ -2146,7 +2146,7 @@ public partial class BattleManager : MonoBehaviour
                     e.status.ApplyStatusEffect(EffectType.Bleed, wrathBuff, 2);
                     if (e.view != null) e.view.UpdateVisual(e.status);
                 }
-                NotificationManager.Instance?.ShowMessage($"[분노의 죄] 모든 아군과 적에게 힘 +{wrathBuff}, 취약 +{wrathBuff} 동시 부여!", Color.red);
+                Notify($"[분노의 죄] 모든 아군과 적에게 힘 +{wrathBuff}, 취약 +{wrathBuff} 동시 부여!", Color.red);
                 break;
 
             case SinType.Envy:
@@ -2165,7 +2165,7 @@ public partial class BattleManager : MonoBehaviour
     private void ExecuteSlothMartyrAutoSkills(List<BattleCharacter> livingAllies, List<BattleCharacter> livingEnemies)
     {
         if (livingAllies.Count == 0) return;
-        NotificationManager.Instance?.ShowMessage("[순교자 나태] 턴 시작 시 무작위 스킬 3개 자동 시전!", Color.cyan);
+        Notify("[순교자 나태] 턴 시작 시 무작위 스킬 3개 자동 시전!", Color.cyan);
 
         for (int i = 0; i < 3; i++)
         {
@@ -2218,7 +2218,7 @@ public partial class BattleManager : MonoBehaviour
             ExecuteCharmedAutoCast(c, livingAllies, livingEnemies);
         }
 
-        NotificationManager.Instance?.ShowMessage($"[색욕의 죄] {charmedList.Count}명이 '매혹'되어 자동 행동합니다!", Color.magenta);
+        Notify($"[색욕의 죄] {charmedList.Count}명이 '매혹'되어 자동 행동합니다!", Color.magenta);
     }
 
     private void ExecuteCharmedAutoCast(BattleCharacter actor, List<BattleCharacter> allies, List<BattleCharacter> enemies)
@@ -2272,7 +2272,7 @@ public partial class BattleManager : MonoBehaviour
         float actualDrain = highestEnemy.ReceiveDamage(drainAmount, lowestAlly, DamageType.True);
         lowestAlly.ReceiveHeal(actualDrain, lowestAlly);
 
-        NotificationManager.Instance?.ShowMessage($"[순교자 질투] {lowestAlly.characterName}이(가) {highestEnemy.characterName}의 체력 {actualDrain:F0} 강탈!", Color.green);
+        Notify($"[순교자 질투] {lowestAlly.characterName}이(가) {highestEnemy.characterName}의 체력 {actualDrain:F0} 강탈!", Color.green);
     }
 
     private void ExecuteEnvyBuffCopy(List<BattleCharacter> livingAllies, List<BattleCharacter> livingEnemies, bool greaterEvil)
@@ -2301,7 +2301,7 @@ public partial class BattleManager : MonoBehaviour
             if (totalShield > 0f) chosenAlly.status.ApplyStatusEffect(EffectType.Shield, totalShield, 1);
             if (chosenAlly.view != null) chosenAlly.view.UpdateVisual(chosenAlly.status);
 
-            NotificationManager.Instance?.ShowMessage($"[질투의 죄] 적 버프 복사 -> {chosenAlly.characterName}에게 공격력 +{totalBonusAtk:F0}, 보호막 +{totalShield:F0} 부여!", Color.green);
+            Notify($"[질투의 죄] 적 버프 복사 -> {chosenAlly.characterName}에게 공격력 +{totalBonusAtk:F0}, 보호막 +{totalShield:F0} 부여!", Color.green);
         }
     }
 
@@ -2373,7 +2373,7 @@ public partial class BattleManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(result.summary))
         {
-            NotificationManager.Instance?.ShowMessage($"[클러스터 덱 완성] {result.summary}", Color.cyan);
+            Notify($"[클러스터 덱 완성] {result.summary}", Color.cyan);
         }
     }
 
@@ -2400,7 +2400,7 @@ public partial class BattleManager : MonoBehaviour
             if (_carriedOverAP > 0)
             {
                 currentAP += _carriedOverAP;
-                NotificationManager.Instance?.ShowMessage($"[에너지 저장소] 이월 행동력 +{_carriedOverAP} 추가!", Color.cyan);
+                Notify($"[에너지 저장소] 이월 행동력 +{_carriedOverAP} 추가!", Color.cyan);
                 _carriedOverAP = 0;
             }
 
@@ -2409,7 +2409,7 @@ public partial class BattleManager : MonoBehaviour
             {
                 int locked = _nextTurnLockedAP;
                 currentAP = Mathf.Max(0, currentAP - locked);
-                NotificationManager.Instance?.ShowMessage($"[과부하 모듈] 이전 턴 과부하로 행동력 -{locked} 잠김! (이번 턴 과부하 불가)", Color.red);
+                Notify($"[과부하 모듈] 이전 턴 과부하로 행동력 -{locked} 잠김! (이번 턴 과부하 불가)", Color.red);
                 _nextTurnLockedAP = 0;
                 _canOverloadThisTurn = false;
             }
@@ -2540,11 +2540,11 @@ public partial class BattleManager : MonoBehaviour
                     if (ally.view != null) ally.view.UpdateVisual(ally.status);
                 }
             }
-            NotificationManager.Instance?.ShowMessage($"[마도공학의 심장] 발명품 '{inventionName}' 발동! 전 아군 공/주 +1!", Color.cyan);
+            Notify($"[마도공학의 심장] 발명품 '{inventionName}' 발동! 전 아군 공/주 +1!", Color.cyan);
         }
         else
         {
-            NotificationManager.Instance?.ShowMessage($"[아르키움 유니온] 발명품 '{inventionName}' 발동!", Color.cyan);
+            Notify($"[아르키움 유니온] 발명품 '{inventionName}' 발동!", Color.cyan);
         }
     }
 
@@ -2570,7 +2570,7 @@ public partial class BattleManager : MonoBehaviour
             Debug.Log($"[푸른 마탑] {actor.characterName} 정신력 5% 회복!");
         }
 
-        NotificationManager.Instance?.ShowMessage("[푸른 마탑] 마법 효과 발동!", Color.blue);
+        Notify("[푸른 마탑] 마법 효과 발동!", Color.blue);
     }
 
     private void TriggerCheongwoonEffect(int cwCount)
@@ -2614,7 +2614,7 @@ public partial class BattleManager : MonoBehaviour
             UpdateAPUI();
         }
 
-        NotificationManager.Instance?.ShowMessage("[청운] 청운 기운 발동!", Color.green);
+        Notify("[청운] 청운 기운 발동!", Color.green);
     }
 
     private IEnumerator RunEnemyTurn()
@@ -2774,7 +2774,7 @@ public partial class BattleManager : MonoBehaviour
         }
 
         if (playerWin) GiveVictoryRewards();
-        NotificationManager.Instance.ShowMessage(playerWin ? "승리!" : "패배...", playerWin ? Color.cyan : Color.red);
+        Notify(playerWin ? "승리!" : "패배...", playerWin ? Color.cyan : Color.red);
         Invoke(nameof(LoadMapScene), 2f);
     }
 
