@@ -189,7 +189,7 @@ public static class EffectEngine
                 bool isCrit = Random.value < (actor.status.FinalCritRate * 0.01f);
                 if (isCrit)
                 {
-                    float critMultiplier = 1.5f;
+                    float critMultiplier = TheLastArk.Character.SynergyEffects.CritDamagePercent(actor.status) * 0.01f;
                     // [저격수의 눈] 사수 아군의 치명타 피해량 +25%
                     if (actor.status.HasSynergy(SynergyType.Ranger) &&
                         ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.SniperEye))
@@ -211,6 +211,9 @@ public static class EffectEngine
                     calculatedValue = new TheLastArk.Battle.ValueModifier()
                         .AddIncrease(target.status.GetStatusValue(EffectType.Bleed) * effect.bonusPercentPerTargetBleed * 0.01f)
                         .Raw(calculatedValue);
+                if (effect.damageType == DamageType.Physical && CurrentCast != null && CurrentCast.PhysicalDamageBonus > 0f)
+                    calculatedValue = new TheLastArk.Battle.ValueModifier().AddIncrease(CurrentCast.PhysicalDamageBonus).Raw(calculatedValue);
+                if (CurrentCast != null && target.status.origin != null && target.status.origin.isEnemy) CurrentCast.HitTargets.Add(target);
                 var attack = TheLastArk.Battle.AttackContext.Current;
                 float previousIgnore = attack?.ArmorIgnore ?? 0f;
                 if (attack != null && CurrentCast != null && CurrentCast.MatchedSecondUse && effect.matchedArmorIgnorePercent > 0f)
@@ -276,6 +279,7 @@ public static class EffectEngine
                 }
 
                 lastCalculatedValue = target.ReceiveHeal(calculatedValue, actor, prayerRoomBonus);
+                SupportRecipient(actor, target);
 
                 // [하늘 가호 프로토콜] 치유로 아군 체력 100% 달성 시 해당 턴 공/주 +20%
                 if (isPlayerActor && TrainManager.IsInitialized && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.SkyBlessingProtocol))
@@ -340,6 +344,8 @@ public static class EffectEngine
                 break;
 
             case EffectType.MentalDamage:
+                calculatedValue = new TheLastArk.Battle.ValueModifier()
+                    .AddIncrease(TheLastArk.Character.SynergyEffects.LowSanityMentalBonus(actor.status, target.status)).Raw(calculatedValue);
                 lastCalculatedValue = target.TakeMentalDamage(calculatedValue);
                 break;
 
@@ -349,7 +355,7 @@ public static class EffectEngine
 
             case EffectType.Bleed:
                 int bleedTurns = Mathf.Max(1, effect.duration > 0 ? effect.duration : 3);
-                float bleedDmg = TheLastArk.Battle.ValueModifier.Floor(effect.value > 0 ? effect.value : baseValue * effect.multiplier);
+                float bleedDmg = TheLastArk.Battle.ValueModifier.Floor((effect.value > 0 ? effect.value : baseValue * effect.multiplier) * DebuffScale(actor, target));
                 ApplyBleed(target, bleedDmg, bleedTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
                 lastCalculatedValue = bleedDmg;
@@ -357,7 +363,7 @@ public static class EffectEngine
 
             case EffectType.Poison:
                 int poisonTurns = Mathf.Max(1, effect.duration > 0 ? effect.duration : 3);
-                float poisonDmg = TheLastArk.Battle.ValueModifier.Floor(effect.value > 0 ? effect.value : baseValue * effect.multiplier);
+                float poisonDmg = TheLastArk.Battle.ValueModifier.Floor((effect.value > 0 ? effect.value : baseValue * effect.multiplier) * DebuffScale(actor, target));
                 ApplyPoison(target, poisonDmg, poisonTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
                 lastCalculatedValue = poisonDmg;
@@ -365,7 +371,7 @@ public static class EffectEngine
 
             case EffectType.Burn:
                 int burnTurns = Mathf.Max(1, effect.duration > 0 ? effect.duration : 3);
-                float burnDmg = effect.value > 0 ? effect.value : effect.multiplier * 100f;
+                float burnDmg = TheLastArk.Battle.ValueModifier.Floor((effect.value > 0 ? effect.value : effect.multiplier * 100f) * DebuffScale(actor, target));
                 ApplyBurn(target, burnDmg, burnTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
                 lastCalculatedValue = burnDmg;
@@ -390,6 +396,8 @@ public static class EffectEngine
                 float statValue = ScaledStatusValue(!Mathf.Approximately(effect.value, 0f)
                     ? effect.value
                     : !Mathf.Approximately(effect.fixedValue, 0f) ? effect.fixedValue : effect.multiplier, effect, dice);
+                if (IsDebuffStat(effect.type)) statValue = TheLastArk.Battle.ValueModifier.Floor(statValue * DebuffScale(actor, target));
+                else SupportRecipient(actor, target);
                 target.status.ApplyStatusEffect(effect.type, statValue,
                     effect.duration > 0 ? effect.duration : TheLastArk.Battle.StatusRules.DefaultStatTurns,
                     0f, 0, -1, actor, effect.durationType);
@@ -427,8 +435,8 @@ public static class EffectEngine
             case EffectType.Shield:
                 int shieldTurns = Mathf.Max(1, effect.duration);
                 calculatedValue = TheLastArk.Battle.ValueModifier.Floor(calculatedValue);
-                target.status.ApplyStatusEffect(effect.type, calculatedValue, shieldTurns,
-                    0f, 0, -1, actor, effect.durationType);
+                calculatedValue = target.GainShield(calculatedValue, actor, shieldTurns, effect.durationType);
+                SupportRecipient(actor, target);
                 lastCalculatedValue = calculatedValue;
                 Debug.Log($"[보호막] {target.characterName} 보호막 {calculatedValue} 획득!");
 
@@ -470,7 +478,10 @@ public static class EffectEngine
                     lastCalculatedValue = 0f;
                     break;
                 }
-                target.status.ApplyStatusEffect(effect.type, ScaledStatusValue(effect.value, effect, dice),
+                float limitValue = ScaledStatusValue(effect.value, effect, dice);
+                if (effect.type == EffectType.Fear || effect.type == EffectType.Pressure || effect.type == EffectType.Despair)
+                    limitValue = TheLastArk.Battle.ValueModifier.Floor(limitValue * DebuffScale(actor, target));
+                target.status.ApplyStatusEffect(effect.type, limitValue,
                     Mathf.Max(1, effect.duration > 0 ? effect.duration : 3),
                     effect.secondaryValue, 0, effect.skillSlot, actor, effect.durationType);
                 if (effect.type == EffectType.Blockade)
@@ -486,6 +497,7 @@ public static class EffectEngine
             case EffectType.DiceBoost:
                 // Bonus to this ally's next dice uses this turn; each instance covers `charges` dice.
                 target.status.ApplyStatusEffect(EffectType.DiceBoost, effect.value, 1, 0f, Mathf.Max(1, effect.charges), -1, actor, StatusDurationType.Turns);
+                SupportRecipient(actor, target);
                 lastCalculatedValue = effect.value;
                 break;
 
@@ -505,6 +517,20 @@ public static class EffectEngine
 
         if (target?.view != null)
             target.view.UpdateVisual(target.status);
+    }
+
+    private static float DebuffScale(BattleCharacter actor, BattleCharacter target)
+        => TheLastArk.Character.SynergyEffects.DebuffMultiplier(actor?.status, target?.status);
+
+    private static bool IsDebuffStat(EffectType type)
+        => type == EffectType.Weakness || type == EffectType.Frailty || type == EffectType.Vulnerable || type == EffectType.Corrosion;
+
+    /// <summary>서포터: an ally that actually received heal / shield / buff / dice bonus from a 서포터's active.</summary>
+    private static void SupportRecipient(BattleCharacter actor, BattleCharacter target)
+    {
+        if (CurrentCast == null || actor?.status == null || target?.status?.origin == null || target.status.origin.isEnemy) return;
+        if (!TheLastArk.Character.SynergyEffects.IsMember(actor.status, SynergyType.Support)) return;
+        Object.FindObjectOfType<BattleManager>()?.GrantSupportMental(target);
     }
 
     /// <summary>Base stat for a scaled effect: explicit source, or ATK / SP by damage type.</summary>

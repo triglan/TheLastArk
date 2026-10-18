@@ -17,6 +17,12 @@ namespace TheLastArk.Skills
         public bool MatchedSecondUse;
         /// <summary>Actual HP damage dealt by this skill's direct hits (shield absorption excluded).</summary>
         public float HealthDamageDealt;
+        /// <summary>Enemies this skill attacked.</summary>
+        public readonly HashSet<BattleCharacter> HitTargets = new HashSet<BattleCharacter>();
+        /// <summary>Extra physical damage % (as a fraction) for this fire, e.g. 전사.</summary>
+        public float PhysicalDamageBonus;
+        /// <summary>Effect values of consumed 북방 dice (라이언하트 shields after the effect).</summary>
+        public readonly List<int> NorthValues = new List<int>();
 
         public int DiceSum
         {

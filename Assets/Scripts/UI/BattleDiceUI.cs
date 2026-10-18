@@ -23,6 +23,8 @@ namespace TheLastArk.UI
         private static readonly Color PlusBadgeColor = new Color(0.25f, 0.62f, 0.33f);
         private static readonly Color MinusBadgeColor = new Color(0.72f, 0.26f, 0.24f);
         private static readonly Color FocusColor = new Color(0.62f, 0.92f, 1f);
+        private static readonly Color NorthColor = new Color(0.78f, 0.86f, 1f);
+        private static readonly Color CloudColor = new Color(0.86f, 0.9f, 0.92f);
         private static readonly Color ControlColor = new Color(0.16f, 0.32f, 0.42f);
 
         private BattleManager _battle;
@@ -48,6 +50,10 @@ namespace TheLastArk.UI
         private Button _rerollButton;
         private TextMeshProUGUI _rerollLabel;
         private TextMeshProUGUI _manipulateLabel;
+        private Button _goldButton;
+        private Button _carryButton;
+        private bool _carryMode;
+        private static readonly Color CarryColor = new Color(0.78f, 0.62f, 1f);
 
         private sealed class DieView
         {
@@ -122,6 +128,8 @@ namespace TheLastArk.UI
             _plusButton = CreateControlButton(row.transform, "+1", () => Manipulate(1));
             _rerollButton = CreateControlButton(row.transform, "리롤", Reroll, 120f);
             _rerollLabel = _rerollButton.GetComponentInChildren<TextMeshProUGUI>();
+            _goldButton = CreateControlButton(row.transform, "골드 주사위", () => { _battle?.TryBuyGoldDie(); }, 110f);
+            _carryButton = CreateControlButton(row.transform, "이월 지정", () => { _carryMode = !_carryMode; Refresh(_pool, null, null); }, 90f);
         }
 
         private TextMeshProUGUI CreateControlLabel(Transform parent)
@@ -264,6 +272,11 @@ namespace TheLastArk.UI
 
         private void OnDieClicked(int dieId)
         {
+            if (_carryMode && _battle != null && _battle.CarryCapacity > 0)
+            {
+                _battle.ToggleCarryMark(dieId);
+                return;
+            }
             if (!CanFocusDice) return;
             if (!_focused.Remove(dieId)) _focused.Add(dieId);
             Refresh(_pool, null, null);
@@ -289,7 +302,18 @@ namespace TheLastArk.UI
             bool manipulate = _battle.HasNumberManipulator;
             bool reroll = _battle.HasChanceProtocol;
             bool turn = _battle.IsPlayerTurn;
-            _controls.gameObject.SetActive(manipulate || reroll);
+            bool gold = TheLastArk.Character.SynergyEffects.Tier(TheLastArk.Data.SynergyType.Mirage) > 0;
+            bool carry = _battle.CarryCapacity > 0;
+            if (!carry) _carryMode = false;
+            _controls.gameObject.SetActive(manipulate || reroll || gold || carry);
+            _goldButton.gameObject.SetActive(gold);
+            if (gold)
+            {
+                _goldButton.interactable = _battle.CanBuyGoldDie;
+                _goldButton.GetComponentInChildren<TextMeshProUGUI>().text = $"골드 주사위 {_battle.GoldDieCost}G";
+            }
+            _carryButton.gameObject.SetActive(carry);
+            if (carry) _carryButton.GetComponentInChildren<TextMeshProUGUI>().text = _carryMode ? $"이월 {_battle.CarryCapacity}개까지" : "이월 지정";
             _manipulateLabel.gameObject.SetActive(manipulate);
             _minusButton.gameObject.SetActive(manipulate);
             _plusButton.gameObject.SetActive(manipulate);
@@ -429,6 +453,7 @@ namespace TheLastArk.UI
                 view.Source.enabled = die.IsAvailable && _battle.IsPlayerTurn;
                 bool isSelected = selected != null && Contains(selected, die.Id);
                 ApplyFace(view, die, isSelected, _focused.Contains(die.Id));
+                if (_battle.IsMarkedForCarry(die.Id)) view.Face.color = CarryColor;
                 if (_shownIds.Add(die.Id))
                 {
                     if (view.Animation != null) StopCoroutine(view.Animation);
@@ -453,6 +478,8 @@ namespace TheLastArk.UI
             view.Face.color = die.IsLocked ? new Color(0.5f, 0.18f, 0.18f)
                 : isSelected ? new Color(1f, 0.82f, 0.42f)
                 : isFocused ? FocusColor
+                : die.Kind == DieKind.North ? NorthColor
+                : die.Kind == DieKind.Cloud ? CloudColor
                 : Color.white;
 
             // 1–6 use the face sprites; 7–9 draw pips on the blank face; 0 and 10+ show the number.

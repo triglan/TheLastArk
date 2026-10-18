@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -104,7 +104,11 @@ namespace UI
                     goldMultiplier += coinVariance;
                 }
             }
-            int gold = Mathf.Max(0, Mathf.RoundToInt(baseGold * Mathf.Max(0.1f, goldMultiplier)));
+            // [미라주] 시너지: 획득 골드 증가 (골드만)
+            var synergyConfig = SynergyBalanceConfig.Instance;
+            if (synergyConfig != null)
+                goldMultiplier += SynergyBalanceConfig.At(synergyConfig.mirageGoldPercent, TheLastArk.Character.SynergyEffects.Tier(SynergyType.Mirage)) * 0.01f;
+            int gold = Mathf.Max(0, Mathf.FloorToInt(baseGold * Mathf.Max(0.1f, goldMultiplier)));
 
             // [황금의 길] 유물: 보유한 골드의 10%만큼 추가 골드 획득 (보유 골드 500일 때 최대 50G)
             if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.GoldenPath))

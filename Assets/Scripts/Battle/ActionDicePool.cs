@@ -35,13 +35,59 @@ namespace TheLastArk.Battle
         /// On overflow, special dice are placed first and normal dice fill the rest.</summary>
         public void BeginTurn(int normalCount, int faces = DefaultFaces, IReadOnlyList<int> specialFaces = null)
         {
+            List<DieSpec> specials = null;
+            if (specialFaces != null)
+            {
+                specials = new List<DieSpec>(specialFaces.Count);
+                for (int i = 0; i < specialFaces.Count; i++) specials.Add(new DieSpec(specialFaces[i]));
+            }
+            BeginTurn(normalCount, faces, specials, null);
+        }
+
+        /// <summary>
+        /// Turn start placement: carried-over dice first (kept as they are), then special dice, then normal dice.
+        /// Anything beyond the storage cap is cancelled.
+        /// </summary>
+        public void BeginTurn(int normalCount, int faces, IReadOnlyList<DieSpec> specials, IReadOnlyList<ActionDie> carried)
+        {
             dice.Clear();
             usedThisTurn.Clear();
             GeneratedThisTurn = 0;
-            if (specialFaces != null)
-                for (int i = 0; i < specialFaces.Count; i++)
-                    if (IsValidFaces(specialFaces[i])) { GeneratedThisTurn++; Add(specialFaces[i], true); }
+            if (carried != null)
+                for (int i = 0; i < carried.Count && dice.Count < MaxStoredDice; i++)
+                {
+                    if (carried[i] == null) continue;
+                    carried[i].IsCarried = true;
+                    carried[i].IsLocked = false;
+                    dice.Add(carried[i]);
+                }
+            if (specials != null)
+                for (int i = 0; i < specials.Count; i++)
+                    if (IsValidFaces(specials[i].Faces)) { GeneratedThisTurn++; AddSpec(specials[i], true); }
             Roll(normalCount, faces);
+        }
+
+        /// <summary>Removes the given waiting dice from storage (for carry-over) and returns them.</summary>
+        public List<ActionDie> TakeForCarry(IReadOnlyList<int> ids)
+        {
+            var taken = new List<ActionDie>();
+            if (ids == null) return taken;
+            for (int i = 0; i < ids.Count; i++)
+            {
+                ActionDie die = Find(ids[i]);
+                if (die == null || taken.Contains(die)) continue;
+                dice.Remove(die);
+                taken.Add(die);
+            }
+            return taken;
+        }
+
+        /// <summary>Adds one die of a given spec mid-turn (storage cap applies).</summary>
+        public bool AddDie(DieSpec spec)
+        {
+            if (!IsValidFaces(spec.Faces)) return false;
+            GeneratedThisTurn++;
+            return AddSpec(spec, spec.Kind != DieKind.Normal || spec.Faces != DefaultFaces);
         }
 
         /// <summary>Removes remaining waiting dice at turn end.</summary>
@@ -92,7 +138,7 @@ namespace TheLastArk.Battle
         {
             ActionDie die = Find(id);
             if (die == null) return false;
-            die.OriginalRoll = roller(die.Faces);
+            if (!die.HasFixedRoll) die.OriginalRoll = roller(die.Faces);
             return true;
         }
 
@@ -131,7 +177,7 @@ namespace TheLastArk.Battle
             for (int i = 0; i < dice.Count; i++)
             {
                 if (!dice[i].IsAvailable) continue;
-                dice[i].OriginalRoll = roller(dice[i].Faces);
+                if (!dice[i].HasFixedRoll) dice[i].OriginalRoll = roller(dice[i].Faces);
                 any = true;
             }
             return any;
@@ -172,7 +218,8 @@ namespace TheLastArk.Battle
             {
                 bool keepsModifier = i == modifierIndex;
                 var part = new ActionDie(nextId++, die.Faces, keepsModifier ? values[i] - die.Modifier : values[i], die.IsSpecial);
-                if (keepsModifier) part.Modifier = die.Modifier;
+                // The chosen result inherits the modifier and the die type (e.g. 북방); the others are plain.
+                if (keepsModifier) { part.Modifier = die.Modifier; part.Kind = die.Kind; }
                 dice.Insert(index + i, part);
             }
             GeneratedThisTurn += values.Count;
@@ -199,6 +246,18 @@ namespace TheLastArk.Battle
                 dice.Remove(die);
                 usedThisTurn.Add(die);
             }
+            return true;
+        }
+
+        private bool AddSpec(DieSpec spec, bool special)
+        {
+            if (dice.Count >= MaxStoredDice) return false;
+            var die = new ActionDie(nextId++, spec.Faces, spec.FixedRoll >= 0 ? spec.FixedRoll : roller(spec.Faces), special)
+            {
+                Kind = spec.Kind,
+                HasFixedRoll = spec.FixedRoll >= 0
+            };
+            dice.Add(die);
             return true;
         }
 

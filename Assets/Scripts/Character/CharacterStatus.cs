@@ -125,7 +125,10 @@ public class CharacterStatus : ISerializationCallbackReceiver
     public float? PatternArmorOverride { get; set; }
     private float RawArmor => origin != null ? (origin.armor * (1 + GetMultiplier())) + ArmorStatusModifier + EquipmentBonusArmor : ArmorStatusModifier + EquipmentBonusArmor;
     private float RawMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + MagicResistStatusModifier + EquipmentBonusMagicResist : MagicResistStatusModifier + EquipmentBonusMagicResist;
-    public float FinalCritRate => origin != null ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus : EquipmentBonusCritRate;
+    public float FinalCritRate => Mathf.Min(MaxCritRate, origin != null
+        ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus + (CanUsePlayerSynergy() ? TheLastArk.Character.SynergyEffects.CritBonus(this) : 0f)
+        : EquipmentBonusCritRate);
+    public const float MaxCritRate = 100f;
 
     public bool HasSynergy(TheLastArk.Data.SynergyType type)
     {
@@ -235,12 +238,12 @@ public class CharacterStatus : ISerializationCallbackReceiver
 
     private float GetSynergyAttackMultiplier()
     {
-        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyAttackMultiplier() : 0f;
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyAttackMultiplier() + TheLastArk.Character.SynergyEffects.AttackBonus(this) : 0f;
     }
 
     private float GetSynergySpellPowerMultiplier()
     {
-        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergySpellPowerMultiplier() : 0f;
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergySpellPowerMultiplier() + TheLastArk.Character.SynergyEffects.SpellPowerBonus(this) : 0f;
     }
 
     public int SkillLevelIndex => skillUpgradeOverride >= 0 ? Mathf.Clamp(skillUpgradeOverride, 0, 2) : charLevel switch

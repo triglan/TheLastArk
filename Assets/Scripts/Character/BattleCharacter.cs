@@ -227,6 +227,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         try
         {
             BattleCharacter receiver = this;
+            bool redirected = false;
             if (allowRedirect && context != null)
             {
                 // Order: 도발 target fixed → 보호.
@@ -240,6 +241,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
                         if (taunter.status.GetStatus(EffectType.Taunt) != null) taunter.status.ConsumeStatusCharge(EffectType.Taunt);
                         context.LockedTaunter = taunter;
                         receiver = taunter;
+                        redirected = true;
                         taunter.view?.UpdateVisual(taunter.status);
                     }
                 }
@@ -248,10 +250,10 @@ public class BattleCharacter : MonoBehaviour, IDamageable
                 if (protector != null)
                 {
                     float reduction = Mathf.Clamp01(context.GuardReduction(receiver));
-                    return protector.ApplyHit(amount, attacker, damageType, reduction, allowReactions ? context : null);
+                    return protector.ApplyHit(amount, attacker, damageType, reduction, allowReactions ? context : null, true);
                 }
             }
-            return receiver.ApplyHit(amount, attacker, damageType, 0f, allowReactions ? context : null);
+            return receiver.ApplyHit(amount, attacker, damageType, 0f, allowReactions ? context : null, redirected);
         }
         finally
         {
@@ -279,7 +281,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     }
 
     /// <summary>Defense → protect reduction → floor → shield → HP. Responses are deferred to the attack's end.</summary>
-    private DamageResult ApplyHit(float amount, BattleCharacter attacker, DamageType damageType, float protectReduction, AttackContext context)
+    private DamageResult ApplyHit(float amount, BattleCharacter attacker, DamageType damageType, float protectReduction, AttackContext context, bool viaProtectOrTaunt = false)
     {
         // [날카로운 못] 유물: 아군 공격자가 물리 피해를 입힐 때 +1 고정 피해
         if (damageType == DamageType.Physical && attacker?.status?.origin != null && !attacker.status.origin.isEnemy)
@@ -304,7 +306,10 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         // 사냥 표식: allies' direct HP damage on a marked enemy is increased.
         float markBonus = context != null && attacker?.status?.origin != null && !attacker.status.origin.isEnemy
             ? status.GetStatusValue(EffectType.HuntMark) * 0.01f : 0f;
-        float resolvedDamage = new ValueModifier().AddIncrease(markBonus).AddDecrease(protectReduction).Apply(damageAfterDefense);
+        var damageModifier = new ValueModifier().AddIncrease(markBonus).AddDecrease(protectReduction);
+        // 수호자: team reduction, plus extra while protecting / taunting (applied before shields).
+        if (context != null) TheLastArk.Character.SynergyEffects.AddGuardianReductions(status, viaProtectOrTaunt, damageModifier);
+        float resolvedDamage = damageModifier.Apply(damageAfterDefense);
         float healthDamage = resolvedDamage;
         float shieldDamage = 0f;
 
@@ -658,11 +663,25 @@ public class BattleCharacter : MonoBehaviour, IDamageable
 
     public float ReceiveHeal(float amount, BattleCharacter healer) => ReceiveHeal(amount, healer, 0f);
 
+    /// <summary>
+    /// Grants a shield through the shared rule: received-shield bonuses (서포터), then floor. Default duration lasts
+    /// until this side's next turn start. Returns the amount granted.
+    /// </summary>
+    public float GainShield(float amount, BattleCharacter source, int turns = 1, StatusDurationType duration = StatusDurationType.Default)
+    {
+        if (status == null || amount <= 0f) return 0f;
+        float granted = new ValueModifier().AddIncrease(TheLastArk.Character.SynergyEffects.SupportReceiveBonus(status)).Apply(amount);
+        if (granted <= 0f) return 0f;
+        status.ApplyStatusEffect(EffectType.Shield, granted, Mathf.Max(1, turns), 0f, 0, -1, source, duration);
+        view?.UpdateVisual(status);
+        return granted;
+    }
+
     /// <param name="healIncrease">Caller-side % increase (e.g. 기도실), summed with other increases.</param>
     public float ReceiveHeal(float amount, BattleCharacter healer, float healIncrease)
     {
         if (status == null || amount <= 0f) return 0f;
-        var heal = new ValueModifier().AddIncrease(healIncrease);
+        var heal = new ValueModifier().AddIncrease(healIncrease).AddIncrease(TheLastArk.Character.SynergyEffects.SupportReceiveBonus(status));
 
         // [회광반조] 유물: 잃은 체력에 비례해 치유량이 최대 50%까지 증가 (체력 10%에서 최대)
         if (Application.isPlaying && status.origin != null && !status.origin.isEnemy &&

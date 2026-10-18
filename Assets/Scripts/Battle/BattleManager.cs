@@ -8,6 +8,7 @@ using TheLastArk.Managers;
 using TheLastArk.Battle;
 using TheLastArk.Data;
 using TheLastArk.Skills;
+using TheLastArk.Character;
 
 public partial class BattleManager : MonoBehaviour
 {
@@ -68,9 +69,6 @@ public partial class BattleManager : MonoBehaviour
     private int _lastTurnEndClickFrame = -1;
     private bool _hasUsedFirstSkillInBattle = false;
     private bool _turnEndButtonListenerBound;
-    private int _blueTowerSkillUses = 0;
-    private int _cheongwoonApSpent = 0;
-    private int _archiumInventionStep = 0;
     private int _carriedOverAP = 0;
     private int _nextTurnLockedAP = 0;
     private bool _overloadedThisTurn = false;
@@ -190,7 +188,7 @@ public partial class BattleManager : MonoBehaviour
     public int GetDieEffectValue(BattleCharacter actor, ActionDie die, int onUseBonus, bool useMaxValue = false)
     {
         if (die == null) return 0;
-        int raw = (useMaxValue ? die.Faces : die.Value) + onUseBonus - GetFrost(actor);
+        int raw = (useMaxValue ? die.Faces : die.Value) + onUseBonus + SynergyEffects.AssassinDiceBonus(actor?.status) - GetFrost(actor);
         return Mathf.Max(die.Value == 0 ? 0 : 1, raw);
     }
 
@@ -260,12 +258,16 @@ public partial class BattleManager : MonoBehaviour
         var cast = new SkillCast { SelfShield = actor.status.GetStatusValue(EffectType.Shield) };
         foreach (BattleCharacter ally in playerParty)
             if (ally?.status != null && ally.status.currentHp > 0f) cast.AllyShieldTotal += ally.status.GetStatusValue(EffectType.Shield);
+        bool maxValue = actor == _arcadiaMaxActor;
         foreach (ActionDie die in dice)
         {
             cast.InputValues.Add(GetDieInputValue(actor, die));
-            cast.EffectValues.Add(GetDieEffectValue(actor, die, ConsumeDiceBoost(actor)));
+            int effectValue = GetDieEffectValue(actor, die, ConsumeDiceBoost(actor), maxValue);
+            cast.EffectValues.Add(effectValue);
+            if (die.Kind == DieKind.North) cast.NorthValues.Add(effectValue);
         }
         SkillLevelData level = GetSkillLevel(skill, actor);
+        cast.PhysicalDamageBonus = WarriorBonusFor(actor, level);
         if (level != null && level.special == SkillSpecial.MatchSecondUse && cast.InputValues.Count > 0)
         {
             if (_firstUseInput.TryGetValue((actor, skill), out int first)) cast.MatchedSecondUse = cast.InputValues[0] == first;
@@ -351,8 +353,9 @@ public partial class BattleManager : MonoBehaviour
     }
 
     /// <summary>After an actual fire: 공방일체 shield and 흑사 die generation (attack skills only).</summary>
-    private void AfterActualSkillFire(BattleCharacter actor, SkillLevelData level, SkillCast cast)
+    private void AfterActualSkillFire(BattleCharacter actor, SkillInfo skill, SkillLevelData level, SkillCast cast)
     {
+        AfterSynergySkillFire(actor, skill, level, cast);
         bool isAttack = level?.effects != null && level.special != SkillSpecial.SplitDie
             && level.effects.Exists(e => e != null && e.type == EffectType.Damage);
         if (!isAttack || actor?.status == null) return;
@@ -470,6 +473,10 @@ public partial class BattleManager : MonoBehaviour
         if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
         // Sum-type charge uses effect values (on-use bonuses consumed per die); count-type counts dice only.
         int contribution = rule.chargeByDiceCount ? values.Count : SumEffectValues(actor, inserted);
+        var northValues = new List<int>();
+        foreach (ActionDie die in inserted)
+            if (die.Kind == DieKind.North) northValues.Add(GetDieEffectValue(actor, die, 0));
+        GrantNorthShields(actor, northValues);
         int nextCharge = Mathf.Min(rule.chargeTarget, GetDiceCharge(actor, skill) + contribution);
         _diceCharge[(actor, skill)] = nextCharge;
         _selectedDiceIds.Clear();
@@ -568,12 +575,16 @@ public partial class BattleManager : MonoBehaviour
         if (parasitic >= 0 && balance != null)
             _parasiticStacks = Mathf.Min(OriginPartBalanceConfig.At(balance.parasiticStackCap, parasitic), _parasiticStacks + 1);
 
-        _dicePool.BeginTurn(TheLastArk.Managers.TrainManager.OriginNormalDiceRequest(car, balance, _parasiticStacks));
+        int normal = TheLastArk.Managers.TrainManager.OriginNormalDiceRequest(car, balance, _parasiticStacks) + SynergyExtraNormalDice();
+        _dicePool.BeginTurn(normal, ActionDicePool.DefaultFaces, SynergySpecialDice(), TakeCarriedDice());
+        ApplyArchiumTopBonus();
 
         int highEnergy = car.GetEquippedPartLevel(TrainPartEffectType.HighEnergyModule);
-        if (highEnergy >= 0 && balance != null && _dicePool.Dice.Count > 0)
+        var firstBatch = new List<ActionDie>();
+        foreach (ActionDie die in _dicePool.Dice) if (!die.IsCarried) firstBatch.Add(die);
+        if (highEnergy >= 0 && balance != null && firstBatch.Count > 0)
         {
-            ActionDie target = _dicePool.Dice[_dicePool.PickIndex(_dicePool.Dice.Count)];
+            ActionDie target = firstBatch[_dicePool.PickIndex(firstBatch.Count)];
             _dicePool.AddModifier(target.Id, OriginPartBalanceConfig.At(balance.highEnergyBonus, highEnergy));
         }
     }
@@ -1351,7 +1362,7 @@ public partial class BattleManager : MonoBehaviour
             EffectEngine.CurrentCast = cast;
             try { EffectEngine.ProcessSkill(actor, targets, levelData, resolvedPrimary, skill.skillName); }
             finally { EffectEngine.CurrentCast = null; }
-            AfterActualSkillFire(actor, levelData, cast);
+            AfterActualSkillFire(actor, skill, levelData, cast);
 
             // [탑] 이번 턴 처음 사용하는 스킬 2번 발동 (더블 캐스트)
             if (_arcanaState.isTowerDoubleCastActive)
@@ -1405,42 +1416,6 @@ public partial class BattleManager : MonoBehaviour
                 currentAP = Mathf.Min(MaxAP + 5, currentAP + 1);
                 UpdateAPUI();
                 Notify("[별자리] 스킬 3회 사용 달성! 행동력 +1 획득!", Color.cyan);
-            }
-        }
-
-        // [푸른 마탑] 시너지 및 [별의 그리모어] 유물: 스킬 사용 시 효과 발동
-        if (actor.status.HasSynergy(TheLastArk.Data.SynergyType.BlueTower))
-        {
-            var activeSyn = TheLastArk.Character.SynergyCalculator.CalculateActiveSynergies();
-            if (activeSyn.TryGetValue(TheLastArk.Data.SynergyType.BlueTower, out int btCount) && btCount >= 2)
-            {
-                bool hasGrimoire = TheLastArk.Managers.ResourceManager.Instance != null &&
-                                   TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.GrimoireOfStars);
-                int reqUses = (btCount >= 8 || hasGrimoire) ? 1 : (btCount >= 6 ? 2 : 3);
-                _blueTowerSkillUses++;
-                if (_blueTowerSkillUses >= reqUses)
-                {
-                    _blueTowerSkillUses = 0;
-                    TriggerBlueTowerEffect(actor, btCount);
-                }
-            }
-        }
-
-        // [청운] 시너지 및 [청운] 유물: 행동력 소모 시 효과 발동
-        if (cost > 0 && actor.status.HasSynergy(TheLastArk.Data.SynergyType.Cheongwoon))
-        {
-            var activeSyn = TheLastArk.Character.SynergyCalculator.CalculateActiveSynergies();
-            if (activeSyn.TryGetValue(TheLastArk.Data.SynergyType.Cheongwoon, out int cwCount) && cwCount >= 3)
-            {
-                bool hasCwRelic = TheLastArk.Managers.ResourceManager.Instance != null &&
-                                  TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.CheongwoonRelic);
-                int apThreshold = (cwCount >= 7 || hasCwRelic) ? 2 : 3;
-                _cheongwoonApSpent += cost;
-                while (_cheongwoonApSpent >= apThreshold)
-                {
-                    _cheongwoonApSpent -= apThreshold;
-                    TriggerCheongwoonEffect(cwCount);
-                }
             }
         }
 
@@ -1632,6 +1607,7 @@ public partial class BattleManager : MonoBehaviour
             _selectedDiceIds.Clear();
             _pendingDiceSkill = null;
             _pendingDiceActor = null;
+            PrepareCarryOver();
             _dicePool.EndTurn();
             RefreshDiceUI();
             if (targetHandler != null) targetHandler.Deselect(false);
@@ -1765,7 +1741,9 @@ public partial class BattleManager : MonoBehaviour
     private void OnEnterPlayerTurn()
     {
         RemoveOwnerPhaseEffects(playerParty);
+        ResetSynergyTurnState();
         RefreshHuntMarks();
+        ApplySynergyTurnStart();
         ClearEnemyTargetMarkers();
         PrepareEnemyIntents();
         Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");
@@ -2468,153 +2446,7 @@ public partial class BattleManager : MonoBehaviour
             }
         }
 
-        // [아르키움 유니온] 발명품 발동 및 [마도공학의 심장] 공격력/주문력 증가
-        var curSyn = TheLastArk.Character.SynergyCalculator.CalculateActiveSynergies();
-        if (curSyn.TryGetValue(TheLastArk.Data.SynergyType.ArchiumUnion, out int auCount) && auCount >= 2)
-        {
-            TriggerArchiumUnionInvention(auCount);
-        }
         StartCoroutine(ResolvePanicTurnStart());
-    }
-
-    private void TriggerArchiumUnionInvention(int auCount)
-    {
-        _archiumInventionStep++;
-        int mod = _archiumInventionStep % 3;
-        string inventionName = "";
-
-        if (auCount >= 8 || (auCount >= 6 && mod == 0))
-        {
-            // 기계장치의 신 (모든 발명품 발동)
-            inventionName = "기계장치의 신 (모든 발명품)";
-            currentAP = Mathf.Min(MaxAP, currentAP + 1);
-            UpdateAPUI();
-            foreach (var e in enemyParty)
-            {
-                if (e != null && e.status != null && e.status.currentHp > 0)
-                {
-                    e.status.ApplyStatusEffect(EffectType.Burn, 1f, 2);
-                    e.status.ApplyStatusEffect(EffectType.Bleed, 1f, 2);
-                    e.status.ApplyStatusEffect(EffectType.Poison, 1f, 2);
-                }
-            }
-        }
-        else if (mod == 1)
-        {
-            // 다각도 프레임: 행동력 +1
-            inventionName = "다각도 프레임 (행동력 +1)";
-            currentAP = Mathf.Min(MaxAP, currentAP + 1);
-            UpdateAPUI();
-        }
-        else if (mod == 2)
-        {
-            // 연장 총열: 아군 버프
-            inventionName = "연장 총열 (화력 지원)";
-        }
-        else
-        {
-            // 유해 화학품: 모든 적 화상/출혈/독 1
-            inventionName = "유해 화학품 (상태이상 부여)";
-            foreach (var e in enemyParty)
-            {
-                if (e != null && e.status != null && e.status.currentHp > 0)
-                {
-                    e.status.ApplyStatusEffect(EffectType.Burn, 1f, 2);
-                    e.status.ApplyStatusEffect(EffectType.Bleed, 1f, 2);
-                    e.status.ApplyStatusEffect(EffectType.Poison, 1f, 2);
-                }
-            }
-        }
-
-        Debug.Log($"[아르키움 유니온] 발명품 발동: {inventionName}");
-
-        // [마도공학의 심장] 이번 전투동안 마법공학 발명품이 발동할 때 마다 아군의 공격력, 주문력 1 증가
-        if (TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.HeartOfMagitech))
-        {
-            foreach (var ally in playerParty)
-            {
-                if (ally != null && ally.status != null && ally.status.currentHp > 0)
-                {
-                    ally.status.bonusAttack += 1f;
-                    if (ally.view != null) ally.view.UpdateVisual(ally.status);
-                }
-            }
-            Notify($"[마도공학의 심장] 발명품 '{inventionName}' 발동! 전 아군 공/주 +1!", Color.cyan);
-        }
-        else
-        {
-            Notify($"[아르키움 유니온] 발명품 '{inventionName}' 발동!", Color.cyan);
-        }
-    }
-
-    private void TriggerBlueTowerEffect(BattleCharacter actor, int btCount)
-    {
-        List<BattleCharacter> aliveEnemies = new List<BattleCharacter>();
-        foreach (var e in enemyParty)
-        {
-            if (e != null && e.status != null && e.status.currentHp > 0) aliveEnemies.Add(e);
-        }
-
-        if (aliveEnemies.Count > 0)
-        {
-            var target = aliveEnemies[Random.Range(0, aliveEnemies.Count)];
-            target.status.ApplyStatusEffect(EffectType.Burn, 5f, 2);
-            Debug.Log($"[푸른 마탑] {target.characterName}에게 화상 5 부여!");
-        }
-
-        if (btCount >= 4 && actor != null && actor.status != null)
-        {
-            actor.ReceiveMentalHeal(actor.status.FinalMaxMental * 0.05f);
-            if (actor.view != null) actor.view.UpdateVisual(actor.status);
-            Debug.Log($"[푸른 마탑] {actor.characterName} 정신력 5% 회복!");
-        }
-
-        Notify("[푸른 마탑] 마법 효과 발동!", Color.blue);
-    }
-
-    private void TriggerCheongwoonEffect(int cwCount)
-    {
-        List<BattleCharacter> aliveEnemies = new List<BattleCharacter>();
-        foreach (var e in enemyParty)
-        {
-            if (e != null && e.status != null && e.status.currentHp > 0) aliveEnemies.Add(e);
-        }
-
-        float multiplier = cwCount >= 7 ? 2.0f : 1.0f;
-
-        if (aliveEnemies.Count > 0)
-        {
-            var target = aliveEnemies[Random.Range(0, aliveEnemies.Count)];
-            float dmg = Mathf.Max(1f, target.status.FinalMaxHp * 0.04f * multiplier);
-            target.ReceiveDamage(dmg, null, DamageType.True);
-            Debug.Log($"[청운] {target.characterName}에게 고정 피해 {dmg:F1} 부여!");
-        }
-
-        if (cwCount >= 5)
-        {
-            List<BattleCharacter> aliveAllies = new List<BattleCharacter>();
-            foreach (var a in playerParty)
-            {
-                if (a != null && a.status != null && a.status.currentHp > 0) aliveAllies.Add(a);
-            }
-            if (aliveAllies.Count > 0)
-            {
-                var ally = aliveAllies[Random.Range(0, aliveAllies.Count)];
-                float heal = Mathf.Max(1f, ally.status.FinalMaxHp * 0.05f * multiplier);
-                ally.ReceiveHeal(heal, null);
-                ally.ReceiveMentalHeal(ally.status.FinalMaxMental * 0.05f * multiplier);
-                if (ally.view != null) ally.view.UpdateVisual(ally.status);
-            }
-        }
-
-        if (cwCount >= 7)
-        {
-            currentAP = Mathf.Min(MaxAP, currentAP + 1);
-            UpdateAPUI();
-        }
-
-        Notify("[청운] 청운 기운 발동!", Color.green);
     }
 
     private IEnumerator RunEnemyTurn()
@@ -2743,6 +2575,8 @@ public partial class BattleManager : MonoBehaviour
     {
         _diceCharge.Clear();
         _parasiticStacks = 0;
+        _carriedDice.Clear();
+        _blueTowerSkills.Clear();
         // Battle statuses (permanent ones included) never carry into the next battle.
         foreach (BattleCharacter ally in playerParty)
             ally?.status?.RemoveAllStatusEffects();
