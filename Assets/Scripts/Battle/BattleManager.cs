@@ -83,6 +83,10 @@ public partial class BattleManager : MonoBehaviour
     private readonly HashSet<(BattleCharacter, SkillInfo)> _usedDiceSkills = new HashSet<(BattleCharacter, SkillInfo)>();
     private readonly Dictionary<(BattleCharacter, SkillInfo), int> _diceCharge = new Dictionary<(BattleCharacter, SkillInfo), int>();
     private BattleDiceUI _diceUI;
+    private OriginPartBalanceConfig _originBalance;
+    private int _parasiticStacks;
+    private int _manipulateUsesLeft;
+    private int _rerollUsesLeft;
 
     private int _gambleRolledAP = -1;
     private int _limitRolledAP = -1;
@@ -253,6 +257,102 @@ public partial class BattleManager : MonoBehaviour
             : $"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
         TryAutoEndDiceTurn();
         return true;
+    }
+
+    /// <summary>Origin part numbers snapshotted at battle start; Inspector edits apply from the next battle.</summary>
+    private OriginPartBalanceConfig BattleOriginBalance
+    {
+        get
+        {
+            if (_originBalance == null && TheLastArk.Managers.TrainManager.IsInitialized)
+            {
+                OriginPartBalanceConfig source = TheLastArk.Managers.TrainManager.Instance.OriginPartBalance;
+                if (source != null) _originBalance = Instantiate(source);
+            }
+            return _originBalance;
+        }
+    }
+
+    private int OriginPartLevel(TrainPartEffectType effect)
+    {
+        var car = TheLastArk.Managers.TrainManager.IsInitialized ? TheLastArk.Managers.TrainManager.Instance.nexusCar : null;
+        return car != null ? car.GetEquippedPartLevel(effect) : -1;
+    }
+
+    public bool HasNumberManipulator => UsesDice && OriginPartLevel(TrainPartEffectType.NumberManipulator) >= 0;
+    public bool HasChanceProtocol => UsesDice && OriginPartLevel(TrainPartEffectType.ChanceProtocol) >= 0;
+    public int ManipulateUsesLeft => _manipulateUsesLeft;
+    public int RerollUsesLeft => _rerollUsesLeft;
+    public int ParasiticStacks => _parasiticStacks;
+
+    /// <summary>기회 프로토콜 기본형 rerolls every available die; upgraded levels reroll the selected dice.</summary>
+    public bool RerollTargetsAll
+    {
+        get
+        {
+            int level = OriginPartLevel(TrainPartEffectType.ChanceProtocol);
+            return level >= 0 && BattleOriginBalance != null && OriginPartBalanceConfig.At(BattleOriginBalance.chanceRerollsAll, level);
+        }
+    }
+
+    /// <summary>[숫자 조작 장치] ±1 on one available die. Invalid input consumes no use.</summary>
+    public bool TryManipulateDie(int dieId, int delta)
+    {
+        if (!HasNumberManipulator || !IsPlayerTurn || _manipulateUsesLeft <= 0 || Mathf.Abs(delta) != 1) return false;
+        if (!_dicePool.TryAdjust(dieId, delta))
+        {
+            NotificationManager.Instance?.ShowMessage("조정할 수 없는 주사위입니다.", Color.red);
+            return false;
+        }
+        _manipulateUsesLeft--;
+        _selectedDiceIds.Clear();
+        RefreshDiceUI();
+        RefreshSkillSlots();
+        return true;
+    }
+
+    /// <summary>[기회 프로토콜] One use rerolls all available dice (기본형) or the given dice together.</summary>
+    public bool TryRerollDice(IReadOnlyList<int> dieIds)
+    {
+        if (!HasChanceProtocol || !IsPlayerTurn || _rerollUsesLeft <= 0) return false;
+        bool rerolled = RerollTargetsAll ? _dicePool.TryRerollAll() : _dicePool.TryReroll(dieIds);
+        if (!rerolled)
+        {
+            NotificationManager.Instance?.ShowMessage("리롤할 주사위를 선택하세요.", Color.yellow);
+            return false;
+        }
+        _rerollUsesLeft--;
+        _selectedDiceIds.Clear();
+        RefreshDiceUI();
+        RefreshSkillSlots();
+        return true;
+    }
+
+    /// <summary>
+    /// Origin turn start: reset turn counters → update 기생 accumulation and count → roll the first batch →
+    /// apply 고에너지 to one die of that batch.
+    /// </summary>
+    private void BeginOriginDiceTurn()
+    {
+        var car = TheLastArk.Managers.TrainManager.Instance.nexusCar;
+        OriginPartBalanceConfig balance = BattleOriginBalance;
+        int manipulator = car.GetEquippedPartLevel(TrainPartEffectType.NumberManipulator);
+        int chance = car.GetEquippedPartLevel(TrainPartEffectType.ChanceProtocol);
+        _manipulateUsesLeft = manipulator >= 0 && balance != null ? OriginPartBalanceConfig.At(balance.manipulatorUses, manipulator) : 0;
+        _rerollUsesLeft = chance >= 0 && balance != null ? OriginPartBalanceConfig.At(balance.chanceUses, chance) : 0;
+
+        int parasitic = car.GetEquippedPartLevel(TrainPartEffectType.ParasiticOrgan);
+        if (parasitic >= 0 && balance != null)
+            _parasiticStacks = Mathf.Min(OriginPartBalanceConfig.At(balance.parasiticStackCap, parasitic), _parasiticStacks + 1);
+
+        _dicePool.BeginTurn(TheLastArk.Managers.TrainManager.OriginNormalDiceRequest(car, balance, _parasiticStacks));
+
+        int highEnergy = car.GetEquippedPartLevel(TrainPartEffectType.HighEnergyModule);
+        if (highEnergy >= 0 && balance != null && _dicePool.Dice.Count > 0)
+        {
+            ActionDie target = _dicePool.Dice[_dicePool.PickIndex(_dicePool.Dice.Count)];
+            _dicePool.AddModifier(target.Id, OriginPartBalanceConfig.At(balance.highEnergyBonus, highEnergy));
+        }
     }
 
     public int RollAdditionalDice(int count, int sides = ActionDicePool.DefaultFaces)
@@ -572,6 +672,7 @@ public partial class BattleManager : MonoBehaviour
     private void OnDestroy()
     {
         ClearBattlePanic(false);
+        if (_originBalance != null) DestroyImmediate(_originBalance);
         if (targetHandler == null) return;
         targetHandler.TargetSelected -= OnTargetSelected;
         targetHandler.TargetCanceled -= CancelPendingSelection;
@@ -2031,8 +2132,7 @@ public partial class BattleManager : MonoBehaviour
     {
         if (UsesDice)
         {
-            int level = TheLastArk.Managers.TrainManager.Instance.nexusCar.level;
-            _dicePool.BeginTurn(Mathf.Max(0, level + 2));
+            BeginOriginDiceTurn();
             _selectedDiceIds.Clear();
             _pendingDiceSkill = null;
             _pendingDiceActor = null;
@@ -2377,6 +2477,7 @@ public partial class BattleManager : MonoBehaviour
     private void OnEnterBattleEnd()
     {
         _diceCharge.Clear();
+        _parasiticStacks = 0;
         ClearBattlePanic();
         CancelPendingSelection();
         ClearEnemyTargetMarkers();
