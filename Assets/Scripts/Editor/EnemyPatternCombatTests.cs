@@ -1,11 +1,11 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 
 public class EnemyPatternCombatTests
 {
     [Test]
-    public void DamageUsesZeroMinimumCeilingAndPerHitDefense()
+    public void DamageUsesZeroMinimumFloorAndPerHitDefense()
     {
         var attackerObject = new GameObject("Attacker_Test");
         var targetObject = new GameObject("Target_Test");
@@ -28,8 +28,8 @@ public class EnemyPatternCombatTests
             Assert.AreEqual(0f, blocked.HealthDamage);
             Assert.AreEqual(20f, target.status.currentHp);
 
-            DamageResult rounded = target.ReceiveDamageDetailed(3.1f, attacker, DamageType.Physical);
-            Assert.AreEqual(1f, rounded.HealthDamage);
+            DamageResult rounded = target.ReceiveDamageDetailed(4.9f, attacker, DamageType.Physical);
+            Assert.AreEqual(1f, rounded.HealthDamage, "Damage is floored after the final calculation");
             Assert.AreEqual(19f, target.status.currentHp);
 
             var multiHit = new SkillLevelData
@@ -88,7 +88,7 @@ public class EnemyPatternCombatTests
     }
 
     [Test]
-    public void MentalDamageIgnoresDefenseRoundsUpAndRaisesDepletedOnce()
+    public void MentalDamageIgnoresDefenseFloorsAndRaisesDepletedOnce()
     {
         var targetObject = new GameObject("Target_Test");
         var targetData = ScriptableObject.CreateInstance<CharacterData>();
@@ -104,7 +104,7 @@ public class EnemyPatternCombatTests
             int depletedCount = 0;
             target.MentalDepleted += _ => depletedCount++;
 
-            Assert.AreEqual(2f, target.TakeMentalDamage(1.1f));
+            Assert.AreEqual(2f, target.TakeMentalDamage(2.9f));
             Assert.AreEqual(3f, target.status.currentMental);
             Assert.AreEqual(99f, target.status.GetStatus(EffectType.Shield).damagePerTurn);
 
@@ -398,7 +398,7 @@ public class EnemyPatternCombatTests
     }
 
     [Test]
-    public void TauntAndGuardConsumeOneChargePerHit()
+    public void TauntConsumesPerHitAndGuardOncePerAttackSkill()
     {
         var managerObject = new GameObject("BattleManager_Test");
         var attackerObject = new GameObject("Attacker_Test");
@@ -447,8 +447,8 @@ public class EnemyPatternCombatTests
             target.status.ApplyStatusEffect(EffectType.Guard, 0f, 0, 0f, 2, -1, protector);
             EffectEngine.ProcessSkill(attacker, new List<BattleCharacter> { target }, twoHits, "보호 연타");
             Assert.AreEqual(20f, target.status.currentHp);
-            Assert.AreEqual(16f, protector.status.currentHp);
-            Assert.IsNull(target.status.GetStatus(EffectType.Guard));
+            Assert.AreEqual(16f, protector.status.currentHp, "Both hits of the skill go to the protector");
+            Assert.AreEqual(1, target.status.GetStatus(EffectType.Guard).remainingCharges, "Protect uses one count per attack skill");
         }
         finally
         {

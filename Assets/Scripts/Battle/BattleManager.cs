@@ -139,7 +139,7 @@ public partial class BattleManager : MonoBehaviour
         {
             if (!die.IsAvailable) continue;
             available++;
-            if (rule.AcceptsValue(die.Value)) matching++;
+            if (rule.AcceptsValue(GetDieInputValue(actor, die))) matching++;
         }
         int needed = Mathf.Max(1, rule.diceCount);
         if (available < needed) return DiceReasonNotEnoughDice;
@@ -159,6 +159,38 @@ public partial class BattleManager : MonoBehaviour
         return rule != null && rule.IsCharge && GetDiceCharge(actor, skill) >= rule.chargeTarget;
     }
 
+    /// <summary>냉기 on a player character (largest instance, floored). Enemies are never affected.</summary>
+    public int GetFrost(BattleCharacter actor)
+    {
+        if (actor?.status?.origin == null || actor.status.origin.isEnemy) return 0;
+        return Mathf.FloorToInt(actor.status.GetStatusValue(EffectType.Frost) + 1e-4f);
+    }
+
+    /// <summary>Value used for input conditions: original 0 stays 0, otherwise max(1, actual − 냉기). On-use bonus never applies.</summary>
+    public int GetDieInputValue(BattleCharacter actor, ActionDie die)
+    {
+        if (die == null) return 0;
+        int frost = GetFrost(actor);
+        return die.Value == 0 || frost <= 0 ? die.Value : Mathf.Max(1, die.Value - frost);
+    }
+
+    /// <summary>Effect / sum-charge value: base (actual value, or face count for max-value effects) + on-use bonus − 냉기,
+    /// floored at 0 for an original 0 and at 1 otherwise.</summary>
+    public int GetDieEffectValue(BattleCharacter actor, ActionDie die, int onUseBonus, bool useMaxValue = false)
+    {
+        if (die == null) return 0;
+        int raw = (useMaxValue ? die.Faces : die.Value) + onUseBonus - GetFrost(actor);
+        return Mathf.Max(die.Value == 0 ? 0 : 1, raw);
+    }
+
+    private int SumEffectValues(BattleCharacter actor, SkillInfo skill)
+    {
+        int bonus = GetDiceOnUseBonus(actor, skill);
+        int total = 0;
+        foreach (int id in _selectedDiceIds) total += GetDieEffectValue(actor, _dicePool.Find(id), bonus);
+        return total;
+    }
+
     /// <summary>Character on-use dice bonus. Applies to effect calc and sum-type charge, never to input conditions.</summary>
     public int GetDiceOnUseBonus(BattleCharacter actor, SkillInfo skill) => 0;
 
@@ -174,7 +206,7 @@ public partial class BattleManager : MonoBehaviour
         ActionDie die = _dicePool.Find(dieId);
         if (die == null || !die.IsAvailable) return;
         DiceInputRule dropRule = GetDiceRule(skill, actor);
-        if (!dropRule.AcceptsValue(die.Value)) return;
+        if (!dropRule.AcceptsValue(GetDieInputValue(actor, die))) return;
         if (dropRule.IsCharge)
         {
             if (IsChargeReady(actor, skill))
@@ -209,7 +241,7 @@ public partial class BattleManager : MonoBehaviour
         SkillLevelData level = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
         if (level == null || !(level.targetType == TargetType.Self
             ? target == actor
-            : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty)))
+            : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty, actor)))
         {
             NotificationManager.Instance?.ShowMessage("이 스킬에 맞는 대상이 아닙니다.", Color.red);
             return;
@@ -242,19 +274,18 @@ public partial class BattleManager : MonoBehaviour
     {
         DiceInputRule rule = GetDiceRule(skill, actor);
         if (!rule.IsCharge || IsChargeReady(actor, skill) || _usedDiceSkills.Contains((actor, skill))) return false;
-        if (!TryGetSelectedDice(rule, out List<int> values))
+        if (!TryGetSelectedDice(actor, rule, out List<int> values))
         {
             Notify($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
             return false;
         }
-        int nextCharge = Mathf.Min(rule.chargeTarget,
-            GetDiceCharge(actor, skill) + rule.ChargeFrom(values, GetDiceOnUseBonus(actor, skill)));
+        int contribution = rule.chargeByDiceCount ? values.Count : SumEffectValues(actor, skill);
+        int nextCharge = Mathf.Min(rule.chargeTarget, GetDiceCharge(actor, skill) + contribution);
         if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
         _diceCharge[(actor, skill)] = nextCharge;
         _selectedDiceIds.Clear();
         RefreshDiceUI();
         RefreshSkillSlots();
-        actor.ResolveActionStatusEffects();
         Notify(nextCharge >= rule.chargeTarget
             ? $"{skill.skillName} 준비 완료 — 대상을 지정해 발동하세요"
             : $"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
@@ -384,7 +415,7 @@ public partial class BattleManager : MonoBehaviour
         return skill.levels[index]?.diceInput ?? new DiceInputRule();
     }
 
-    private bool TryGetSelectedDice(DiceInputRule rule, out List<int> values)
+    private bool TryGetSelectedDice(BattleCharacter actor, DiceInputRule rule, out List<int> values)
     {
         values = new List<int>(_selectedDiceIds.Count);
         if (_selectedDiceIds.Count != Mathf.Max(1, rule.diceCount)) return false;
@@ -392,7 +423,7 @@ public partial class BattleManager : MonoBehaviour
         {
             ActionDie die = _dicePool.Find(id);
             if (die == null || !die.IsAvailable) return false;
-            values.Add(die.Value);
+            values.Add(GetDieInputValue(actor, die));
         }
         return rule.Accepts(values);
     }
@@ -441,7 +472,7 @@ public partial class BattleManager : MonoBehaviour
             RefreshSkillSlots();
             return true;
         }
-        if (!TryGetSelectedDice(rule, out List<int> values))
+        if (!TryGetSelectedDice(actor, rule, out List<int> values))
         {
             NotificationManager.Instance?.ShowMessage($"주사위 조건을 확인하세요: {rule.Describe()}", Color.red);
             return false;
@@ -828,7 +859,7 @@ public partial class BattleManager : MonoBehaviour
                     return;
                 }
             }
-            else if (!TryGetSelectedDice(rule, out _))
+            else if (!TryGetSelectedDice(actor, rule, out _))
             {
                 NotificationManager.Instance?.ShowMessage($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
                 return;
@@ -935,7 +966,7 @@ public partial class BattleManager : MonoBehaviour
 
         bool isValidTarget = levelData.targetType == TargetType.Self
             ? primaryTarget == actor
-            : TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty);
+            : TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
         if (!isValidTarget)
         {
             string message = TargetResolver.IsTauntAffected(levelData.targetType)
@@ -1034,8 +1065,7 @@ public partial class BattleManager : MonoBehaviour
             }
         }
 
-        var frost = actor.status.GetStatus(EffectType.Frost);
-        if (frost != null) cost += Mathf.Max(0, Mathf.RoundToInt(frost.damagePerTurn));
+        cost += Mathf.Max(0, Mathf.RoundToInt(actor.status.GetStatusValue(EffectType.Frost)));
 
         if (_arcanaState.isEmperorActiveThisTurn)
         {
@@ -1118,24 +1148,18 @@ public partial class BattleManager : MonoBehaviour
         }
         else
         {
-            var confusion = actor.status.GetStatus(EffectType.Confusion);
-            if (confusion != null && UnityEngine.Random.value < confusion.damagePerTurn * 0.01f)
-            {
-                var pool = levelData.targetType == TargetType.Friendly || levelData.targetType == TargetType.AllFriendly ? playerParty : enemyParty;
-                var alive = pool.FindAll(c => c != null && c.status != null && c.status.currentHp > 0f);
-                if (alive.Count > 0) primaryTarget = alive[UnityEngine.Random.Range(0, alive.Count)];
-                NotificationManager.Instance?.ShowMessage("[혼란] 스킬 대상이 무작위로 변경되었습니다!", Color.magenta);
-            }
-            List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty);
-            ConsumeTauntForAttack(levelData.targetType, targets);
-            EffectEngine.ProcessSkill(actor, targets, levelData, skill.skillName);
+            // Order: 혼란 (at fire) → 도발 → 보호 (per hit in the damage path).
+            primaryTarget = ApplyConfusion(actor, primaryTarget, levelData.targetType);
+            BattleCharacter resolvedPrimary = TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor);
+            List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
+            EffectEngine.ProcessSkill(actor, targets, levelData, resolvedPrimary, skill.skillName);
 
             // [탑] 이번 턴 처음 사용하는 스킬 2번 발동 (더블 캐스트)
             if (_arcanaState.isTowerDoubleCastActive)
             {
                 _arcanaState.isTowerDoubleCastActive = false;
-                List<BattleCharacter> doubleTargets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty);
-                EffectEngine.ProcessSkill(actor, doubleTargets, levelData, skill.skillName);
+                List<BattleCharacter> doubleTargets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
+                EffectEngine.ProcessSkill(actor, doubleTargets, levelData, TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor), skill.skillName);
                 NotificationManager.Instance?.ShowMessage("[탑] 첫 스킬이 2번 연속 발동되었습니다!", Color.red);
             }
 
@@ -1283,12 +1307,22 @@ public partial class BattleManager : MonoBehaviour
         return false;
     }
 
-    private void ConsumeTauntForAttack(TargetType targetType, List<BattleCharacter> targets)
+    /// <summary>
+    /// 혼란: on an actual fire, the summed % chance moves a single-primary skill to a random target among the
+    /// skill's original valid targets (taunt not yet applied). Self and all-target skills are unaffected.
+    /// </summary>
+    private BattleCharacter ApplyConfusion(BattleCharacter actor, BattleCharacter primaryTarget, TargetType type)
     {
-        if (!TargetResolver.IsTauntAffected(targetType)) return;
-        BattleCharacter taunter = TargetResolver.FindTauntTarget(enemyParty);
-        if (taunter != null && targets.Contains(taunter))
-            taunter.status.ConsumeStatusCharge(EffectType.Taunt);
+        float chance = actor.status.GetStatusValue(EffectType.Confusion) * 0.01f;
+        if (chance <= 0f || type == TargetType.Self || type == TargetType.AllEnemy || type == TargetType.AllFriendly) return primaryTarget;
+        if (UnityEngine.Random.value >= chance) return primaryTarget;
+        var pool = type == TargetType.Friendly || type == TargetType.FriendlyLeft || type == TargetType.FriendlyRight
+            || type == TargetType.FriendlyAdjacent ? playerParty : enemyParty;
+        var candidates = pool.FindAll(c => c != null && c.status != null && c.status.currentHp > 0f
+            && TargetResolver.IsValid(c, type, playerParty, enemyParty, actor, true));
+        if (candidates.Count == 0) return primaryTarget;
+        Notify("[혼란] 스킬 대상이 무작위로 변경되었습니다!", Color.magenta);
+        return candidates[UnityEngine.Random.Range(0, candidates.Count)];
     }
 
     public void PerformConsumable()
@@ -1400,6 +1434,7 @@ public partial class BattleManager : MonoBehaviour
             RefreshDiceUI();
             if (targetHandler != null) targetHandler.Deselect(false);
         }
+        TickSideTurnEnd(playerParty);
 
         // [에너지 저장소] 미사용 행동력 최대 3까지 다음 턴으로 이월 저장
         if (!UsesDice && TheLastArk.Managers.TrainManager.IsInitialized && TheLastArk.Managers.TrainManager.Instance.nexusCar != null &&
@@ -2395,6 +2430,7 @@ public partial class BattleManager : MonoBehaviour
         if (aliveEnemies == 0)
         {
             Debug.LogWarning("[Battle] 생존 적이 없습니다. 상태이상 처리로 넘어갑니다.");
+            TickSideTurnEnd(enemyParty);
             EnterPhase(BattlePhase.StatusEffect);
             yield break;
         }
@@ -2440,6 +2476,7 @@ public partial class BattleManager : MonoBehaviour
         }
 
         Debug.Log("[Battle] 적 턴 완료. 상태이상 처리로 넘어갑니다.");
+        TickSideTurnEnd(enemyParty);
         EnterPhase(BattlePhase.StatusEffect);
     }
 
@@ -2469,6 +2506,18 @@ public partial class BattleManager : MonoBehaviour
         EnterPhase(BattlePhase.PlayerTurn);
     }
 
+    /// <summary>Turn effects (other than round-end DoTs) decrement at their own side's turn end.</summary>
+    private static void TickSideTurnEnd(List<BattleCharacter> party)
+    {
+        if (party == null) return;
+        foreach (BattleCharacter character in party)
+        {
+            if (character?.status == null) continue;
+            character.status.TickSideTurnEnd();
+            character.view?.UpdateVisual(character.status);
+        }
+    }
+
     private static void RemoveOwnerPhaseEffects(List<BattleCharacter> party)
     {
         if (party == null) return;
@@ -2489,6 +2538,9 @@ public partial class BattleManager : MonoBehaviour
     {
         _diceCharge.Clear();
         _parasiticStacks = 0;
+        // Battle statuses (permanent ones included) never carry into the next battle.
+        foreach (BattleCharacter ally in playerParty)
+            ally?.status?.RemoveAllStatusEffects();
         ClearBattlePanic();
         CancelPendingSelection();
         ClearEnemyTargetMarkers();

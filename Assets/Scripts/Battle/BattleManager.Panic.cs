@@ -75,7 +75,7 @@ public partial class BattleManager
         foreach (var party in new[] { playerParty, enemyParty })
             foreach (var target in party)
                 if (target?.status != null && target.status.currentHp > 0f
-                    && TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty)) targets.Add(target);
+                    && TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty, actor)) targets.Add(target);
         return targets;
     }
 
@@ -91,8 +91,7 @@ public partial class BattleManager
                 || (level.effects != null && level.effects.Exists(e => e.type == EffectType.Damage));
             if (_arcanaState.isStrengthActiveThisTurn && attack) cost++;
         }
-        var frost = actor.status.GetStatus(EffectType.Frost);
-        return cost + (frost != null ? Mathf.Max(0, Mathf.RoundToInt(frost.damagePerTurn)) : 0);
+        return cost + Mathf.Max(0, Mathf.RoundToInt(actor.status.GetStatusValue(EffectType.Frost)));
     }
 
     private List<int> PanicDice(BattleCharacter actor, SkillInfo skill)
@@ -102,7 +101,7 @@ public partial class BattleManager
         // Charge skills only act when ready (fired without dice); panic never inserts charge dice.
         if (rule.IsCharge) return IsChargeReady(actor, skill) ? ids : null;
         foreach (var die in _dicePool.Dice)
-            if (die.IsAvailable && rule.AcceptsValue(die.Value)) ids.Add(die.Id);
+            if (die.IsAvailable && rule.AcceptsValue(GetDieInputValue(actor, die))) ids.Add(die.Id);
         ids.Sort((a, b) => _dicePool.Find(b).Value.CompareTo(_dicePool.Find(a).Value));
         int count = Mathf.Max(1, rule.diceCount);
         if (ids.Count < count) return null;
@@ -198,7 +197,7 @@ public partial class BattleManager
     {
         if (!UsesDice || !IsPlayerTurn || !CanUseDiceSkill(actor, skill)) return false;
         var die = _dicePool.Find(dieId);
-        if (die == null || !die.IsAvailable || !GetDiceRule(skill, actor).AcceptsValue(die.Value)) return false;
+        if (die == null || !die.IsAvailable || !GetDiceRule(skill, actor).AcceptsValue(GetDieInputValue(actor, die))) return false;
         if (IsChargeReady(actor, skill)) return false;
         return _pendingDiceActor != actor || _pendingDiceSkill != skill || !_selectedDiceIds.Contains(dieId);
     }

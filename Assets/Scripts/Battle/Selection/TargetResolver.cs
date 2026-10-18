@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 /// <summary>
 /// TargetType에 따라 실제 타겟 목록을 계산합니다.
@@ -14,13 +14,15 @@ public static class TargetResolver
         BattleCharacter clicked,
         TargetType skillType,
         List<BattleCharacter> playerParty,
-        List<BattleCharacter> enemyParty)
+        List<BattleCharacter> enemyParty,
+        BattleCharacter attacker = null,
+        bool ignoreTaunt = false)
     {
         bool isAlly = playerParty.Contains(clicked);
         bool hasCorruption = TheLastArk.Managers.TrainManager.IsInitialized && 
                              TheLastArk.Managers.TrainManager.Instance.HasPartEffectInAnyCar(TheLastArk.Data.TrainPartEffectType.CorruptionModule);
 
-        BattleCharacter taunter = FindTauntTarget(enemyParty);
+        BattleCharacter taunter = ignoreTaunt || IgnoresTaunt(attacker) ? null : FindTauntTarget(enemyParty);
         if (IsTauntAffected(skillType) && taunter != null)
             return clicked == taunter;
 
@@ -39,15 +41,11 @@ public static class TargetResolver
         BattleCharacter mainTarget,
         TargetType type,
         List<BattleCharacter> playerParty,
-        List<BattleCharacter> enemyParty)
+        List<BattleCharacter> enemyParty,
+        BattleCharacter attacker = null)
     {
         var result = new List<BattleCharacter>();
-
-        if (IsTauntAffected(type))
-        {
-            BattleCharacter taunter = FindTauntTarget(enemyParty);
-            if (taunter != null) mainTarget = taunter;
-        }
+        mainTarget = ResolvePrimary(mainTarget, type, enemyParty, attacker);
 
         bool isEnemy = enemyParty.Contains(mainTarget);
         var team     = isEnemy ? enemyParty : playerParty;
@@ -88,6 +86,16 @@ public static class TargetResolver
 
         return result;
     }
+
+    /// <summary>Main target after 도발 (single-primary attacks only; 집중 ignores taunt).</summary>
+    public static BattleCharacter ResolvePrimary(BattleCharacter mainTarget, TargetType type, List<BattleCharacter> enemyParty, BattleCharacter attacker = null)
+    {
+        if (!IsTauntAffected(type) || IgnoresTaunt(attacker)) return mainTarget;
+        BattleCharacter taunter = FindTauntTarget(enemyParty);
+        return taunter != null ? taunter : mainTarget;
+    }
+
+    public static bool IgnoresTaunt(BattleCharacter attacker) => attacker?.status?.GetStatus(EffectType.Focus) != null;
 
     public static bool IsTauntAffected(TargetType type)
     {

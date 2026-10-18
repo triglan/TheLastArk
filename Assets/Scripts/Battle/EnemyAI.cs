@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class EnemyAI : MonoBehaviour
@@ -10,6 +10,7 @@ public class EnemyAI : MonoBehaviour
     private BattleCharacter _self;
     private int _patternIndex;
     private List<BattleCharacter> _preparedTargets;
+    private BattleCharacter _preparedPrimary;
     private EnemyPatternData _preparedPattern;
     private EnemyPatternAction _preparedAction;
     private EnemyIntentData _preparedIntent;
@@ -87,6 +88,20 @@ public class EnemyAI : MonoBehaviour
     public void ExecuteTurn()
     {
         if (_preparedTargets == null && !PrepareTurn()) return;
+        var attack = TheLastArk.Battle.AttackContext.BeginPattern(_self);
+        try { ExecutePreparedPattern(); }
+        finally { attack.End(); }
+
+        // 출혈·압박 trigger once per pattern, after its effect.
+        _self.ResolveActionStatusEffects();
+        _self.view?.UpdateVisual(_self.status);
+        AdvancePattern();
+        Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {_preparedPattern.patternName}");
+        ClearPreparedTurn();
+    }
+
+    private void ExecutePreparedPattern()
+    {
         if (_preparedPattern.actions != null && _preparedPattern.actions.Count > 0)
         {
             foreach (EnemyPatternAction action in _preparedPattern.actions)
@@ -102,6 +117,7 @@ public class EnemyAI : MonoBehaviour
         }
         else
         {
+            ApplyConfusion(_preparedPattern.targetType, _preparedPattern.targetSelection);
             _preparedTargets.RemoveAll(target => target == null || target.status == null || target.status.currentHp <= 0f);
             if (_preparedTargets.Count > 0)
             {
@@ -111,15 +127,9 @@ public class EnemyAI : MonoBehaviour
                     targetType = _preparedPattern.targetType,
                     customVfxName = _preparedPattern.customVfxName,
                     effects = CloneEffects(_preparedPattern.effects)
-                }, _preparedPattern.patternName);
+                }, _preparedTargets.Contains(_preparedPrimary) ? _preparedPrimary : null, _preparedPattern.patternName);
             }
         }
-
-        _self.ResolveActionStatusEffects();
-        _self.view?.UpdateVisual(_self.status);
-        AdvancePattern();
-        Debug.Log($"[EnemyAI] {_self.characterName} 패턴 실행: {_preparedPattern.patternName}");
-        ClearPreparedTurn();
     }
 
     private static List<EffectEntry> CloneEffects(List<EffectEntry> sourceEffects)
@@ -427,7 +437,18 @@ public class EnemyAI : MonoBehaviour
         return EnemyIntentVisualType.Special;
     }
 
-    private List<BattleCharacter> ResolveTargets(TargetType targetType, EnemyTargetSelection selection)
+    /// <summary>혼란: summed % chance to re-centre a single-primary pattern on a random valid target at execution.</summary>
+    private void ApplyConfusion(TargetType targetType, EnemyTargetSelection selection)
+    {
+        float chance = _self.status.GetStatusValue(EffectType.Confusion) * 0.01f;
+        if (chance <= 0f || targetType == TargetType.Self || targetType == TargetType.AllEnemy || targetType == TargetType.AllFriendly
+            || selection == EnemyTargetSelection.Remembered || Random.value >= chance) return;
+        var candidates = GetAlive(IsFriendlyTarget(targetType) ? allyParty : targetParty);
+        if (candidates.Count == 0) return;
+        _preparedTargets = ResolveTargets(targetType, selection, candidates[Random.Range(0, candidates.Count)]);
+    }
+
+    private List<BattleCharacter> ResolveTargets(TargetType targetType, EnemyTargetSelection selection, BattleCharacter forcedMain = null)
     {
         var result = new List<BattleCharacter>();
         if (selection == EnemyTargetSelection.Remembered)
@@ -444,7 +465,8 @@ public class EnemyAI : MonoBehaviour
         }
 
         // 도발은 타격마다 BattleCharacter의 피해 경로에서 판정합니다.
-        BattleCharacter main = PickTarget(party, selection);
+        BattleCharacter main = forcedMain != null ? forcedMain : PickTarget(party, selection);
+        _preparedPrimary = main;
 
         switch (targetType)
         {

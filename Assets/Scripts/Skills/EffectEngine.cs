@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 using TheLastArk.Data;
 using TheLastArk.Managers;
@@ -21,8 +21,37 @@ public static class EffectEngine
 
     public static void ProcessSkill(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data, string skillName = "", System.Action<DamageResult> onDamage = null)
     {
-        // 스킬 또는 패턴의 효과를 대상들에게 순서대로 적용합니다.
+        ProcessSkill(actor, targets, data, null, skillName, onDamage);
+    }
+
+    /// <summary>
+    /// Runs one skill / pattern as a single attack: taunt lock, once-per-skill protect, and 반격/반사 after all hits.
+    /// </summary>
+    public static void ProcessSkill(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data, BattleCharacter primaryTarget, string skillName = "", System.Action<DamageResult> onDamage = null)
+    {
         if (actor == null || actor.status == null || targets == null || data?.effects == null) return;
+        var current = TheLastArk.Battle.AttackContext.Current;
+        if (current != null && current.IsPatternScope && current.Attacker == actor)
+        {
+            current.Retarget(primaryTarget ?? InferPrimary(targets, data.targetType), data.targetType);
+            ProcessSkillEffects(actor, targets, data, skillName, onDamage);
+            return;
+        }
+        var context = TheLastArk.Battle.AttackContext.Begin(actor, primaryTarget ?? InferPrimary(targets, data.targetType), data.targetType);
+        try { ProcessSkillEffects(actor, targets, data, skillName, onDamage); }
+        finally { context.End(); }
+    }
+
+    /// <summary>Main target of a single-primary attack: the middle of a full adjacent hit, otherwise the first.</summary>
+    private static BattleCharacter InferPrimary(List<BattleCharacter> targets, TargetType type)
+    {
+        if (targets.Count == 0) return null;
+        return type == TargetType.AdjacentEnemy && targets.Count == 3 ? targets[1] : targets[0];
+    }
+
+    private static void ProcessSkillEffects(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data, string skillName, System.Action<DamageResult> onDamage)
+    {
+        // 스킬 또는 패턴의 효과를 대상들에게 순서대로 적용합니다.
 
         float lastCalculatedValue = 0f;
 
@@ -126,7 +155,7 @@ public static class EffectEngine
                     {
                         critMultiplier += 0.25f;
                     }
-                    calculatedValue *= critMultiplier;
+                    calculatedValue = new TheLastArk.Battle.ValueModifier().AddMultiplier(critMultiplier).Raw(calculatedValue);
                     Debug.Log($"[치명타!] {actor.characterName}의 공격이 치명타로 적중! (배율: {critMultiplier}x)");
 
                     // [유리 칼날] 치명타 발동 시 대상에게 출혈 3 부여
@@ -194,7 +223,7 @@ public static class EffectEngine
                     break;
                 }
 
-                lastCalculatedValue = target.ReceiveHeal(finalHealValue, actor);
+                lastCalculatedValue = target.ReceiveHeal(calculatedValue, actor, prayerRoomBonus);
 
                 // [하늘 가호 프로토콜] 치유로 아군 체력 100% 달성 시 해당 턴 공/주 +20%
                 if (isPlayerActor && TrainManager.IsInitialized && TrainManager.Instance.HasPartEffectInAnyCar(TrainPartEffectType.SkyBlessingProtocol))
@@ -268,7 +297,7 @@ public static class EffectEngine
 
             case EffectType.Bleed:
                 int bleedTurns = Mathf.Max(1, effect.duration > 0 ? effect.duration : 3);
-                float bleedDmg = effect.value > 0 ? effect.value : baseValue * effect.multiplier;
+                float bleedDmg = TheLastArk.Battle.ValueModifier.Floor(effect.value > 0 ? effect.value : baseValue * effect.multiplier);
                 ApplyBleed(target, bleedDmg, bleedTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
                 lastCalculatedValue = bleedDmg;
@@ -276,7 +305,7 @@ public static class EffectEngine
 
             case EffectType.Poison:
                 int poisonTurns = Mathf.Max(1, effect.duration > 0 ? effect.duration : 3);
-                float poisonDmg = effect.value > 0 ? effect.value : baseValue * effect.multiplier;
+                float poisonDmg = TheLastArk.Battle.ValueModifier.Floor(effect.value > 0 ? effect.value : baseValue * effect.multiplier);
                 ApplyPoison(target, poisonDmg, poisonTurns, actor, effect.durationType);
                 CheckMageRuneOfCycle(actor, target);
                 lastCalculatedValue = poisonDmg;
@@ -310,7 +339,8 @@ public static class EffectEngine
                     ? effect.value
                     : !Mathf.Approximately(effect.fixedValue, 0f) ? effect.fixedValue : effect.multiplier;
                 target.status.ApplyStatusEffect(effect.type, statValue,
-                    Mathf.Max(1, effect.duration), 0f, 0, -1, actor, effect.durationType);
+                    effect.duration > 0 ? effect.duration : TheLastArk.Battle.StatusRules.DefaultStatTurns,
+                    0f, 0, -1, actor, effect.durationType);
                 lastCalculatedValue = statValue;
                 break;
 
@@ -344,6 +374,7 @@ public static class EffectEngine
 
             case EffectType.Shield:
                 int shieldTurns = Mathf.Max(1, effect.duration);
+                calculatedValue = TheLastArk.Battle.ValueModifier.Floor(calculatedValue);
                 target.status.ApplyStatusEffect(effect.type, calculatedValue, shieldTurns,
                     0f, 0, -1, actor, effect.durationType);
                 lastCalculatedValue = calculatedValue;
@@ -381,6 +412,12 @@ public static class EffectEngine
             case EffectType.Pressure:
             case EffectType.Despair:
             case EffectType.Pierce:
+                // 봉쇄·피로·냉기 are player-only limits.
+                if (TheLastArk.Battle.StatusRules.IsPlayerOnly(effect.type) && target.status.origin != null && target.status.origin.isEnemy)
+                {
+                    lastCalculatedValue = 0f;
+                    break;
+                }
                 target.status.ApplyStatusEffect(effect.type, effect.value,
                     Mathf.Max(1, effect.duration > 0 ? effect.duration : 3),
                     effect.secondaryValue, 0, effect.skillSlot, actor, effect.durationType);
@@ -390,7 +427,8 @@ public static class EffectEngine
                 break;
 
             case EffectType.Guard:
-                target.status.ApplyStatusEffect(effect.type, 0f, 0, 0f,
+                // secondaryValue = protect damage reduction (%) applied after the protector's defense.
+                target.status.ApplyStatusEffect(effect.type, 0f, 0, effect.secondaryValue,
                     Mathf.Max(1, effect.charges), -1, actor, StatusDurationType.Charges);
                 lastCalculatedValue = effect.charges;
                 break;
@@ -429,10 +467,11 @@ public static class EffectEngine
         if (actor != null && actor.status.origin != null && !actor.status.origin.isEnemy &&
             ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.BloodMist))
         {
-            var bleed = target.status.activeStatusEffects.Find(e => e.effectType == EffectType.Bleed);
-            if (bleed != null && (bleed.damagePerTurn >= 10f || bleed.remainingTurns >= 10))
+            float bleedValue = target.status.GetStatusValue(EffectType.Bleed);
+            var bleed = target.status.GetStatus(EffectType.Bleed);
+            if (bleed != null && (bleedValue >= 10f || bleed.remainingTurns >= 10))
             {
-                target.ReceiveDamage(bleed.damagePerTurn, null, DamageType.True);
+                target.ReceiveDamage(TheLastArk.Battle.ValueModifier.Floor(bleedValue), null, DamageType.True, false);
                 Debug.Log($"[피안개] {target.characterName} 출혈 10 이상 중첩으로 즉시 출혈 1회 발동!");
             }
         }

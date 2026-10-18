@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
@@ -197,14 +197,15 @@ public class MirageEnemySpecificationTests
     }
 
     [Test]
-    public void LastHitBleedIsSkippedWhenCounterInterruptsTheCombo()
+    public void CounterResolvesAfterTheWholeCombo()
     {
         var c = Character("쌍월도 대장"); var t = Character(); var ai = AI(c, t);
         Turn(ai); Turn(ai); t.status.activeStatusEffects.Clear();
         c.status.currentHp = 1;
         t.status.ApplyStatusEffect(EffectType.Counter, 50, 0, 0, 1, -1, t, StatusDurationType.Charges);
         Turn(ai);
-        Assert.AreEqual(0f, c.status.currentHp); Assert.IsNull(t.status.GetStatus(EffectType.Bleed));
+        // 반격 waits for every hit of the pattern, so the last-hit bleed lands before the counter kills.
+        Assert.AreEqual(0f, c.status.currentHp); Assert.IsNotNull(t.status.GetStatus(EffectType.Bleed));
     }
 
     [Test]

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
@@ -114,12 +114,17 @@ public class CharacterStatus : ISerializationCallbackReceiver
     public float ArmorStatusModifier => GetStatusValue(EffectType.Protection) - GetStatusValue(EffectType.Vulnerable);
     public float MagicResistStatusModifier => GetStatusValue(EffectType.MagicGuard) - GetStatusValue(EffectType.Corrosion);
 
-    public float FinalAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + GetSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier)) + AttackStatusModifier + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : AttackStatusModifier + bonusAttack + EquipmentBonusAttack;
-    public float FinalSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + GetSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + SpellPowerStatusModifier + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : SpellPowerStatusModifier + EquipmentBonusSpellPower;
+    public float FinalAttack => Mathf.Max(0f, RawAttack);
+    public float FinalSpellPower => Mathf.Max(0f, RawSpellPower);
+    public float FinalArmor => Mathf.Max(0f, PatternArmorOverride ?? RawArmor);
+    public float FinalMagicResist => Mathf.Max(0f, RawMagicResist);
+
+    private float RawAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + GetSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier)) + AttackStatusModifier + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : AttackStatusModifier + bonusAttack + EquipmentBonusAttack;
+    private float RawSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + GetSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + SpellPowerStatusModifier + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : SpellPowerStatusModifier + EquipmentBonusSpellPower;
     // Pattern-driven forms set an exact armor value until their next transition.
     public float? PatternArmorOverride { get; set; }
-    public float FinalArmor => PatternArmorOverride ?? (origin != null ? (origin.armor * (1 + GetMultiplier())) + ArmorStatusModifier + EquipmentBonusArmor : ArmorStatusModifier + EquipmentBonusArmor);
-    public float FinalMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + MagicResistStatusModifier + EquipmentBonusMagicResist : MagicResistStatusModifier + EquipmentBonusMagicResist;
+    private float RawArmor => origin != null ? (origin.armor * (1 + GetMultiplier())) + ArmorStatusModifier + EquipmentBonusArmor : ArmorStatusModifier + EquipmentBonusArmor;
+    private float RawMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + MagicResistStatusModifier + EquipmentBonusMagicResist : MagicResistStatusModifier + EquipmentBonusMagicResist;
     public float FinalCritRate => origin != null ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus : EquipmentBonusCritRate;
 
     public bool HasSynergy(TheLastArk.Data.SynergyType type)
@@ -379,16 +384,63 @@ public class CharacterStatus : ISerializationCallbackReceiver
         return GetStatusValue(type) * 0.01f;
     }
 
+    /// <summary>Effective value of all active instances: largest for max-type effects, sum otherwise.</summary>
     public float GetStatusValue(EffectType type)
     {
+        bool max = TheLastArk.Battle.StatusRules.IsMaxType(type);
         float total = 0f;
         for (int i = 0; i < activeStatusEffects.Count; i++)
         {
             ActiveStatusEffect effect = activeStatusEffects[i];
-            if (effect != null && effect.effectType == type && effect.IsActive)
-                total += effect.damagePerTurn;
+            if (effect == null || effect.effectType != type || !effect.IsActive) continue;
+            total = max ? Mathf.Max(total, effect.damagePerTurn) : total + effect.damagePerTurn;
         }
         return total;
+    }
+
+    /// <summary>Decrements turn-based effects at this side's turn end (round-end DoTs tick elsewhere).</summary>
+    public void TickSideTurnEnd()
+    {
+        for (int i = activeStatusEffects.Count - 1; i >= 0; i--)
+        {
+            ActiveStatusEffect effect = activeStatusEffects[i];
+            if (effect == null) { activeStatusEffects.RemoveAt(i); continue; }
+            if (ResolveDurationType(effect.effectType, effect.durationType) != StatusDurationType.Turns
+                || TheLastArk.Battle.StatusRules.TicksAtRoundEnd(effect.effectType)) continue;
+            effect.remainingTurns--;
+            if (effect.remainingTurns <= 0) activeStatusEffects.RemoveAt(i);
+        }
+    }
+
+    /// <summary>One line per effect type: final value, and the instance breakdown for hover.</summary>
+    public List<(EffectType type, string summary, string breakdown)> GetStatusSummaries()
+    {
+        var result = new List<(EffectType, string, string)>();
+        var seen = new HashSet<EffectType>();
+        foreach (ActiveStatusEffect effect in activeStatusEffects)
+        {
+            if (effect == null || !effect.IsActive || !seen.Add(effect.effectType)) continue;
+            EffectType type = effect.effectType;
+            var parts = new List<string>();
+            int count = 0;
+            foreach (ActiveStatusEffect instance in activeStatusEffects)
+            {
+                if (instance == null || instance.effectType != type || !instance.IsActive) continue;
+                count++;
+                parts.Add(instance.damagePerTurn > 0f
+                    ? $"{instance.damagePerTurn:0.##} ({instance.GetDurationText()})"
+                    : instance.GetDurationText());
+            }
+            float value = GetStatusValue(type);
+            string name = ActiveStatusEffect.GetDisplayName(type);
+            string summary = value > 0f ? $"{name} {Mathf.Floor(value + 1e-4f):0}" : $"{name} · {effect.GetDurationText()}";
+            string rule = TheLastArk.Battle.StatusRules.IsMaxType(type) ? " (가장 큰 값 적용)" : "";
+            string breakdown = count > 1 && value > 0f
+                ? $"{summary} = {string.Join(" + ", parts)}{rule}"
+                : $"{name} {string.Join(", ", parts)}";
+            result.Add((type, summary, breakdown));
+        }
+        return result;
     }
 
     public void ConsumeStatusCharge(EffectType type)
@@ -407,26 +459,31 @@ public class CharacterStatus : ISerializationCallbackReceiver
     public void ApplyStatusEffect(EffectType type, float value, int turns, float secondaryValue, int charges, int skillSlot, BattleCharacter source, StatusDurationType requestedDuration)
     {
         StatusDurationType duration = ResolveDurationType(type, requestedDuration);
-        var existing = activeStatusEffects.Find(e => e != null && e.effectType == type
-            && e.durationType == duration && (type != EffectType.Blockade || e.skillSlot == skillSlot));
+        var stacking = TheLastArk.Battle.StatusRules.Stacking(type);
+        // Each application is its own instance, except time-only / count effects (max refresh) and 반사 (ratios summed).
+        ActiveStatusEffect existing = stacking == TheLastArk.Battle.StatusStacking.Instance ? null
+            : activeStatusEffects.Find(e => e != null && e.effectType == type && e.IsActive
+                && (type != EffectType.Blockade || e.skillSlot == skillSlot));
         if (existing == null)
         {
             existing = new ActiveStatusEffect(type, value, turns, duration);
+            existing.remainingCharges = charges;
             activeStatusEffects.Add(existing);
         }
         else
         {
             existing.remainingTurns = Mathf.Max(existing.remainingTurns, turns);
             existing.remainingCharges = Mathf.Max(existing.remainingCharges, charges);
-            existing.damagePerTurn = IsFixedStatModifier(type) || type == EffectType.Poison
+            existing.damagePerTurn = stacking == TheLastArk.Battle.StatusStacking.ReflectMerge
                 ? existing.damagePerTurn + value
                 : Mathf.Max(existing.damagePerTurn, value);
+            if (duration == StatusDurationType.Permanent) existing.durationType = duration;
         }
 
         if (existing.displayIcon == null) existing.displayIcon = IconLibrary.FindIcon(type);
         existing.secondaryValue = secondaryValue;
-        existing.remainingCharges = Mathf.Max(existing.remainingCharges, charges);
         existing.skillSlot = skillSlot;
+        // A new protector / taunter source replaces the old one.
         existing.source = source;
     }
 
@@ -443,14 +500,6 @@ public class CharacterStatus : ISerializationCallbackReceiver
         if (type == EffectType.Taunt || type == EffectType.Counter || type == EffectType.Guard || type == EffectType.Reflect)
             return StatusDurationType.Charges;
         return StatusDurationType.Turns;
-    }
-
-    private static bool IsFixedStatModifier(EffectType type)
-    {
-        return type == EffectType.Strength || type == EffectType.Weakness
-            || type == EffectType.Amplification || type == EffectType.Frailty
-            || type == EffectType.Protection || type == EffectType.Vulnerable
-            || type == EffectType.MagicGuard || type == EffectType.Corrosion;
     }
 
     public void RemoveAllStatusEffects()

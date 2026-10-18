@@ -1,7 +1,8 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using TheLastArk.Data;
 using TheLastArk.Managers;
+using TheLastArk.Battle;
 
 /// <summary>
 /// 상태이상 페이즈에서 호출됩니다.
@@ -25,97 +26,75 @@ public static class StatusEffectPhaseHandler
         }
     }
 
+    /// <summary>
+    /// Round end: 출혈 (largest), 독 (sum, then each instance −10%), 화상 (sum % of max HP), 공포 (largest)
+    /// take effect once, then those instances decrement. Other turn effects tick at their side's turn end.
+    /// </summary>
     private static void ProcessCharacter(BattleCharacter character)
     {
-        var effects = character.status.activeStatusEffects;
+        var status = character.status;
 
-        // 역순 순회 — 처리 중 리스트에서 제거해도 안전
+        float bleed = status.GetStatusValue(EffectType.Bleed);
+        if (bleed > 0f)
+        {
+            character.ReceiveDamage(ValueModifier.Floor(bleed), null, DamageType.True, false);
+            Debug.Log($"[StatusEffect] {character.characterName} 출혈 {ValueModifier.Floor(bleed)} 피해");
+        }
+
+        float poison = status.GetStatusValue(EffectType.Poison);
+        if (poison > 0f)
+        {
+            float dealt = character.ReceiveDamage(ValueModifier.Floor(poison), null, DamageType.True, false);
+            Debug.Log($"[StatusEffect] {character.characterName} 독 {ValueModifier.Floor(poison)} 피해");
+
+            // [정신 흡혈 거머리] 독으로 10 피해를 입힐 때마다 무작위 아군 정신력 1 회복
+            if (status.origin != null && status.origin.isEnemy && ResourceManager.Instance != null
+                && ResourceManager.Instance.HasRelicEffect(RelicEffectType.MindLeech))
+            {
+                _accumulatedPoisonDamage += dealt;
+                while (_accumulatedPoisonDamage >= 10f)
+                {
+                    _accumulatedPoisonDamage -= 10f;
+                    RestoreRandomAllyMental(1f);
+                }
+            }
+            // Decimals are kept internally; only the dealt damage is floored.
+            foreach (var effect in status.activeStatusEffects)
+                if (effect != null && effect.effectType == EffectType.Poison && effect.IsActive)
+                    effect.damagePerTurn *= StatusRules.PoisonDecay;
+        }
+
+        float burnPercent = status.GetStatusValue(EffectType.Burn);
+        if (burnPercent > 0f)
+        {
+            var burn = new ValueModifier();
+            // [호롱불] 적 화상 피해 +25%, 아군 화상 피해 -25%
+            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.Lantern))
+            {
+                float lanternVal = ResourceManager.Instance.GetRelicBonus(RelicEffectType.Lantern);
+                if (status.origin != null && status.origin.isEnemy) burn.AddIncrease(lanternVal);
+                else burn.AddDecrease(lanternVal);
+            }
+            float burnDmg = burn.Apply(status.FinalMaxHp * burnPercent * 0.01f);
+            character.ReceiveDamage(burnDmg, null, DamageType.True, false);
+            Debug.Log($"[StatusEffect] {character.characterName} 화상 {burnDmg} 피해");
+        }
+
+        float fear = status.GetStatusValue(EffectType.Fear);
+        if (fear > 0f)
+        {
+            float lostRatio = 1f - (status.currentMental / Mathf.Max(1f, status.FinalMaxMental));
+            character.TakeMentalDamage(ValueModifier.Floor(fear * (1f + Mathf.Clamp01(lostRatio))));
+        }
+
+        var effects = status.activeStatusEffects;
         for (int i = effects.Count - 1; i >= 0; i--)
         {
             var effect = effects[i];
-            StatusDurationType durationType = CharacterStatus.ResolveDurationType(effect.effectType, effect.durationType);
-            effect.durationType = durationType;
-
-            switch (effect.effectType)
-            {
-                case EffectType.Bleed:
-                    if (effect.damagePerTurn > 0)
-                    {
-                        character.ReceiveDamage(effect.damagePerTurn, null, DamageType.True);
-                        Debug.Log($"[StatusEffect] {character.characterName} 출혈 {effect.damagePerTurn} 피해 (남은 턴: {effect.remainingTurns - 1})");
-                    }
-                    break;
-
-                case EffectType.Poison:
-                    if (effect.damagePerTurn > 0)
-                    {
-                        float dealt = character.ReceiveDamage(effect.damagePerTurn, null, DamageType.True);
-                        Debug.Log($"[StatusEffect] {character.characterName} 독 {effect.damagePerTurn} 피해 (남은 턴: {effect.remainingTurns - 1})");
-
-                        // [정신 흡혈 거머리] 독으로 10 피해를 입힐 때마다 무작위 아군 정신력 1 회복
-                        if (character.status.origin != null && character.status.origin.isEnemy)
-                        {
-                            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.MindLeech))
-                            {
-                                _accumulatedPoisonDamage += dealt;
-                                while (_accumulatedPoisonDamage >= 10f)
-                                {
-                                    _accumulatedPoisonDamage -= 10f;
-                                    RestoreRandomAllyMental(1f);
-                                }
-                            }
-                        }
-                        effect.damagePerTurn *= 0.9f;
-                    }
-                    break;
-
-                case EffectType.Burn:
-                    if (effect.damagePerTurn > 0)
-                    {
-                        float burnDmg = character.status.FinalMaxHp * effect.damagePerTurn * 0.01f;
-
-                        // [호롱불] 적 화상 피해 +25%, 아군 화상 피해 -25%
-                        if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.Lantern))
-                        {
-                            float lanternVal = ResourceManager.Instance.GetRelicBonus(RelicEffectType.Lantern);
-                            if (character.status.origin != null && character.status.origin.isEnemy)
-                            {
-                                burnDmg *= (1f + lanternVal);
-                            }
-                            else
-                            {
-                                burnDmg *= Mathf.Max(0f, 1f - lanternVal);
-                            }
-                        }
-
-                        character.ReceiveDamage(burnDmg, null, DamageType.True);
-                        Debug.Log($"[StatusEffect] {character.characterName} 화상 {burnDmg} 피해 (남은 턴: {effect.remainingTurns - 1})");
-                    }
-                    break;
-
-                case EffectType.Fear:
-                    float missingMentalRatio = 1f - (character.status.currentMental / Mathf.Max(1f, character.status.FinalMaxMental));
-                    character.TakeMentalDamage(effect.damagePerTurn * (1f + missingMentalRatio));
-                    break;
-
-                case EffectType.Stun:
-                case EffectType.Shield:
-                case EffectType.Taunt:
-                case EffectType.Counter:
-                case EffectType.Guard:
-                    // 지속 턴 차감만 수행
-                    break;
-            }
-
-            if (durationType != StatusDurationType.Turns)
-                continue;
-
+            if (effect == null || !StatusRules.TicksAtRoundEnd(effect.effectType)) continue;
+            if (CharacterStatus.ResolveDurationType(effect.effectType, effect.durationType) != StatusDurationType.Turns) continue;
             effect.remainingTurns--;
-            if (effect.remainingTurns <= 0)
-            {
-                effects.RemoveAt(i);
-                Debug.Log($"[StatusEffect] {character.characterName}의 {effect.effectType} 종료");
-            }
+            if (effect.remainingTurns <= 0) effects.RemoveAt(i);
         }
 
         if (character.view != null)
