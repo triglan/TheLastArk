@@ -96,6 +96,50 @@ namespace TheLastArk.Battle
             return true;
         }
 
+        /// <summary>
+        /// Player-driven ±delta on one available die. Invalid (no change) when the die is missing/locked
+        /// or a decrease would push an actual value of 0 below 0.
+        /// </summary>
+        public bool TryAdjust(int id, int delta)
+        {
+            ActionDie die = Find(id);
+            if (die == null || !die.IsAvailable || delta == 0) return false;
+            if (delta < 0 && die.Value + delta < 0) return false;
+            die.Modifier += delta;
+            return true;
+        }
+
+        /// <summary>Rerolls the given available dice together. Validates all ids first; nothing changes on failure.</summary>
+        public bool TryReroll(IReadOnlyList<int> ids)
+        {
+            if (ids == null || ids.Count == 0) return false;
+            for (int i = 0; i < ids.Count; i++)
+            {
+                ActionDie die = Find(ids[i]);
+                if (die == null || !die.IsAvailable) return false;
+                for (int j = 0; j < i; j++)
+                    if (ids[j] == ids[i]) return false;
+            }
+            for (int i = 0; i < ids.Count; i++) Reroll(ids[i]);
+            return true;
+        }
+
+        /// <summary>Rerolls every available (unlocked) die in storage.</summary>
+        public bool TryRerollAll()
+        {
+            bool any = false;
+            for (int i = 0; i < dice.Count; i++)
+            {
+                if (!dice[i].IsAvailable) continue;
+                dice[i].OriginalRoll = roller(dice[i].Faces);
+                any = true;
+            }
+            return any;
+        }
+
+        /// <summary>Picks a random index in [0, count) using the pool's roller.</summary>
+        public int PickIndex(int count) => count <= 0 ? -1 : Math.Min(count - 1, Math.Max(0, roller(count) - 1));
+
         /// <summary>Validate the entire selection before consuming anything.</summary>
         public bool TrySpend(IReadOnlyList<int> ids)
         {
