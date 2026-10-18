@@ -222,9 +222,15 @@ public static class EffectEngine
                     calculatedValue = new TheLastArk.Battle.ValueModifier()
                         .AddIncrease(target.status.GetStatusValue(EffectType.Bleed) * effect.bonusPercentPerTargetBleed * 0.01f)
                         .Raw(calculatedValue);
-                if (TheLastArk.Battle.RelicRules.IsEnemy(actor) && actor.status.panic != null
-                    && actor.status.panic.Type == TheLastArk.Battle.PanicType.Depression)
-                    calculatedValue = new TheLastArk.Battle.ValueModifier().AddDecrease(TheLastArk.Battle.PanicState.DepressionEnemyDamageDecrease).Raw(calculatedValue);
+                // Enemy 우울 / 무기력: damage dealt −50%.
+                if (TheLastArk.Battle.RelicRules.IsEnemy(actor) && actor.status.panic != null)
+                {
+                    var enemyPanic = actor.status.panic.Type;
+                    if (enemyPanic == TheLastArk.Battle.PanicType.Depression)
+                        calculatedValue = new TheLastArk.Battle.ValueModifier().AddDecrease(TheLastArk.Battle.PanicState.DepressionEnemyDamageDecrease).Raw(calculatedValue);
+                    else if (enemyPanic == TheLastArk.Battle.PanicType.Lethargy)
+                        calculatedValue = new TheLastArk.Battle.ValueModifier().AddDecrease(TheLastArk.Battle.PanicState.LethargyEnemyDamageDecrease).Raw(calculatedValue);
+                }
                 if (CurrentCast != null)
                     calculatedValue = new TheLastArk.Battle.ValueModifier()
                         .AddIncrease(effect.damageType == DamageType.Physical ? CurrentCast.PhysicalDamageBonus : 0f)

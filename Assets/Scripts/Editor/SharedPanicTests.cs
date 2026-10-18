@@ -357,17 +357,15 @@ public class SharedPanicTests
     }
 
     [Test]
-    public void EnemyLethargySkipsAttackPatternsOrIdles()
+    public void EnemyLethargyHalvesDamageButKeepsAttacking()
     {
-        Unit(false);
+        var player = Unit(false);
         var ai = EnemyWithPatterns(out var enemy, true, false);
         Panic(enemy, PanicType.Lethargy);
         Assert.IsTrue(ai.PrepareTurn());
-        Assert.AreEqual(1, PreparedIndex(ai), "Uses the non-attack pattern");
-
-        var idle = EnemyWithPatterns(out var attacker, true, true);
-        Panic(attacker, PanicType.Lethargy);
-        Assert.IsFalse(idle.PrepareTurn(), "No usable pattern → no action");
+        Assert.AreEqual(0, PreparedIndex(ai), "Attack patterns stay usable");
+        ai.ExecuteTurn();
+        Assert.AreEqual(99f, player.status.currentHp, "3 damage −50% = 1.5 → 1");
     }
 
     [Test]

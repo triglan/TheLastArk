@@ -10,6 +10,7 @@ namespace TheLastArk.Battle
         public const int SeizureSanityLoss = 5;
         public const float AgitationDamageMultiplier = 1.5f;
         public const float DepressionEnemyDamageDecrease = 0.5f;
+        public const float LethargyEnemyDamageDecrease = 0.5f;
 
         public PanicType Type { get; private set; }
         /// <summary>강박: the first skill actually fired after the panic began (players).</summary>
@@ -46,7 +47,7 @@ namespace TheLastArk.Battle
             PanicType.Hallucination => "단일 대상 공격의 대상이 생존한 적·아군 전체(자신 포함) 중 무작위가 됩니다.",
             PanicType.Depression => "사용하는 주사위의 효과 눈금이 절반(버림)이 됩니다. 적은 주는 피해 −50%.",
             PanicType.Compulsion => "패닉 후 처음 실제로 쓴 스킬(적은 패턴)만 사용할 수 있습니다.",
-            PanicType.Lethargy => "공격 스킬(패턴)을 사용할 수 없습니다. 방어·지원만 가능합니다.",
+            PanicType.Lethargy => "공격 스킬을 사용할 수 없습니다(방어·지원만). 적은 주는 피해 −50%.",
             PanicType.Seizure => "자기 진영 턴 종료 시 다른 생존 동료 정신력 −5.",
             PanicType.Agitation => "받는 체력 피해 +50%.",
             _ => ""
