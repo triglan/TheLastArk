@@ -654,9 +654,116 @@ namespace TheLastArk.UI
             synergyModalPanel.SetActive(true);
         }
 
+        private static string PartLevelName(int level) => level <= 0 ? "기본형" : $"{level}강";
+
+        /// <summary>넥서스 칸 (오리진): locked parts are crafted with gold, then equipped / upgraded per run.</summary>
+        private void OpenOriginPartModal(TrainCar car)
+        {
+            bool inBattle = TrainManager.IsBattleInProgress;
+            var balance = TrainManager.Instance.OriginPartBalance;
+            partModalTitle.text = inBattle ? $"[{car.carName}] 오리진 파츠  ·  전투 중에는 변경 불가" : $"[{car.carName}] 오리진 파츠 제작 · 장착 · 강화";
+            foreach (Transform child in partModalContent) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
+            if (balance == null)
+            {
+                CreateTextUI(partModalContent, "오리진 파츠 밸런스 데이터가 없습니다.", 18, Color.red);
+                PolishModal(partModalPanel);
+                partModalPanel.SetActive(true);
+                return;
+            }
+
+            int gold = ResourceManager.Instance != null ? ResourceManager.Instance.Gold : 0;
+            foreach (string partId in TrainPartDatabase.OriginPartIds)
+            {
+                var part = TrainPartDatabase.GetPart(partId);
+                if (part == null) continue;
+                bool crafted = car.IsPartCrafted(partId);
+                bool installed = car.HasPart(partId);
+                int level = car.GetPartLevel(partId);
+                int craftCost = TrainManager.Instance.GetDiscountedCost(balance.CraftCost(partId));
+                int baseUpgrade = balance.UpgradeCost(partId, level);
+                int upgradeCost = baseUpgrade >= 0 ? TrainManager.Instance.GetDiscountedCost(baseUpgrade) : -1;
+
+                string info = crafted
+                    ? $"<color=yellow><b>{part.partName}</b></color> · {PartLevelName(level)}{(installed ? " · 장착 중" : "")}\n<size=14>{balance.Describe(partId, level)}"
+                        + (upgradeCost >= 0 ? $"\n다음 {PartLevelName(level + 1)}: {balance.Describe(partId, level + 1)}" : "") + "</size>"
+                    : $"<color=yellow><b>{part.partName}</b></color> · 잠김\n<size=14>{balance.Describe(partId, 0)}</size>";
+                Transform row = CreatePartRow(partId, info);
+
+                if (!crafted)
+                {
+                    CreatePartAction(row, $"제작 · {craftCost}G", !inBattle && gold >= craftCost, () =>
+                    {
+                        if (TrainManager.Instance.TryCraftOriginPart(car, partId))
+                            NotificationManager.Instance?.ShowMessage($"[{part.partName}] 제작 완료!", Color.green);
+                        else NotificationManager.Instance?.ShowMessage("골드가 부족하거나 전투 중입니다.", Color.red);
+                        OpenOriginPartModal(car);
+                        UpdateUI();
+                    });
+                    continue;
+                }
+
+                CreatePartAction(row, installed ? "해제" : "장착", !inBattle && (installed || car.CanInstallPart(partId)), () =>
+                {
+                    bool ok = installed ? TrainManager.Instance.TryUninstallPart(car, partId) : TrainManager.Instance.TryEquipOriginPart(car, partId);
+                    if (!ok) NotificationManager.Instance?.ShowMessage("슬롯이 가득 찼거나 전투 중입니다.", Color.red);
+                    OpenOriginPartModal(car);
+                    UpdateUI();
+                });
+                CreatePartAction(row, upgradeCost >= 0 ? $"강화 · {upgradeCost}G" : "최대 강화", !inBattle && upgradeCost >= 0 && gold >= upgradeCost, () =>
+                {
+                    if (TrainManager.Instance.TryUpgradeOriginPart(car, partId))
+                        NotificationManager.Instance?.ShowMessage($"[{part.partName}] {PartLevelName(car.GetPartLevel(partId))} 강화 완료!", Color.green);
+                    else NotificationManager.Instance?.ShowMessage("골드가 부족하거나 전투 중입니다.", Color.red);
+                    OpenOriginPartModal(car);
+                    UpdateUI();
+                });
+            }
+
+            PolishModal(partModalPanel);
+            partModalPanel.SetActive(true);
+        }
+
+        private Transform CreatePartRow(string partId, string info)
+        {
+            GameObject itemObj = new GameObject($"PartItem_{partId}");
+            itemObj.transform.SetParent(partModalContent, false);
+            itemObj.AddComponent<RectTransform>().sizeDelta = new Vector2(0, 70);
+            itemObj.AddComponent<LayoutElement>().preferredHeight = 70;
+            itemObj.AddComponent<Image>().color = new Color(0.12f, 0.16f, 0.24f, 1f);
+            HorizontalLayoutGroup hlg = itemObj.AddComponent<HorizontalLayoutGroup>();
+            hlg.padding = new RectOffset(15, 15, 8, 8);
+            hlg.spacing = 10;
+            hlg.childControlWidth = false;
+            hlg.childControlHeight = true;
+
+            GameObject infoObj = new GameObject("Info");
+            infoObj.transform.SetParent(itemObj.transform, false);
+            infoObj.AddComponent<LayoutElement>().preferredWidth = 360;
+            CreateTextUI(infoObj.transform, info, 16, Color.white, new Vector2(0, 0.5f), new Vector2(0, 0), new Vector2(1, 1));
+            return itemObj.transform;
+        }
+
+        private void CreatePartAction(Transform row, string label, bool interactable, UnityEngine.Events.UnityAction onClick)
+        {
+            GameObject actBtnObj = new GameObject("ActionButton");
+            actBtnObj.transform.SetParent(row, false);
+            actBtnObj.AddComponent<LayoutElement>().preferredWidth = 110;
+            Image actImg = actBtnObj.AddComponent<Image>();
+            Button actBtn = actBtnObj.AddComponent<Button>();
+            actImg.color = interactable ? new Color(0.2f, 0.65f, 0.3f, 1f) : new Color(0.4f, 0.4f, 0.4f, 1f);
+            actBtn.interactable = interactable;
+            CreateTextUI(actBtnObj.transform, label, 15, interactable ? Color.white : Color.gray);
+            actBtn.onClick.AddListener(onClick);
+        }
+
         private void OpenPartModal(TrainCar car)
         {
             if (car == null) return;
+            if (car.carType == TrainCarType.Nexus && car.installedModuleId == NexusModuleDatabase.OriginId)
+            {
+                OpenOriginPartModal(car);
+                return;
+            }
 
             partModalTitle.text = $"[{car.carName}] 파츠 장착 및 구매";
             foreach (Transform child in partModalContent) { child.gameObject.SetActive(false); Destroy(child.gameObject); }

@@ -170,4 +170,80 @@ public class ActionDicePoolTests
         Assert.IsTrue(rule.Accepts(new[] { 0 }));
         Assert.IsFalse(rule.Accepts(new[] { 5 }));
     }
+
+    [Test]
+    public void AdjustKeepsMinimumZeroAndRejectsWithoutChange()
+    {
+        var pool = new ActionDicePool(Seq(1, 6));
+        pool.BeginTurn(2);
+        int low = pool.Dice[0].Id, high = pool.Dice[1].Id;
+        Assert.IsTrue(pool.TryAdjust(low, -1));
+        Assert.AreEqual(0, pool.Find(low).Value);
+        Assert.IsFalse(pool.TryAdjust(low, -1), "0 -> -1 is invalid");
+        Assert.AreEqual(-1, pool.Find(low).Modifier, "Rejected adjust changes nothing");
+        Assert.IsTrue(pool.TryAdjust(high, 1));
+        Assert.IsTrue(pool.TryAdjust(high, 1), "Same die can be adjusted repeatedly");
+        Assert.AreEqual(8, pool.Find(high).Value, "May exceed the face count");
+        pool.SetLocked(high, true);
+        Assert.IsFalse(pool.TryAdjust(high, 1), "Locked dice are excluded");
+        Assert.IsFalse(pool.TryAdjust(999, 1));
+        Assert.IsTrue(pool.TrySpend(new[] { low }));
+        Assert.IsFalse(pool.TryAdjust(low, 1), "Used dice are excluded");
+    }
+
+    [Test]
+    public void BonusSurvivesRerollWithoutDoubleAdd()
+    {
+        var pool = new ActionDicePool(Seq(6, 2));
+        pool.BeginTurn(1);
+        ActionDie die = pool.Dice[0];
+        pool.AddModifier(die.Id, 8);
+        Assert.AreEqual(14, die.Value, "6 + 8 = 14");
+        Assert.IsTrue(pool.TryReroll(new[] { die.Id }));
+        Assert.AreEqual(2, die.OriginalRoll);
+        Assert.AreEqual(10, die.Value, "Reroll 2 + kept 8 = 10, bonus not re-added");
+        Assert.AreEqual(8, die.Modifier);
+    }
+
+    [Test]
+    public void BatchRerollValidatesFirstAndRerollAllSkipsLocked()
+    {
+        var pool = new ActionDicePool(Seq(1, 2, 3, 4, 5, 6));
+        pool.BeginTurn(3);
+        var ids = Ids(pool);
+        Assert.IsFalse(pool.TryReroll(new[] { ids[0], 99 }));
+        Assert.AreEqual(1, pool.Find(ids[0]).OriginalRoll, "Invalid batch rerolls nothing");
+        Assert.IsFalse(pool.TryReroll(new[] { ids[0], ids[0] }));
+        Assert.IsFalse(pool.TryReroll(new int[0]));
+        Assert.IsTrue(pool.TryReroll(new[] { ids[0], ids[1] }));
+        Assert.AreEqual(4, pool.Find(ids[0]).OriginalRoll);
+        Assert.AreEqual(5, pool.Find(ids[1]).OriginalRoll);
+
+        pool.SetLocked(ids[2], true);
+        Assert.IsTrue(pool.TryRerollAll());
+        Assert.AreEqual(3, pool.Find(ids[2]).OriginalRoll, "Locked dice keep their roll");
+        Assert.AreEqual(3, pool.Dice.Count, "Reroll keeps slots");
+        pool.SetLocked(ids[0], true); pool.SetLocked(ids[1], true);
+        Assert.IsFalse(pool.TryRerollAll(), "Nothing available to reroll");
+    }
+
+    [Test]
+    public void PickIndexStaysInRange()
+    {
+        var pool = new ActionDicePool(Seq(9, 0, 2));
+        Assert.AreEqual(2, pool.PickIndex(3));
+        Assert.AreEqual(0, pool.PickIndex(3));
+        Assert.AreEqual(1, pool.PickIndex(3));
+        Assert.AreEqual(-1, pool.PickIndex(0));
+    }
+
+    [Test]
+    public void ZeroDieRejectedBySumConditionButCountsForCountCharge()
+    {
+        var sum = new DiceInputRule { condition = DiceCondition.AtLeast, value = 1, chargeTarget = 5 };
+        Assert.IsFalse(sum.Accepts(new[] { 0 }));
+        var count = new DiceInputRule { condition = DiceCondition.Any, chargeTarget = 3, chargeByDiceCount = true };
+        Assert.IsTrue(count.Accepts(new[] { 0 }));
+        Assert.AreEqual(1, count.ChargeFrom(new[] { 0 }));
+    }
 }

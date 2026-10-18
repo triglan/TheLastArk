@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using TheLastArk.Data;
 using TheLastArk.Managers;
 using TMPro;
@@ -103,12 +103,15 @@ namespace TheLastArk.UI
             {
                 if (TrainManager.Instance.TryUpgradeCar(car)) UpdateUI();
             }, true);
-            upgrade.interactable = car.CanUpgrade && ResourceManager.Instance.Gold >= upgradeCost;
+            bool nexusLocked = car.carType == TrainCarType.Nexus && TrainManager.IsBattleInProgress;
+            upgrade.interactable = car.CanUpgrade && ResourceManager.Instance.Gold >= upgradeCost && !nexusLocked;
             ManagementTheme.Top((RectTransform)upgrade.transform, 148, 42, 16, 16);
             var actions = ManagementTheme.Rect("CarActions", card);
             ManagementTheme.Top(actions, 198, 36, 16, 16); ManagementTheme.RowLayout(actions);
             if (car.carType == TrainCarType.Nexus)
-                ManagementTheme.Button(actions, "ChangeModuleButton", "넥서스 모듈 교체", () => OpenModuleSelectModal(car));
+                ManagementTheme.Button(actions, "ChangeModuleButton", "넥서스 모듈 교체", () => OpenModuleSelectModal(car)).interactable = !nexusLocked;
+            if (car.carType == TrainCarType.Nexus && car.installedModuleId == NexusModuleDatabase.OriginId)
+                ManagementTheme.Button(actions, "OriginPartsButton", "오리진 파츠", () => OpenPartModal(car));
             if (car.IsBuiltOptionalCar)
             {
                 if (car.carType == TrainCarType.TraitTrainingCamp)
@@ -126,14 +129,19 @@ namespace TheLastArk.UI
             {
                 string id = i < car.installedParts.Count ? car.installedParts[i] : null;
                 var part = id != null ? TrainPartDatabase.GetPart(id) : null;
-                var button = ManagementTheme.Button(card, "PartSlot_" + i, part != null ? part.partName + "  ·  해제" : "+ 파츠 장착", () =>
+                string partLabel = part == null ? "+ 파츠 장착"
+                    : TrainPartDatabase.IsOriginPart(id) ? $"{part.partName} {PartLevelName(car.GetPartLevel(id))}  ·  해제" : part.partName + "  ·  해제";
+                var button = ManagementTheme.Button(card, "PartSlot_" + i, partLabel, () =>
                 {
                     if (part == null) OpenPartModal(car);
                     else { TrainManager.Instance.TryUninstallPart(car, id); UpdateUI(); }
                 });
                 button.GetComponentInChildren<TextMeshProUGUI>().fontSize = 17;
+                if (nexusLocked) button.interactable = false;
                 ManagementTheme.Top((RectTransform)button.transform, 276 + i * 42, 34, 16, 16);
-                if (part != null) button.gameObject.AddComponent<BattleHoverTooltip>().SetContent(part.description);
+                if (part != null) button.gameObject.AddComponent<BattleHoverTooltip>().SetContent(
+                    TrainPartDatabase.IsOriginPart(id) && TrainManager.Instance.OriginPartBalance != null
+                        ? TrainManager.Instance.OriginPartBalance.Describe(id, car.GetPartLevel(id)) : part.description);
             }
         }
 

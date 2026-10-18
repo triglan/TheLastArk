@@ -105,6 +105,9 @@ public partial class BattleManager : MonoBehaviour
         && TheLastArk.Data.NexusModuleDatabase.GetModule(TheLastArk.Managers.TrainManager.Instance.nexusCar.installedModuleId)?.moduleId
             == TheLastArk.Data.NexusModuleDatabase.OriginId;
     public BattleConfig Config => battleConfig;
+    /// <summary>The running battle (set in Start, cleared on destroy).</summary>
+    public static BattleManager Active { get; private set; }
+
     /// <summary>True from battle scene setup until the battle ends; train edits are blocked meanwhile.</summary>
     public bool IsBattleOngoing => _currentPhase != BattlePhase.BattleEnd;
 
@@ -176,7 +179,7 @@ public partial class BattleManager : MonoBehaviour
         {
             if (IsChargeReady(actor, skill))
             {
-                NotificationManager.Instance?.ShowMessage("충전 완료 — 대상을 지정하고 스킬을 눌러 발동하세요.", Color.cyan);
+                Notify("충전 완료 — 대상을 지정하고 스킬을 눌러 발동하세요.", Color.cyan);
                 return;
             }
             if (_pendingDiceSkill != skill || _pendingDiceActor != actor)
@@ -241,7 +244,7 @@ public partial class BattleManager : MonoBehaviour
         if (!rule.IsCharge || IsChargeReady(actor, skill) || _usedDiceSkills.Contains((actor, skill))) return false;
         if (!TryGetSelectedDice(rule, out List<int> values))
         {
-            NotificationManager.Instance?.ShowMessage($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
+            Notify($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
             return false;
         }
         int nextCharge = Mathf.Min(rule.chargeTarget,
@@ -252,7 +255,7 @@ public partial class BattleManager : MonoBehaviour
         RefreshDiceUI();
         RefreshSkillSlots();
         actor.ResolveActionStatusEffects();
-        NotificationManager.Instance?.ShowMessage(nextCharge >= rule.chargeTarget
+        Notify(nextCharge >= rule.chargeTarget
             ? $"{skill.skillName} 준비 완료 — 대상을 지정해 발동하세요"
             : $"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
         TryAutoEndDiceTurn();
@@ -301,7 +304,7 @@ public partial class BattleManager : MonoBehaviour
         if (!HasNumberManipulator || !IsPlayerTurn || _manipulateUsesLeft <= 0 || Mathf.Abs(delta) != 1) return false;
         if (!_dicePool.TryAdjust(dieId, delta))
         {
-            NotificationManager.Instance?.ShowMessage("조정할 수 없는 주사위입니다.", Color.red);
+            Notify("조정할 수 없는 주사위입니다.", Color.red);
             return false;
         }
         _manipulateUsesLeft--;
@@ -318,7 +321,7 @@ public partial class BattleManager : MonoBehaviour
         bool rerolled = RerollTargetsAll ? _dicePool.TryRerollAll() : _dicePool.TryReroll(dieIds);
         if (!rerolled)
         {
-            NotificationManager.Instance?.ShowMessage("리롤할 주사위를 선택하세요.", Color.yellow);
+            Notify("리롤할 주사위를 선택하세요.", Color.yellow);
             return false;
         }
         _rerollUsesLeft--;
@@ -506,6 +509,7 @@ public partial class BattleManager : MonoBehaviour
 
     private void Start()
     {
+        Active = this;
         Debug.Log("[Battle] BattleManager.Start() - BeginBattleSetup()은 GameManager에서 호출되어야 합니다.");
     }
 
@@ -671,6 +675,7 @@ public partial class BattleManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Active == this) Active = null;
         ClearBattlePanic(false);
         if (_originBalance != null) DestroyImmediate(_originBalance);
         if (targetHandler == null) return;
@@ -805,7 +810,7 @@ public partial class BattleManager : MonoBehaviour
             string diceReason = GetDiceSkillUnavailableReason(actor, skill);
             if (diceReason != null)
             {
-                NotificationManager.Instance?.ShowMessage($"스킬 사용 불가: {diceReason}", Color.red);
+                Notify($"스킬 사용 불가: {diceReason}", Color.red);
                 return;
             }
             DiceInputRule rule = GetDiceRule(skill, actor);
@@ -819,7 +824,7 @@ public partial class BattleManager : MonoBehaviour
                 // Ready charge: the user picks a target and fires manually.
                 if (!_executingPanicSkill && (targetHandler == null || targetHandler.target == null))
                 {
-                    NotificationManager.Instance?.ShowMessage("먼저 대상을 지정한 뒤 발동하세요.", Color.yellow);
+                    Notify("먼저 대상을 지정한 뒤 발동하세요.", Color.yellow);
                     return;
                 }
             }
@@ -1241,6 +1246,12 @@ public partial class BattleManager : MonoBehaviour
             TryAutoEndDiceTurn();
         }
         else if (currentAP <= 0 && !_resolvingPanicTurn) EndPlayerTurn();
+    }
+
+    /// <summary>Player-facing message; skipped outside Play Mode (edit-mode tests).</summary>
+    private static void Notify(string message, Color color)
+    {
+        if (Application.isPlaying) NotificationManager.Instance?.ShowMessage(message, color);
     }
 
     private bool IsKeptTargetAlive()

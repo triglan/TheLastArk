@@ -73,7 +73,7 @@ namespace TheLastArk.Managers
         {
             get
             {
-                var battle = FindObjectOfType<BattleManager>();
+                var battle = BattleManager.Active;
                 return battle != null && battle.IsBattleOngoing;
             }
         }
@@ -81,7 +81,7 @@ namespace TheLastArk.Managers
         private static bool RejectDuringBattle()
         {
             if (!IsBattleInProgress) return false;
-            UI.NotificationManager.Instance?.ShowMessage("전투 중에는 기차를 변경할 수 없습니다.", Color.red);
+            if (Application.isPlaying) UI.NotificationManager.Instance?.ShowMessage("전투 중에는 기차를 변경할 수 없습니다.", Color.red);
             return true;
         }
 

@@ -22,6 +22,8 @@ namespace TheLastArk.UI
         private static readonly Color AuraColor = new Color(1f, 0.86f, 0.45f, 0.75f);
         private static readonly Color PlusBadgeColor = new Color(0.25f, 0.62f, 0.33f);
         private static readonly Color MinusBadgeColor = new Color(0.72f, 0.26f, 0.24f);
+        private static readonly Color FocusColor = new Color(0.62f, 0.92f, 1f);
+        private static readonly Color ControlColor = new Color(0.16f, 0.32f, 0.42f);
 
         private BattleManager _battle;
         private RectTransform _root;
@@ -37,6 +39,15 @@ namespace TheLastArk.UI
         private readonly StringBuilder _logBuilder = new StringBuilder();
         private Sprite _pipSprite;
         private string _defaultHint;
+        private ActionDicePool _pool;
+        private readonly HashSet<int> _focused = new HashSet<int>();
+        private readonly List<int> _focusBuffer = new List<int>();
+        private RectTransform _controls;
+        private Button _minusButton;
+        private Button _plusButton;
+        private Button _rerollButton;
+        private TextMeshProUGUI _rerollLabel;
+        private TextMeshProUGUI _manipulateLabel;
 
         private sealed class DieView
         {
@@ -85,7 +96,119 @@ namespace TheLastArk.UI
             _hint.text = _defaultHint;
             _usageLog = CreateLabel("DiceUsageLog", new Vector2(0f, -14f), 15f, new Color(0.6f, 0.68f, 0.74f));
             _usageLog.rectTransform.anchorMin = _usageLog.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            CreateControls();
+            DiceDragSource.Clicked += OnDieClicked;
             ApplyTrayLayout(_battle != null && _battle.UsesDice);
+        }
+
+        /// <summary>숫자 조작 / 기회 프로토콜 buttons; dice are focused by clicking them.</summary>
+        private void CreateControls()
+        {
+            var row = new GameObject("DicePartControls", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+            row.transform.SetParent(_root, false);
+            row.GetComponent<LayoutElement>().ignoreLayout = true;
+            _controls = row.GetComponent<RectTransform>();
+            _controls.anchorMin = _controls.anchorMax = new Vector2(0.5f, 0f);
+            _controls.sizeDelta = new Vector2(376f, 28f);
+            _controls.anchoredPosition = new Vector2(0f, -42f);
+            var layout = row.GetComponent<HorizontalLayoutGroup>();
+            layout.spacing = 6f;
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = layout.childForceExpandHeight = false;
+
+            _manipulateLabel = CreateControlLabel(row.transform);
+            _minusButton = CreateControlButton(row.transform, "-1", () => Manipulate(-1));
+            _plusButton = CreateControlButton(row.transform, "+1", () => Manipulate(1));
+            _rerollButton = CreateControlButton(row.transform, "리롤", Reroll, 120f);
+            _rerollLabel = _rerollButton.GetComponentInChildren<TextMeshProUGUI>();
+        }
+
+        private TextMeshProUGUI CreateControlLabel(Transform parent)
+        {
+            var labelObject = new GameObject("ManipulateUses", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+            labelObject.transform.SetParent(parent, false);
+            labelObject.GetComponent<LayoutElement>().preferredWidth = 74f;
+            var label = labelObject.GetComponent<TextMeshProUGUI>();
+            label.fontSize = 15f;
+            label.alignment = TextAlignmentOptions.MidlineRight;
+            label.color = new Color(0.7f, 0.82f, 0.86f);
+            label.raycastTarget = false;
+            TMPFontManager.ApplyFont(label);
+            return label;
+        }
+
+        private Button CreateControlButton(Transform parent, string text, UnityEngine.Events.UnityAction onClick, float width = 44f)
+        {
+            var buttonObject = new GameObject("Button_" + text, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+            buttonObject.transform.SetParent(parent, false);
+            var element = buttonObject.GetComponent<LayoutElement>();
+            element.preferredWidth = width;
+            element.preferredHeight = 26f;
+            buttonObject.GetComponent<Image>().color = ControlColor;
+            var button = buttonObject.GetComponent<Button>();
+            button.onClick.AddListener(onClick);
+            var labelObject = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelObject.transform.SetParent(buttonObject.transform, false);
+            var label = labelObject.GetComponent<TextMeshProUGUI>();
+            Stretch(label.rectTransform, 0f);
+            label.text = text;
+            label.fontSize = 15f;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = Color.white;
+            label.raycastTarget = false;
+            TMPFontManager.ApplyFont(label);
+            return button;
+        }
+
+        private bool CanFocusDice => _battle != null && _battle.IsPlayerTurn
+            && (_battle.HasNumberManipulator || _battle.HasChanceProtocol && !_battle.RerollTargetsAll);
+
+        private void OnDieClicked(int dieId)
+        {
+            if (!CanFocusDice) return;
+            if (!_focused.Remove(dieId)) _focused.Add(dieId);
+            Refresh(_pool, null, null);
+        }
+
+        private void Manipulate(int delta)
+        {
+            if (_battle == null || _focused.Count != 1) return;
+            foreach (int id in _focused) { _battle.TryManipulateDie(id, delta); break; }
+        }
+
+        private void Reroll()
+        {
+            if (_battle == null) return;
+            _focusBuffer.Clear();
+            _focusBuffer.AddRange(_focused);
+            if (_battle.TryRerollDice(_focusBuffer)) _focused.Clear();
+            Refresh(_pool, null, null);
+        }
+
+        private void RefreshControls()
+        {
+            bool manipulate = _battle.HasNumberManipulator;
+            bool reroll = _battle.HasChanceProtocol;
+            bool turn = _battle.IsPlayerTurn;
+            _controls.gameObject.SetActive(manipulate || reroll);
+            _manipulateLabel.gameObject.SetActive(manipulate);
+            _minusButton.gameObject.SetActive(manipulate);
+            _plusButton.gameObject.SetActive(manipulate);
+            _rerollButton.gameObject.SetActive(reroll);
+            if (manipulate)
+            {
+                _manipulateLabel.text = $"조작 {_battle.ManipulateUsesLeft}";
+                bool canAdjust = turn && _battle.ManipulateUsesLeft > 0 && _focused.Count == 1;
+                _minusButton.interactable = canAdjust;
+                _plusButton.interactable = canAdjust;
+            }
+            if (reroll)
+            {
+                bool all = _battle.RerollTargetsAll;
+                _rerollLabel.text = all ? $"전체 리롤 {_battle.RerollUsesLeft}" : $"선택 리롤 {_battle.RerollUsesLeft}";
+                _rerollButton.interactable = turn && _battle.RerollUsesLeft > 0 && (all || _focused.Count > 0);
+            }
         }
 
         private DieView CreateDieView(Transform parent, int index)
@@ -177,8 +300,16 @@ namespace TheLastArk.UI
             BattleHudLayout.ApplySkillGrid(_tray, diceMode);
         }
 
-        public void Refresh(ActionDicePool pool, IReadOnlyList<int> selected, string previewHint = null)
+        private IReadOnlyList<int> _lastSelected;
+        private string _lastHint;
+
+        /// <summary>Pass null selection/hint only from internal refreshes to keep the last values.</summary>
+        public void Refresh(ActionDicePool pool, IReadOnlyList<int> selected, string previewHint)
         {
+            if (selected != null) { _lastSelected = selected; _lastHint = previewHint; }
+            selected = _lastSelected;
+            previewHint = _lastHint;
+            _pool = pool;
             if (_root == null) return;
             ApplyTrayLayout(_battle != null && _battle.UsesDice);
             _root.gameObject.SetActive(_battle != null && _battle.UsesDice);
@@ -199,7 +330,7 @@ namespace TheLastArk.UI
                 view.Source.Configure(die.Id, _dragCanvas);
                 view.Source.enabled = die.IsAvailable && _battle.IsPlayerTurn;
                 bool isSelected = selected != null && Contains(selected, die.Id);
-                ApplyFace(view, die, isSelected);
+                ApplyFace(view, die, isSelected, _focused.Contains(die.Id));
                 if (_shownIds.Add(die.Id))
                 {
                     if (view.Animation != null) StopCoroutine(view.Animation);
@@ -207,12 +338,15 @@ namespace TheLastArk.UI
                 }
             }
             _shownIds.IntersectWith(_currentIds);
+            _focused.IntersectWith(_currentIds);
+            if (!CanFocusDice) _focused.Clear();
+            RefreshControls();
 
             _hint.text = string.IsNullOrEmpty(previewHint) ? _defaultHint : previewHint;
             _usageLog.text = BuildUsageLog(pool?.UsedThisTurn);
         }
 
-        private void ApplyFace(DieView view, ActionDie die, bool isSelected)
+        private void ApplyFace(DieView view, ActionDie die, bool isSelected, bool isFocused)
         {
             int value = die.Value;
             bool usePips = value >= 1 && value <= MaxPipValue;
@@ -220,6 +354,7 @@ namespace TheLastArk.UI
             view.Face.sprite = LoadFace(useSprite ? value : 0);
             view.Face.color = die.IsLocked ? new Color(0.5f, 0.18f, 0.18f)
                 : isSelected ? new Color(1f, 0.82f, 0.42f)
+                : isFocused ? FocusColor
                 : Color.white;
 
             // 1–6 use the face sprites; 7–9 draw pips on the blank face; 0 and 10+ show the number.
@@ -331,6 +466,7 @@ namespace TheLastArk.UI
 
         private void OnDestroy()
         {
+            DiceDragSource.Clicked -= OnDieClicked;
             if (_root != null) Destroy(_root.gameObject);
         }
     }

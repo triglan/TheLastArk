@@ -1,10 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace TheLastArk.UI
 {
-    public sealed class DiceDragSource : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler, IPointerUpHandler
+    public sealed class DiceDragSource : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
     {
         private RectTransform _canvas;
         private RectTransform _ghost;
@@ -14,6 +14,8 @@ namespace TheLastArk.UI
         public int DieId { get; private set; }
         public static int HeldDieId { get; private set; } = -1;
         public static event System.Action<int> HeldDieChanged;
+        /// <summary>A click without drag on an enabled die (used to focus dice for part actions).</summary>
+        public static event System.Action<int> Clicked;
         private bool _holding;
 
         public void OnPointerDown(PointerEventData eventData)
@@ -25,6 +27,12 @@ namespace TheLastArk.UI
         }
 
         public void OnPointerUp(PointerEventData eventData) => Release();
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (!enabled || eventData.dragging || eventData.button != PointerEventData.InputButton.Left) return;
+            Clicked?.Invoke(DieId);
+        }
 
         private void Release()
         {
