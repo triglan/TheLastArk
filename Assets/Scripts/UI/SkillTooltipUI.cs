@@ -200,6 +200,7 @@ namespace TheLastArk.UI
             {
                 descSb.AppendLine("기본 스킬 효과가 적용됩니다.");
             }
+            AppendDiceTable(descSb, currentLevelData, status);
 
             descriptionText.text = descSb.ToString();
 
@@ -227,6 +228,54 @@ namespace TheLastArk.UI
                 case StatusDurationType.UntilOwnerPhase: return "다음 자기 턴까지";
                 case StatusDurationType.Marker: return "마커";
                 default: return $"{effect.duration}턴";
+            }
+        }
+
+        private const int PreviewMaxDie = 6;
+
+        /// <summary>Per-die-value detail (D = 0…6) for every dice-scaled effect, plus the turn limit.</summary>
+        private static void AppendDiceTable(StringBuilder sb, SkillLevelData level, CharacterStatus status)
+        {
+            if (level?.effects == null) return;
+            if (level.usesPerTurn > 1) sb.AppendLine($"<color=#FFD43B>턴당 {level.usesPerTurn}회 사용 가능</color>");
+            foreach (var effect in level.effects)
+            {
+                if (effect == null) continue;
+                bool scales = effect.multiplierPerDie != 0f || effect.fixedPerDie != 0f || effect.valuePerDieDivisor > 0
+                    || effect.chancePerDie != 0f || effect.minDie > 0;
+                if (!scales) continue;
+                var line = new StringBuilder($"<size=90%>{ActiveStatusEffect.GetDisplayName(effect.type)} 눈금별: ");
+                for (int d = 0; d <= PreviewMaxDie; d++)
+                {
+                    if (d > 0) line.Append("  ");
+                    line.Append(d).Append('→').Append(PreviewAt(effect, status, d));
+                }
+                sb.AppendLine(line.Append("</size>").ToString());
+            }
+        }
+
+        private static string PreviewAt(EffectEntry effect, CharacterStatus status, int d)
+        {
+            if (effect.minDie > 0 && d < effect.minDie) return "-";
+            float chance = Mathf.Min(100f, effect.chance + effect.chancePerDie * d);
+            string chanceText = chance < 100f ? $"({chance:0}%)" : "";
+            switch (effect.type)
+            {
+                case EffectType.Damage:
+                case EffectType.Heal:
+                case EffectType.Shield:
+                    float mult = EffectEngine.ScaledMultiplier(effect, d);
+                    float fixedPart = EffectEngine.ScaledFixed(effect, d);
+                    string stat = effect.statSource == EffectStatSource.SelfShield ? "S"
+                        : effect.statSource == EffectStatSource.AllyShieldTotal ? "T" : null;
+                    if (stat != null) return $"{stat}×{mult * 100:0}%" + chanceText;
+                    float baseStat = status == null ? 0f
+                        : effect.statSource == EffectStatSource.SpellPower || effect.statSource == EffectStatSource.Auto && effect.damageType == DamageType.Magical
+                            ? status.FinalSpellPower : status.FinalAttack;
+                    return TheLastArk.Battle.ValueModifier.Floor(baseStat * mult + fixedPart) + chanceText;
+                default:
+                    float value = EffectEngine.ScaledStatusValue(effect.value, effect, d);
+                    return (value > 0f ? value.ToString("0") : "적용") + chanceText;
             }
         }
 

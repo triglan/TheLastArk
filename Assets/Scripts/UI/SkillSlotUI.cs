@@ -166,6 +166,8 @@ namespace UI
                     {
                         string condition = rule?.ShortLabel() ?? "1개 · 자유";
                         bool chargeReady = rule != null && rule.IsCharge && manager.IsChargeReady(actor, skill);
+                        int usesPerTurn = manager.GetSkillUsesPerTurn(actor, skill);
+                        if (usesPerTurn > 1) condition += $" · {manager.GetSkillUsesThisTurn(actor, skill)}/{usesPerTurn}회";
                         if (rule != null && rule.IsCharge)
                             condition += chargeReady ? " · 준비 완료" : $" · 충전 {manager.GetDiceCharge(actor, skill)}/{rule.chargeTarget}";
                         string reason = manager.GetDiceSkillUnavailableReason(actor, skill);

@@ -124,7 +124,7 @@ public partial class BattleManager
             && TheLastArk.Managers.TrainManager.Instance.nexusCar.HasPartEffect(TheLastArk.Data.TrainPartEffectType.SinMartyrVow);
         if (!martyr && _sinState.currentSin == SinType.Sloth && !_sinState.isIndulgedCurrentSin && _sinState.skillsUsedThisTurn >= 3) return false;
         if (PanicTargets(actor, skill).Count == 0) return false;
-        return UsesDice ? !_usedDiceSkills.Contains((actor, skill)) && PanicDice(actor, skill) != null
+        return UsesDice ? !IsSkillUsedUp(actor, skill) && GetSkillLevel(skill, actor)?.special != SkillSpecial.SplitDie && PanicDice(actor, skill) != null
             : currentAP >= PreviewSkillCost(actor, skill, level);
     }
 

@@ -161,6 +161,104 @@ namespace TheLastArk.UI
             return button;
         }
 
+        private GameObject _splitPanel;
+
+        /// <summary>
+        /// [연운·안개] Lets the player choose the result values (same total, each ≥ 0) and which result keeps the
+        /// original's external modifier. <paramref name="onConfirm"/> returns false when the split is rejected.
+        /// </summary>
+        public void ShowSplitDialog(ActionDie die, int count, System.Func<List<int>, int, bool> onConfirm)
+        {
+            if (_root == null || die == null || count < 2) return;
+            if (_splitPanel != null) Destroy(_splitPanel);
+            int total = die.Value;
+            var values = new List<int>(count);
+            for (int i = 0; i < count; i++) values.Add(total / count + (i < total % count ? 1 : 0));
+            int carrier = 0;
+
+            _splitPanel = new GameObject("DiceSplitPanel", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(LayoutElement));
+            _splitPanel.transform.SetParent(_dragCanvas != null ? _dragCanvas : _root, false);
+            _splitPanel.GetComponent<LayoutElement>().ignoreLayout = true;
+            var rect = _splitPanel.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(360f, 70f + count * 36f + 44f);
+            _splitPanel.GetComponent<Image>().color = new Color(0.04f, 0.09f, 0.16f, 0.96f);
+            var layout = _splitPanel.GetComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(12, 12, 10, 10);
+            layout.spacing = 6f;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandHeight = false;
+
+            TextMeshProUGUI header = CreatePanelText(_splitPanel.transform, "", 17f);
+            var rowLabels = new List<TextMeshProUGUI>();
+            var carrierLabels = new List<TextMeshProUGUI>();
+            Button confirm = null;
+            void Redraw()
+            {
+                int sum = 0;
+                foreach (int v in values) sum += v;
+                header.text = $"연운·안개  ·  합계 {sum} / {total}" + (die.Modifier != 0 ? $"  ·  보정 {die.Modifier:+0;-0} 승계" : "");
+                for (int i = 0; i < values.Count; i++)
+                {
+                    rowLabels[i].text = values[i].ToString();
+                    if (i < carrierLabels.Count) carrierLabels[i].text = i == carrier ? "●보정" : "○보정";
+                }
+                if (confirm != null) confirm.interactable = sum == total;
+            }
+            for (int i = 0; i < count; i++)
+            {
+                int index = i;
+                var row = new GameObject("SplitRow", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+                row.transform.SetParent(_splitPanel.transform, false);
+                row.GetComponent<LayoutElement>().preferredHeight = 30f;
+                var rowLayout = row.GetComponent<HorizontalLayoutGroup>();
+                rowLayout.spacing = 8f; rowLayout.childAlignment = TextAnchor.MiddleCenter;
+                rowLayout.childControlWidth = rowLayout.childControlHeight = true;
+                rowLayout.childForceExpandWidth = false;
+                CreateControlButton(row.transform, "-1", () => { if (values[index] > 0) { values[index]--; Redraw(); } });
+                rowLabels.Add(CreatePanelText(row.transform, "", 20f, 40f));
+                CreateControlButton(row.transform, "+1", () => { values[index]++; Redraw(); });
+                if (die.Modifier != 0)
+                {
+                    var carrierButton = CreateControlButton(row.transform, "보정", () => { carrier = index; Redraw(); }, 70f);
+                    carrierLabels.Add(carrierButton.GetComponentInChildren<TextMeshProUGUI>());
+                }
+            }
+            var actions = new GameObject("SplitActions", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+            actions.transform.SetParent(_splitPanel.transform, false);
+            actions.GetComponent<LayoutElement>().preferredHeight = 30f;
+            var actionLayout = actions.GetComponent<HorizontalLayoutGroup>();
+            actionLayout.spacing = 10f; actionLayout.childAlignment = TextAnchor.MiddleCenter;
+            actionLayout.childControlWidth = actionLayout.childControlHeight = true;
+            actionLayout.childForceExpandWidth = false;
+            confirm = CreateControlButton(actions.transform, "분할", () =>
+            {
+                if (onConfirm(new List<int>(values), carrier)) CloseSplitDialog();
+            }, 110f);
+            CreateControlButton(actions.transform, "취소", CloseSplitDialog, 110f);
+            Redraw();
+        }
+
+        public void CloseSplitDialog()
+        {
+            if (_splitPanel != null) Destroy(_splitPanel);
+            _splitPanel = null;
+        }
+
+        private static TextMeshProUGUI CreatePanelText(Transform parent, string text, float size, float width = -1f)
+        {
+            var labelObject = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+            labelObject.transform.SetParent(parent, false);
+            var element = labelObject.GetComponent<LayoutElement>();
+            element.preferredHeight = 26f;
+            if (width > 0f) element.preferredWidth = width;
+            var label = labelObject.GetComponent<TextMeshProUGUI>();
+            label.text = text; label.fontSize = size; label.alignment = TextAlignmentOptions.Center;
+            label.color = Color.white; label.raycastTarget = false;
+            TMPFontManager.ApplyFont(label);
+            return label;
+        }
+
         private bool CanFocusDice => _battle != null && _battle.IsPlayerTurn
             && (_battle.HasNumberManipulator || _battle.HasChanceProtocol && !_battle.RerollTargetsAll);
 
@@ -467,6 +565,7 @@ namespace TheLastArk.UI
         private void OnDestroy()
         {
             DiceDragSource.Clicked -= OnDieClicked;
+            CloseSplitDialog();
             if (_root != null) Destroy(_root.gameObject);
         }
     }

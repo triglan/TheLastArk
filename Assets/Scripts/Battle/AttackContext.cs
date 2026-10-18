@@ -20,6 +20,8 @@ namespace TheLastArk.Battle
         public bool IsPatternScope { get; private set; }
         /// <summary>Once a hit lands on a taunter, the rest of this attack stays on it.</summary>
         public BattleCharacter LockedTaunter { get; set; }
+        /// <summary>Share of the target's defense ignored by the hit currently resolving (0–1).</summary>
+        public float ArmorIgnore { get; set; }
 
         private readonly Dictionary<BattleCharacter, BattleCharacter> _guardians = new Dictionary<BattleCharacter, BattleCharacter>();
         private readonly Dictionary<BattleCharacter, float> _guardReductions = new Dictionary<BattleCharacter, float>();

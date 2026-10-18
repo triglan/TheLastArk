@@ -182,8 +182,22 @@ public class CharacterStatus : ISerializationCallbackReceiver
         }
     }
 
+    [Tooltip("디버그/데이터용 스킬 강화 단계 강제 (0/1/2, -1 = 카드 수 기준)")]
+    public int skillUpgradeOverride = -1;
+    [Tooltip("디버그/데이터용 패시브 개화 강제 (1 = 개화, 0 = 미개화, -1 = 카드 수 기준)")]
+    public int traitBloomOverride = -1;
+
     public bool IsTraitUnlocked => charLevel >= 1;
-    public bool IsTraitAwakened => charLevel >= 4;
+    public bool IsTraitAwakened => traitBloomOverride >= 0 ? traitBloomOverride == 1 : charLevel >= 4;
+
+    /// <summary>The passive's numbers for its trait: levels[1] when bloomed, otherwise levels[0].</summary>
+    public EffectEntry GetPassiveEntry(PassiveTrait trait)
+    {
+        SkillInfo passive = origin != null ? origin.passiveSkill : null;
+        if (trait == PassiveTrait.None || passive == null || passive.passiveTrait != trait || passive.levels == null || passive.levels.Length == 0) return null;
+        SkillLevelData level = passive.levels[Mathf.Clamp(IsTraitAwakened ? 1 : 0, 0, passive.levels.Length - 1)];
+        return level?.effects != null && level.effects.Count > 0 ? level.effects[0] : null;
+    }
 
     public string LevelTitle => charLevel switch
     {
@@ -229,7 +243,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
         return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergySpellPowerMultiplier() : 0f;
     }
 
-    public int SkillLevelIndex => charLevel switch
+    public int SkillLevelIndex => skillUpgradeOverride >= 0 ? Mathf.Clamp(skillUpgradeOverride, 0, 2) : charLevel switch
     {
         0 => 0,
         1 => 0,

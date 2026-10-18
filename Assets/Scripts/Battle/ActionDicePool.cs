@@ -137,6 +137,48 @@ namespace TheLastArk.Battle
             return any;
         }
 
+        /// <summary>Adds a die with a fixed actual value (e.g. 흑사's 0 die). Respects the storage cap.</summary>
+        public bool AddFixedDie(int faces, int value)
+        {
+            if (!IsValidFaces(faces)) return false;
+            GeneratedThisTurn++;
+            if (dice.Count >= MaxStoredDice) return false;
+            dice.Add(new ActionDie(nextId++, faces, Math.Max(0, value)));
+            return true;
+        }
+
+        /// <summary>
+        /// Splits an available die into dice with the given actual values (each ≥ 0, summing to the original's actual
+        /// value). The kept modifier moves to the result at <paramref name="modifierIndex"/>. Validates everything
+        /// (including free storage) before changing anything; the original goes to the usage log.
+        /// </summary>
+        public bool TrySplit(int id, IReadOnlyList<int> values, int modifierIndex)
+        {
+            ActionDie die = Find(id);
+            if (die == null || !die.IsAvailable || values == null || values.Count < 2) return false;
+            if (modifierIndex < 0 || modifierIndex >= values.Count) return false;
+            int total = 0;
+            for (int i = 0; i < values.Count; i++)
+            {
+                if (values[i] < 0) return false;
+                total += values[i];
+            }
+            if (total != die.Value || dice.Count - 1 + values.Count > MaxStoredDice) return false;
+
+            int index = dice.IndexOf(die);
+            dice.RemoveAt(index);
+            usedThisTurn.Add(die);
+            for (int i = 0; i < values.Count; i++)
+            {
+                bool keepsModifier = i == modifierIndex;
+                var part = new ActionDie(nextId++, die.Faces, keepsModifier ? values[i] - die.Modifier : values[i], die.IsSpecial);
+                if (keepsModifier) part.Modifier = die.Modifier;
+                dice.Insert(index + i, part);
+            }
+            GeneratedThisTurn += values.Count;
+            return true;
+        }
+
         /// <summary>Picks a random index in [0, count) using the pool's roller.</summary>
         public int PickIndex(int count) => count <= 0 ? -1 : Math.Min(count - 1, Math.Max(0, roller(count) - 1));
 

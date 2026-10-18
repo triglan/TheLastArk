@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace TheLastArk.Skills
 {
-    public enum DiceCondition { Any, Exact, AtLeast, AtMost, Odd, Even }
+    public enum DiceCondition { Any, Exact, AtLeast, AtMost, Odd, Even, Range }
 
     [Serializable]
     public sealed class DiceInputRule
@@ -11,6 +11,8 @@ namespace TheLastArk.Skills
         public int diceCount = 1;
         public DiceCondition condition;
         public int value = 1;
+        [UnityEngine.Tooltip("Range 조건의 최댓값 (value ~ maxValue)")]
+        public int maxValue = 6;
         public int chargeTarget;
         public bool chargeByDiceCount;
 
@@ -29,7 +31,8 @@ namespace TheLastArk.Skills
                 || condition == DiceCondition.AtLeast && die >= value
                 || condition == DiceCondition.AtMost && die <= value
                 || condition == DiceCondition.Odd && die % 2 == 1
-                || condition == DiceCondition.Even && die % 2 == 0;
+                || condition == DiceCondition.Even && die % 2 == 0
+                || condition == DiceCondition.Range && die >= value && die <= maxValue;
         }
 
         public bool IsCharge => chargeTarget > 0;
@@ -51,7 +54,8 @@ namespace TheLastArk.Skills
             : condition == DiceCondition.AtLeast ? $"{value} 이상"
             : condition == DiceCondition.AtMost ? $"{value} 이하"
             : condition == DiceCondition.Odd ? "홀수"
-            : condition == DiceCondition.Even ? "짝수" : "자유";
+            : condition == DiceCondition.Even ? "짝수"
+            : condition == DiceCondition.Range ? $"{value}~{maxValue}" : "자유";
 
         public string Describe()
         {

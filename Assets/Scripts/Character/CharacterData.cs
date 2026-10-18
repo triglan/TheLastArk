@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 
 [CreateAssetMenu(fileName = "NewCharacter", menuName = "Battle/Character")]
@@ -118,8 +118,40 @@ public class SkillInfo
     public string skillName;
     public Sprite skillIcon;
     public int baseCost = 3;
+    [Tooltip("패시브 전용: 어떤 특성 규칙을 쓰는지. 수치는 levels[0](기본)·levels[1](개화)의 첫 효과 value/charges에 둡니다.")]
+    public PassiveTrait passiveTrait;
     public SkillLevelData[] levels = new SkillLevelData[3];
 }
+
+/// <summary>Passive rules implemented in code; their numbers live in the passive's level data.</summary>
+public enum PassiveTrait
+{
+    None,
+    /// <summary>공방일체: value = % of HP damage as shield, charges = attacks per own turn (0 = every attack).</summary>
+    OffenseDefense,
+    /// <summary>수호자의 맹세: value = % damage reduction while protecting.</summary>
+    GuardianOath,
+    /// <summary>흑사: charges = actual attack fires per generated 0 die.</summary>
+    BlackDeath,
+    /// <summary>가자 댕댕아!: value = % direct HP damage increase on marked enemies, charges = marks kept.</summary>
+    HuntingMark
+}
+
+/// <summary>Skill mechanics that can't be expressed as plain effects.</summary>
+public enum SkillSpecial
+{
+    None,
+    /// <summary>Split one die into specialCount dice whose values the player chooses (same total).</summary>
+    SplitDie,
+    /// <summary>A second use this turn whose input value matches the first use counts as "matched".</summary>
+    MatchSecondUse
+}
+
+/// <summary>Stat a scaled effect multiplies.</summary>
+public enum EffectStatSource { Auto, Attack, SpellPower, SelfShield, AllyShieldTotal }
+
+/// <summary>Who an effect lands on, relative to the skill's targets.</summary>
+public enum EffectTargetScope { SkillTargets, Self, AllAllies }
 
 [System.Serializable]
 public class SkillLevelData
@@ -129,6 +161,15 @@ public class SkillLevelData
     public TheLastArk.Skills.DiceInputRule diceInput = new TheLastArk.Skills.DiceInputRule();
     public TargetType targetType;
     public string customVfxName; // 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
+    [Tooltip("같은 스킬을 한 턴에 사용할 수 있는 횟수")]
+    [Min(1)] public int usesPerTurn = 1;
+    [Tooltip("아군 대상 스킬에서 시전자 자신을 대상에서 제외")]
+    public bool excludeSelf;
+    [Tooltip("발동 시 시전자 보호막을 전부 소비 (소비 전 값이 S)")]
+    public bool consumeSelfShield;
+    public SkillSpecial special;
+    [Tooltip("분할 개수 등 특수 규칙의 수치")]
+    public int specialCount;
     public List<EffectEntry> effects = new List<EffectEntry>();
 }
 
@@ -150,6 +191,31 @@ public class EffectEntry
     public int skillSlot = -1;
     public Sprite statusIcon;
     public string customVfxName; // 개별 효과 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
+
+    [Header("주사위 계수 (D = 효과 눈금, 주사위 여러 개면 합)")]
+    [Tooltip("배율에 D마다 더함: (multiplier + multiplierPerDie × D)")]
+    public float multiplierPerDie;
+    [Tooltip("고정값에 D마다 더함: fixedValue + fixedPerDie × D")]
+    public float fixedPerDie;
+    [Tooltip("0보다 크면 상태 수치에 ⌊D ÷ 이 값⌋을 더함")]
+    [Min(0)] public int valuePerDieDivisor;
+    [Tooltip("발동 확률(%) = chance + chancePerDie × D, 최대 100")]
+    public float chance = 100f;
+    public float chancePerDie;
+    [Tooltip("D가 이 값 이상일 때만 적용 (0 = 항상)")]
+    [Min(0)] public int minDie;
+    public EffectStatSource statSource;
+    public EffectTargetScope targetScope;
+    [Tooltip("주 대상 양옆 적에게 표기 피해의 이 비율(%)로 추가 공격")]
+    public float splashAdjacentPercent;
+    [Tooltip("대상 출혈 1당 피해 증가(%) — 공격 직전 출혈 수치, 소비 안 함")]
+    public float bonusPercentPerTargetBleed;
+    [Tooltip("일치한 두 번째 사용일 때 타격 횟수 (0 = hitCount 그대로)")]
+    [Min(0)] public int matchedHitCount;
+    [Tooltip("일치한 두 번째 사용일 때 대상 방어력 무시 비율(%)")]
+    public float matchedArmorIgnorePercent;
+    [Tooltip("집중: 이번 스킬 동안만 유지")]
+    public bool focusOnlyThisSkill;
 }
 
 [System.Serializable]
@@ -247,7 +313,11 @@ public enum EffectType
     Weakness = 19, Protection = 20, Vulnerable = 21, Pierce = 22, Guard = 23,
     Focus = 24, MentalDamage = 25, MentalHeal = 26,
     Amplification = 27, Frailty = 28, MagicGuard = 29, Corrosion = 30,
-    Reflect = 31
+    Reflect = 31,
+    // 사냥 표식: 아군의 직접 체력 피해 증가 (value %)
+    HuntMark = 32,
+    // 다음 주사위 사용 시 눈금 보너스 (value = 보너스, charges = 적용 개수)
+    DiceBoost = 33
 }
 public enum DamageType { Physical, Magical, True }
 public enum StatusDurationType

@@ -268,7 +268,11 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         var guard = status.GetStatus(EffectType.Guard);
         if (guard == null || guard.source == null || guard.source == this || guard.source.status == null || guard.source.status.currentHp <= 0f)
             return null;
-        context.SetGuardian(this, guard.source, guard.secondaryValue * 0.01f);
+        // 수호자의 맹세: the protector's passive adds its own reduction (each decrease multiplies in turn).
+        float reduction = guard.secondaryValue * 0.01f;
+        EffectEntry oath = guard.source.status.GetPassiveEntry(PassiveTrait.GuardianOath);
+        if (oath != null) reduction = 1f - (1f - reduction) * (1f - Mathf.Clamp01(oath.value * 0.01f));
+        context.SetGuardian(this, guard.source, reduction);
         status.ConsumeStatusCharge(EffectType.Guard);
         view?.UpdateVisual(status);
         return guard.source;
@@ -295,8 +299,12 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         };
         if (attacker?.status != null)
             defense *= Mathf.Clamp01(1f - attacker.status.GetStatusPercent(EffectType.Pierce));
+        defense *= Mathf.Clamp01(1f - (AttackContext.Current?.ArmorIgnore ?? 0f));
         float damageAfterDefense = damageType == DamageType.True ? amount : Mathf.Max(0f, amount - defense);
-        float resolvedDamage = new ValueModifier().AddDecrease(protectReduction).Apply(damageAfterDefense);
+        // 사냥 표식: allies' direct HP damage on a marked enemy is increased.
+        float markBonus = context != null && attacker?.status?.origin != null && !attacker.status.origin.isEnemy
+            ? status.GetStatusValue(EffectType.HuntMark) * 0.01f : 0f;
+        float resolvedDamage = new ValueModifier().AddIncrease(markBonus).AddDecrease(protectReduction).Apply(damageAfterDefense);
         float healthDamage = resolvedDamage;
         float shieldDamage = 0f;
 

@@ -19,10 +19,39 @@ public static class EffectEngine
         }
     }
 
+    /// <summary>Dice / shield inputs of the skill being fired (set by BattleManager around one fire; null for enemies).</summary>
+    public static TheLastArk.Skills.SkillCast CurrentCast { get; set; }
+
+    private static int CastDiceSum => CurrentCast?.DiceSum ?? 0;
+
     public static void ProcessSkill(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data, string skillName = "", System.Action<DamageResult> onDamage = null)
     {
         ProcessSkill(actor, targets, data, null, skillName, onDamage);
     }
+
+    /// <summary>Targets of one effect: the skill's targets, the caster, or every living ally of the caster.</summary>
+    private static List<BattleCharacter> ScopedTargets(EffectEntry effect, BattleCharacter actor, List<BattleCharacter> targets)
+    {
+        switch (effect.targetScope)
+        {
+            case EffectTargetScope.Self:
+                return new List<BattleCharacter> { actor };
+            case EffectTargetScope.AllAllies:
+                var bm = Object.FindObjectOfType<BattleManager>();
+                bool enemySide = actor.status.origin != null && actor.status.origin.isEnemy;
+                var party = bm == null ? null : enemySide ? bm.enemyParty : bm.playerParty;
+                return party == null ? new List<BattleCharacter> { actor }
+                    : party.FindAll(c => c != null && c.status != null && c.status.currentHp > 0f);
+            default:
+                return targets;
+        }
+    }
+
+    /// <summary>Effective multiplier / fixed amount after dice scaling.</summary>
+    public static float ScaledMultiplier(EffectEntry effect, int dice) => effect.multiplier + effect.multiplierPerDie * dice;
+    public static float ScaledFixed(EffectEntry effect, int dice) => effect.fixedValue + effect.fixedPerDie * dice;
+    public static float ScaledStatusValue(float baseValue, EffectEntry effect, int dice)
+        => baseValue + (effect.valuePerDieDivisor > 0 ? Mathf.Floor(dice / (float)effect.valuePerDieDivisor) : 0f);
 
     /// <summary>
     /// Runs one skill / pattern as a single attack: taunt lock, once-per-skill protect, and 반격/반사 after all hits.
@@ -81,14 +110,18 @@ public static class EffectEngine
             ExecuteEffect(effect, actor, actor, skillName, ref lastCalculatedValue);
         }
 
+        bool focusOnlyThisSkill = false;
         foreach (EffectEntry effect in data.effects)
         {
-            if (effect == null || effect.type == EffectType.Focus) continue;
-            foreach (BattleCharacter target in targets)
+            if (effect == null) continue;
+            if (effect.type == EffectType.Focus) { focusOnlyThisSkill |= effect.focusOnlyThisSkill; continue; }
+            foreach (BattleCharacter target in ScopedTargets(effect, actor, targets))
             {
                 if (target == null || target.status == null) continue;
+                int hits = CurrentCast != null && CurrentCast.MatchedSecondUse && effect.matchedHitCount > 0
+                    ? effect.matchedHitCount : effect.hitCount;
                 int executions = effect.type == EffectType.Damage || effect.type == EffectType.MentalDamage
-                    ? Mathf.Max(1, effect.hitCount)
+                    ? Mathf.Max(1, hits)
                     : 1;
                 for (int i = 0; i < executions; i++)
                 {
@@ -98,6 +131,8 @@ public static class EffectEngine
                 }
             }
         }
+        // 집중 that lasts only for this skill.
+        if (focusOnlyThisSkill) actor.status.activeStatusEffects.RemoveAll(e => e != null && e.effectType == EffectType.Focus);
     }
 
     private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target, string skillName, ref float lastCalculatedValue, System.Action<DamageResult> onDamage = null)
@@ -116,6 +151,12 @@ public static class EffectEngine
             VFXManager.Instance?.PlaySmartSkillEffect(skillName, effect.type, effect.damageType, target);
         }
 
+        int dice = CastDiceSum;
+        if (effect.minDie > 0 && dice < effect.minDie) return;
+        float chance = effect.chance + effect.chancePerDie * dice;
+        if (chance < 100f && Random.value * 100f >= Mathf.Max(0f, chance)) return;
+        float multiplier = ScaledMultiplier(effect, dice);
+
         // 기본값은 시전자의 최종 공격력이고, 옵션에 따라 직전 결과를 다시 씁니다.
         bool usesSpellPower = (effect.type == EffectType.Damage && effect.damageType == DamageType.Magical)
             || effect.type == EffectType.MentalDamage || effect.type == EffectType.MentalHeal;
@@ -128,12 +169,12 @@ public static class EffectEngine
                              effect.type == EffectType.Poison;
         float baseValue = effect.useActualResult
             ? lastCalculatedValue
-            : !usesActorStat || Mathf.Approximately(effect.multiplier, 0f)
+            : !usesActorStat || Mathf.Approximately(multiplier, 0f)
                 ? 0f
-                : usesSpellPower ? actor.status.FinalSpellPower : actor.status.FinalAttack;
-        float calculatedValue = (baseValue * effect.multiplier) + effect.fixedValue;
+                : StatFor(effect, actor, usesSpellPower);
+        float calculatedValue = (baseValue * multiplier) + ScaledFixed(effect, dice);
         if (effect.type == EffectType.Damage && actor.status.origin != null && actor.status.origin.isEnemy
-            && Mathf.Approximately(effect.multiplier, 0f))
+            && Mathf.Approximately(multiplier, 0f))
         {
             if (effect.damageType == DamageType.Physical)
                 calculatedValue += actor.status.AttackStatusModifier;
@@ -166,9 +207,20 @@ public static class EffectEngine
                     }
                 }
 
+                if (effect.bonusPercentPerTargetBleed > 0f)
+                    calculatedValue = new TheLastArk.Battle.ValueModifier()
+                        .AddIncrease(target.status.GetStatusValue(EffectType.Bleed) * effect.bonusPercentPerTargetBleed * 0.01f)
+                        .Raw(calculatedValue);
+                var attack = TheLastArk.Battle.AttackContext.Current;
+                float previousIgnore = attack?.ArmorIgnore ?? 0f;
+                if (attack != null && CurrentCast != null && CurrentCast.MatchedSecondUse && effect.matchedArmorIgnorePercent > 0f)
+                    attack.ArmorIgnore = effect.matchedArmorIgnorePercent * 0.01f;
                 DamageResult damageResult = target.ReceiveDamageDetailed(calculatedValue, actor, effect.damageType);
+                if (attack != null) attack.ArmorIgnore = previousIgnore;
                 lastCalculatedValue = damageResult.HealthDamage;
+                if (CurrentCast != null) CurrentCast.HealthDamageDealt += damageResult.HealthDamage;
                 onDamage?.Invoke(damageResult);
+                if (effect.splashAdjacentPercent > 0f) SplashAdjacent(effect, actor, target, calculatedValue * effect.splashAdjacentPercent * 0.01f);
 
                 // [광전사의 도끼] 전사 아군이 적에게 주는 체력 피해의 15%만큼 체력 회복
                 if (actor.status.origin != null && !actor.status.origin.isEnemy &&
@@ -335,9 +387,9 @@ public static class EffectEngine
             case EffectType.Vulnerable:
             case EffectType.MagicGuard:
             case EffectType.Corrosion:
-                float statValue = !Mathf.Approximately(effect.value, 0f)
+                float statValue = ScaledStatusValue(!Mathf.Approximately(effect.value, 0f)
                     ? effect.value
-                    : !Mathf.Approximately(effect.fixedValue, 0f) ? effect.fixedValue : effect.multiplier;
+                    : !Mathf.Approximately(effect.fixedValue, 0f) ? effect.fixedValue : effect.multiplier, effect, dice);
                 target.status.ApplyStatusEffect(effect.type, statValue,
                     effect.duration > 0 ? effect.duration : TheLastArk.Battle.StatusRules.DefaultStatTurns,
                     0f, 0, -1, actor, effect.durationType);
@@ -418,11 +470,22 @@ public static class EffectEngine
                     lastCalculatedValue = 0f;
                     break;
                 }
-                target.status.ApplyStatusEffect(effect.type, effect.value,
+                target.status.ApplyStatusEffect(effect.type, ScaledStatusValue(effect.value, effect, dice),
                     Mathf.Max(1, effect.duration > 0 ? effect.duration : 3),
                     effect.secondaryValue, 0, effect.skillSlot, actor, effect.durationType);
                 if (effect.type == EffectType.Blockade)
                     Object.FindObjectOfType<BattleManager>()?.RefreshDiceBlockade();
+                lastCalculatedValue = effect.value;
+                break;
+
+            case EffectType.HuntMark:
+                Object.FindObjectOfType<BattleManager>()?.ApplyHuntMark(actor, target);
+                lastCalculatedValue = 0f;
+                break;
+
+            case EffectType.DiceBoost:
+                // Bonus to this ally's next dice uses this turn; each instance covers `charges` dice.
+                target.status.ApplyStatusEffect(EffectType.DiceBoost, effect.value, 1, 0f, Mathf.Max(1, effect.charges), -1, actor, StatusDurationType.Turns);
                 lastCalculatedValue = effect.value;
                 break;
 
@@ -442,6 +505,37 @@ public static class EffectEngine
 
         if (target?.view != null)
             target.view.UpdateVisual(target.status);
+    }
+
+    /// <summary>Base stat for a scaled effect: explicit source, or ATK / SP by damage type.</summary>
+    private static float StatFor(EffectEntry effect, BattleCharacter actor, bool usesSpellPower)
+    {
+        switch (effect.statSource)
+        {
+            case EffectStatSource.Attack: return actor.status.FinalAttack;
+            case EffectStatSource.SpellPower: return actor.status.FinalSpellPower;
+            case EffectStatSource.SelfShield: return CurrentCast?.SelfShield ?? actor.status.GetStatusValue(EffectType.Shield);
+            case EffectStatSource.AllyShieldTotal: return CurrentCast?.AllyShieldTotal ?? 0f;
+            default: return usesSpellPower ? actor.status.FinalSpellPower : actor.status.FinalAttack;
+        }
+    }
+
+    /// <summary>Extra attack on each living neighbour of the target (each takes its own defense).</summary>
+    private static void SplashAdjacent(EffectEntry effect, BattleCharacter actor, BattleCharacter target, float amount)
+    {
+        var bm = Object.FindObjectOfType<BattleManager>();
+        if (bm == null || amount <= 0f || target?.status?.origin == null) return;
+        var party = target.status.origin.isEnemy ? bm.enemyParty : bm.playerParty;
+        int index = party.IndexOf(target);
+        if (index < 0) return;
+        foreach (int neighbour in new[] { index - 1, index + 1 })
+        {
+            if (neighbour < 0 || neighbour >= party.Count) continue;
+            BattleCharacter side = party[neighbour];
+            if (side?.status == null || side.status.currentHp <= 0f) continue;
+            DamageResult result = side.ReceiveDamageDetailed(amount, actor, effect.damageType);
+            if (CurrentCast != null) CurrentCast.HealthDamageDealt += result.HealthDamage;
+        }
     }
 
     private static void RemoveOtherPartyTaunts(BattleCharacter target)

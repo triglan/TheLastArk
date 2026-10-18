@@ -101,6 +101,20 @@ public class ActiveStatusEffect
             case EffectType.Counter: return "반격";
             case EffectType.Taunt: return "도발";
             case EffectType.Focus: return "집중";
+            case EffectType.HuntMark: return "사냥 표식";
+            case EffectType.DiceBoost: return "눈금 강화";
+            case EffectType.Bleed: return "출혈";
+            case EffectType.Poison: return "독";
+            case EffectType.Burn: return "화상";
+            case EffectType.Stun: return "기절";
+            case EffectType.Frost: return "냉기";
+            case EffectType.Fear: return "공포";
+            case EffectType.Pressure: return "압박";
+            case EffectType.Despair: return "절망";
+            case EffectType.Confusion: return "혼란";
+            case EffectType.Blockade: return "봉쇄";
+            case EffectType.Fatigue: return "피로";
+            case EffectType.Pierce: return "관통";
             default: return type.ToString();
         }
     }

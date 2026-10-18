@@ -16,6 +16,7 @@ public partial class BattleManager : MonoBehaviour
     public const string DiceReasonUsed = "사용 완료";
     public const string DiceReasonNotEnoughDice = "주사위 부족";
     public const string DiceReasonConditionMismatch = "눈 조건 불충족";
+    public const string DiceReasonStorageFull = "보관함 부족";
 
     public static bool AutoEndDiceTurn
     {
@@ -80,7 +81,13 @@ public partial class BattleManager : MonoBehaviour
     private readonly List<int> _selectedDiceIds = new List<int>();
     private SkillInfo _pendingDiceSkill;
     private BattleCharacter _pendingDiceActor;
-    private readonly HashSet<(BattleCharacter, SkillInfo)> _usedDiceSkills = new HashSet<(BattleCharacter, SkillInfo)>();
+    private readonly Dictionary<(BattleCharacter, SkillInfo), int> _diceSkillUses = new Dictionary<(BattleCharacter, SkillInfo), int>();
+    private readonly Dictionary<(BattleCharacter, SkillInfo), int> _firstUseInput = new Dictionary<(BattleCharacter, SkillInfo), int>();
+    private readonly HashSet<BattleCharacter> _offenseDefenseUsed = new HashSet<BattleCharacter>();
+    private readonly Dictionary<BattleCharacter, int> _attackFires = new Dictionary<BattleCharacter, int>();
+    private readonly Dictionary<BattleCharacter, List<BattleCharacter>> _huntMarks = new Dictionary<BattleCharacter, List<BattleCharacter>>();
+    private SkillCast _pendingCast;
+    private const int SkillExhausted = int.MaxValue / 2;
     private readonly Dictionary<(BattleCharacter, SkillInfo), int> _diceCharge = new Dictionary<(BattleCharacter, SkillInfo), int>();
     private BattleDiceUI _diceUI;
     private OriginPartBalanceConfig _originBalance;
@@ -123,7 +130,7 @@ public partial class BattleManager : MonoBehaviour
         if (!UsesDice) return null;
         if (actor?.status == null || skill == null) return "사용 불가";
         if (actor.status.currentHp <= 0f) return "전투 불능";
-        if (_usedDiceSkills.Contains((actor, skill))) return DiceReasonUsed;
+        if (IsSkillUsedUp(actor, skill)) return DiceReasonUsed;
         if (actor.status.GetStatus(EffectType.Stun) != null) return "기절";
         if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
             return "피로";
@@ -133,6 +140,10 @@ public partial class BattleManager : MonoBehaviour
 
         DiceInputRule rule = GetDiceRule(skill, actor);
         if (rule.IsCharge && IsChargeReady(actor, skill)) return null;
+        SkillLevelData skillLevel = GetSkillLevel(skill, actor);
+        if (skillLevel != null && skillLevel.special == SkillSpecial.SplitDie
+            && _dicePool.Dice.Count - 1 + Mathf.Max(1, skillLevel.specialCount) > ActionDicePool.MaxStoredDice)
+            return DiceReasonStorageFull;
         int matching = 0;
         int available = 0;
         foreach (ActionDie die in _dicePool.Dice)
@@ -192,16 +203,176 @@ public partial class BattleManager : MonoBehaviour
         return die != null && GetFrost(actor) > 0;
     }
 
-    private int SumEffectValues(BattleCharacter actor, SkillInfo skill)
+    private List<ActionDie> SelectedDice()
     {
-        int bonus = GetDiceOnUseBonus(actor, skill);
+        var dice = new List<ActionDie>(_selectedDiceIds.Count);
+        foreach (int id in _selectedDiceIds) dice.Add(_dicePool.Find(id));
+        return dice;
+    }
+
+    private int SumEffectValues(BattleCharacter actor, List<ActionDie> dice)
+    {
         int total = 0;
-        foreach (int id in _selectedDiceIds) total += GetDieEffectValue(actor, _dicePool.Find(id), bonus);
+        foreach (ActionDie die in dice) total += GetDieEffectValue(actor, die, ConsumeDiceBoost(actor));
         return total;
     }
 
-    /// <summary>Character on-use dice bonus. Applies to effect calc and sum-type charge, never to input conditions.</summary>
-    public int GetDiceOnUseBonus(BattleCharacter actor, SkillInfo skill) => 0;
+    /// <summary>
+    /// Character on-use dice bonus for the next die (저쪽을 공격해!). Applies to effect calc and sum-type charge,
+    /// never to input conditions.
+    /// </summary>
+    public int GetDiceOnUseBonus(BattleCharacter actor, SkillInfo skill)
+    {
+        ActiveStatusEffect boost = actor?.status?.activeStatusEffects.Find(e => e != null && e.effectType == EffectType.DiceBoost
+            && e.IsActive && e.remainingCharges > 0);
+        return boost != null ? Mathf.FloorToInt(boost.damagePerTurn) : 0;
+    }
+
+    /// <summary>Uses one die's worth of the oldest on-use bonus; returns the bonus (0 when none).</summary>
+    private int ConsumeDiceBoost(BattleCharacter actor)
+    {
+        ActiveStatusEffect boost = actor?.status?.activeStatusEffects.Find(e => e != null && e.effectType == EffectType.DiceBoost
+            && e.IsActive && e.remainingCharges > 0);
+        if (boost == null) return 0;
+        boost.remainingCharges--;
+        if (boost.remainingCharges <= 0) actor.status.activeStatusEffects.Remove(boost);
+        return Mathf.FloorToInt(boost.damagePerTurn);
+    }
+
+    private SkillLevelData GetSkillLevel(SkillInfo skill, BattleCharacter actor)
+    {
+        if (skill?.levels == null || skill.levels.Length == 0 || actor?.status == null) return null;
+        return skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
+    }
+
+    private int UsesOf(BattleCharacter actor, SkillInfo skill) => _diceSkillUses.TryGetValue((actor, skill), out int uses) ? uses : 0;
+    public int GetSkillUsesThisTurn(BattleCharacter actor, SkillInfo skill) => Mathf.Min(UsesOf(actor, skill), GetSkillUsesPerTurn(actor, skill));
+    public int GetSkillUsesPerTurn(BattleCharacter actor, SkillInfo skill) => Mathf.Max(1, GetSkillLevel(skill, actor)?.usesPerTurn ?? 1);
+    private bool IsSkillUsedUp(BattleCharacter actor, SkillInfo skill) => UsesOf(actor, skill) >= GetSkillUsesPerTurn(actor, skill);
+    private void MarkSkillUsed(BattleCharacter actor, SkillInfo skill) => _diceSkillUses[(actor, skill)] = UsesOf(actor, skill) + 1;
+
+    /// <summary>
+    /// Dice and shield inputs for one actual fire: per die the input value (냉기) and effect value
+    /// (one on-use bonus consumed per die), S / T snapshots, and whether a 2nd use matches the 1st.
+    /// </summary>
+    private SkillCast BuildCast(BattleCharacter actor, SkillInfo skill, List<ActionDie> dice)
+    {
+        var cast = new SkillCast { SelfShield = actor.status.GetStatusValue(EffectType.Shield) };
+        foreach (BattleCharacter ally in playerParty)
+            if (ally?.status != null && ally.status.currentHp > 0f) cast.AllyShieldTotal += ally.status.GetStatusValue(EffectType.Shield);
+        foreach (ActionDie die in dice)
+        {
+            cast.InputValues.Add(GetDieInputValue(actor, die));
+            cast.EffectValues.Add(GetDieEffectValue(actor, die, ConsumeDiceBoost(actor)));
+        }
+        SkillLevelData level = GetSkillLevel(skill, actor);
+        if (level != null && level.special == SkillSpecial.MatchSecondUse && cast.InputValues.Count > 0)
+        {
+            if (_firstUseInput.TryGetValue((actor, skill), out int first)) cast.MatchedSecondUse = cast.InputValues[0] == first;
+            else _firstUseInput[(actor, skill)] = cast.InputValues[0];
+        }
+        if (level != null && level.consumeSelfShield)
+            actor.status.activeStatusEffects.RemoveAll(e => e != null && e.effectType == EffectType.Shield);
+        return cast;
+    }
+
+    /// <summary>Self / all-target skills need no picked target.</summary>
+    private BattleCharacter AutoTargetFor(SkillInfo skill, BattleCharacter actor)
+    {
+        SkillLevelData level = GetSkillLevel(skill, actor);
+        if (level == null) return null;
+        switch (level.targetType)
+        {
+            case TargetType.Self:
+            case TargetType.AllFriendly:
+                return actor;
+            case TargetType.AllEnemy:
+                return enemyParty.Find(e => e != null && e.status != null && e.status.currentHp > 0f);
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// [연운·안개] Splits one die into the player's chosen values (same actual total, each ≥ 0). The original's kept
+    /// modifier moves to the chosen result die. Fails without consuming anything if storage would overflow.
+    /// </summary>
+    public bool TrySplitDie(BattleCharacter actor, SkillInfo skill, int dieId, IReadOnlyList<int> values, int modifierIndex)
+    {
+        if (!UsesDice || !IsPlayerTurn || actor?.status == null) return false;
+        SkillLevelData level = GetSkillLevel(skill, actor);
+        if (level == null || level.special != SkillSpecial.SplitDie || values == null || values.Count != Mathf.Max(2, level.specialCount)) return false;
+        if (GetDiceSkillUnavailableReason(actor, skill) != null) return false;
+        ActionDie die = _dicePool.Find(dieId);
+        if (die == null || !die.IsAvailable || !GetDiceRule(skill, actor).AcceptsValue(GetDieInputValue(actor, die))) return false;
+        if (!_dicePool.TrySplit(dieId, values, modifierIndex)) return false;
+        MarkSkillUsed(actor, skill);
+        actor.status.lastUsedSkill = skill;
+        actor.ResolveActionStatusEffects();
+        _selectedDiceIds.Clear();
+        RefreshDiceUI();
+        RefreshSkillSlots();
+        return true;
+    }
+
+    /// <summary>
+    /// 사냥 표식 from a 가자 댕댕아! caster: keeps at most `charges` marks, replacing the oldest; marked enemies take
+    /// `value`% more direct HP damage from allies.
+    /// </summary>
+    public void ApplyHuntMark(BattleCharacter caster, BattleCharacter target)
+    {
+        EffectEntry passive = caster?.status?.GetPassiveEntry(PassiveTrait.HuntingMark);
+        if (passive == null || target?.status == null || target.status.currentHp <= 0f) return;
+        if (!_huntMarks.TryGetValue(caster, out var marks)) _huntMarks[caster] = marks = new List<BattleCharacter>();
+        marks.RemoveAll(m => m == null || m.status == null || m.status.currentHp <= 0f || m.status.GetStatus(EffectType.HuntMark) == null);
+        if (marks.Contains(target)) return;
+        while (marks.Count >= Mathf.Max(1, passive.charges))
+        {
+            BattleCharacter oldest = marks[0];
+            marks.RemoveAt(0);
+            oldest.status.activeStatusEffects.RemoveAll(e => e != null && e.effectType == EffectType.HuntMark && e.source == caster);
+            oldest.view?.UpdateVisual(oldest.status);
+        }
+        target.status.ApplyStatusEffect(EffectType.HuntMark, passive.value, 0, 0f, 0, -1, caster, StatusDurationType.Marker);
+        marks.Add(target);
+        target.view?.UpdateVisual(target.status);
+    }
+
+    /// <summary>Ally turn start: each 가자 댕댕아! caster marks a random unmarked enemy.</summary>
+    private void RefreshHuntMarks()
+    {
+        foreach (BattleCharacter ally in playerParty)
+        {
+            if (ally?.status == null || ally.status.currentHp <= 0f || ally.status.GetPassiveEntry(PassiveTrait.HuntingMark) == null) continue;
+            _huntMarks.TryGetValue(ally, out var marks);
+            var candidates = enemyParty.FindAll(e => e != null && e.status != null && e.status.currentHp > 0f && (marks == null || !marks.Contains(e)));
+            if (candidates.Count > 0) ApplyHuntMark(ally, candidates[UnityEngine.Random.Range(0, candidates.Count)]);
+        }
+    }
+
+    /// <summary>After an actual fire: 공방일체 shield and 흑사 die generation (attack skills only).</summary>
+    private void AfterActualSkillFire(BattleCharacter actor, SkillLevelData level, SkillCast cast)
+    {
+        bool isAttack = level?.effects != null && level.special != SkillSpecial.SplitDie
+            && level.effects.Exists(e => e != null && e.type == EffectType.Damage);
+        if (!isAttack || actor?.status == null) return;
+
+        EffectEntry offense = actor.status.GetPassiveEntry(PassiveTrait.OffenseDefense);
+        if (offense != null && (offense.charges <= 0 || _offenseDefenseUsed.Add(actor)))
+        {
+            float shield = ValueModifier.Floor((cast?.HealthDamageDealt ?? 0f) * offense.value * 0.01f);
+            if (shield > 0f) actor.status.ApplyStatusEffect(EffectType.Shield, shield, 1, 0f, 0, -1, actor);
+        }
+
+        EffectEntry blackDeath = actor.status.GetPassiveEntry(PassiveTrait.BlackDeath);
+        if (blackDeath != null && UsesDice)
+        {
+            _attackFires.TryGetValue(actor, out int fires);
+            _attackFires[actor] = ++fires;
+            if (fires % Mathf.Max(1, blackDeath.charges) == 0) _dicePool.AddFixedDie(ActionDicePool.DefaultFaces, 0);
+        }
+        actor.view?.UpdateVisual(actor.status);
+    }
 
     public void DropDieOnSkill(int dieId, SkillInfo skill, BattleCharacter actor)
     {
@@ -239,16 +410,23 @@ public partial class BattleManager : MonoBehaviour
             return;
         }
 
-        BattleCharacter target = targetHandler.target != null
-            ? targetHandler.target.GetComponent<BattleCharacter>() : null;
+        if (skill.levels == null || skill.levels.Length == 0) return;
+        SkillLevelData level = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
+        if (level != null && level.special == SkillSpecial.SplitDie)
+        {
+            EnsureDiceUI();
+            _diceUI?.ShowSplitDialog(die, Mathf.Max(2, level.specialCount),
+                (values, modifierIndex) => TrySplitDie(actor, skill, dieId, values, modifierIndex));
+            return;
+        }
+        BattleCharacter target = AutoTargetFor(skill, actor) ?? (targetHandler.target != null
+            ? targetHandler.target.GetComponent<BattleCharacter>() : null);
         if (target == null)
         {
             NotificationManager.Instance?.ShowMessage("먼저 대상을 지정하세요.", Color.yellow);
             return;
         }
-        if (skill.levels == null || skill.levels.Length == 0) return;
-        SkillLevelData level = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
-        if (level == null || !(level.targetType == TargetType.Self
+        if (level == null || (level.excludeSelf && target == actor) || !(level.targetType == TargetType.Self
             ? target == actor
             : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty, actor)))
         {
@@ -282,15 +460,17 @@ public partial class BattleManager : MonoBehaviour
     private bool TryInsertChargeDice(BattleCharacter actor, SkillInfo skill)
     {
         DiceInputRule rule = GetDiceRule(skill, actor);
-        if (!rule.IsCharge || IsChargeReady(actor, skill) || _usedDiceSkills.Contains((actor, skill))) return false;
+        if (!rule.IsCharge || IsChargeReady(actor, skill) || IsSkillUsedUp(actor, skill)) return false;
         if (!TryGetSelectedDice(actor, rule, out List<int> values))
         {
             Notify($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
             return false;
         }
-        int contribution = rule.chargeByDiceCount ? values.Count : SumEffectValues(actor, skill);
-        int nextCharge = Mathf.Min(rule.chargeTarget, GetDiceCharge(actor, skill) + contribution);
+        List<ActionDie> inserted = SelectedDice();
         if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
+        // Sum-type charge uses effect values (on-use bonuses consumed per die); count-type counts dice only.
+        int contribution = rule.chargeByDiceCount ? values.Count : SumEffectValues(actor, inserted);
+        int nextCharge = Mathf.Min(rule.chargeTarget, GetDiceCharge(actor, skill) + contribution);
         _diceCharge[(actor, skill)] = nextCharge;
         _selectedDiceIds.Clear();
         RefreshDiceUI();
@@ -474,8 +654,9 @@ public partial class BattleManager : MonoBehaviour
         {
             if (!IsChargeReady(actor, skill)) return false;
             // Firing consumes no dice; afterwards the skill can't be charged or fired again this turn.
+            _pendingCast = BuildCast(actor, skill, new List<ActionDie>());
             _diceCharge.Remove((actor, skill));
-            _usedDiceSkills.Add((actor, skill));
+            _diceSkillUses[(actor, skill)] = SkillExhausted;
             _selectedDiceIds.Clear();
             RefreshDiceUI();
             RefreshSkillSlots();
@@ -486,8 +667,10 @@ public partial class BattleManager : MonoBehaviour
             NotificationManager.Instance?.ShowMessage($"주사위 조건을 확인하세요: {rule.Describe()}", Color.red);
             return false;
         }
+        List<ActionDie> spent = SelectedDice();
         if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
-        _usedDiceSkills.Add((actor, skill));
+        _pendingCast = BuildCast(actor, skill, spent);
+        MarkSkillUsed(actor, skill);
         _selectedDiceIds.Clear();
         RefreshDiceUI();
         RefreshSkillSlots();
@@ -862,7 +1045,7 @@ public partial class BattleManager : MonoBehaviour
             if (rule.IsCharge)
             {
                 // Ready charge: the user picks a target and fires manually.
-                if (!_executingPanicSkill && (targetHandler == null || targetHandler.target == null))
+                if (!_executingPanicSkill && AutoTargetFor(skill, actor) == null && (targetHandler == null || targetHandler.target == null))
                 {
                     Notify("먼저 대상을 지정한 뒤 발동하세요.", Color.yellow);
                     return;
@@ -886,7 +1069,9 @@ public partial class BattleManager : MonoBehaviour
 
         if (UsesDice)
         {
-            PerformSkill();
+            BattleCharacter autoTarget = AutoTargetFor(skill, actor);
+            if (autoTarget != null) PerformSkillOnTarget(autoTarget);
+            else PerformSkill();
             return;
         }
 
@@ -975,7 +1160,8 @@ public partial class BattleManager : MonoBehaviour
 
         bool isValidTarget = levelData.targetType == TargetType.Self
             ? primaryTarget == actor
-            : TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
+            : !(levelData.excludeSelf && primaryTarget == actor)
+                && TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
         if (!isValidTarget)
         {
             string message = TargetResolver.IsTauntAffected(levelData.targetType)
@@ -1161,14 +1347,20 @@ public partial class BattleManager : MonoBehaviour
             primaryTarget = ApplyConfusion(actor, primaryTarget, levelData.targetType);
             BattleCharacter resolvedPrimary = TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor);
             List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
-            EffectEngine.ProcessSkill(actor, targets, levelData, resolvedPrimary, skill.skillName);
+            SkillCast cast = _pendingCast ?? new SkillCast();
+            EffectEngine.CurrentCast = cast;
+            try { EffectEngine.ProcessSkill(actor, targets, levelData, resolvedPrimary, skill.skillName); }
+            finally { EffectEngine.CurrentCast = null; }
+            AfterActualSkillFire(actor, levelData, cast);
 
             // [탑] 이번 턴 처음 사용하는 스킬 2번 발동 (더블 캐스트)
             if (_arcanaState.isTowerDoubleCastActive)
             {
                 _arcanaState.isTowerDoubleCastActive = false;
                 List<BattleCharacter> doubleTargets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
-                EffectEngine.ProcessSkill(actor, doubleTargets, levelData, TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor), skill.skillName);
+                EffectEngine.CurrentCast = cast;
+                try { EffectEngine.ProcessSkill(actor, doubleTargets, levelData, TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor), skill.skillName); }
+                finally { EffectEngine.CurrentCast = null; }
                 NotificationManager.Instance?.ShowMessage("[탑] 첫 스킬이 2번 연속 발동되었습니다!", Color.red);
             }
 
@@ -1199,6 +1391,7 @@ public partial class BattleManager : MonoBehaviour
             }
         }
 
+        _pendingCast = null;
         actor.status.lastUsedSkill = skill;
         actor.status.panic?.SkillUsed(skill);
         actor.ResolveActionStatusEffects();
@@ -1572,6 +1765,7 @@ public partial class BattleManager : MonoBehaviour
     private void OnEnterPlayerTurn()
     {
         RemoveOwnerPhaseEffects(playerParty);
+        RefreshHuntMarks();
         ClearEnemyTargetMarkers();
         PrepareEnemyIntents();
         Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");
@@ -2191,7 +2385,9 @@ public partial class BattleManager : MonoBehaviour
             _selectedDiceIds.Clear();
             _pendingDiceSkill = null;
             _pendingDiceActor = null;
-            _usedDiceSkills.Clear();
+            _diceSkillUses.Clear();
+            _firstUseInput.Clear();
+            _offenseDefenseUsed.Clear();
             currentAP = 0;
             RefreshDiceUI();
             RefreshSkillSlots();
