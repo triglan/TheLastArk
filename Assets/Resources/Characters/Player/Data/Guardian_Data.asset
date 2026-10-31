@@ -20,6 +20,13 @@ MonoBehaviour:
   regionId: temp
   standingSprite: {fileID: 21300000, guid: 49211f06060980d4c935badec953db2e, type: 3}
   portraitSprite: {fileID: 21300000, guid: 93c37e7cf14b8ee4cb0f87cfe307326c, type: 3}
+  closedEyesSprite: {fileID: 0}
+  panicIllustrations: []
+  enemyFormationType: 0
+  enemyIllustrationScale: 1
+  enemyIllustrationHeight: 180
+  enemyIllustrationOffset: {x: 0, y: 0}
+  enemyIllustrationKeepFeet: 1
   maxHp: 35
   maxMental: 35
   baseAttack: 4
@@ -170,7 +177,7 @@ MonoBehaviour:
         focusOnlyThisSkill: 0
   activeSkills:
   - skillName: "\uC740\uBE5B \uC410\uAE30"
-    skillIcon: {fileID: 0}
+    skillIcon: {fileID: 21300000, guid: f6b8fc75b718dce47ab983b2b881400a, type: 3}
     baseCost: 3
     passiveTrait: 0
     levels:
@@ -304,7 +311,7 @@ MonoBehaviour:
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
   - skillName: "\uC218\uD638 \uBC29\uD328"
-    skillIcon: {fileID: 0}
+    skillIcon: {fileID: 21300000, guid: 1bed42a8c246d484ba6fd875248bd9df, type: 3}
     baseCost: 3
     passiveTrait: 0
     levels:
@@ -519,7 +526,7 @@ MonoBehaviour:
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
   - skillName: "\uC120\uBD09\uC790"
-    skillIcon: {fileID: 0}
+    skillIcon: {fileID: 21300000, guid: 8852d9368805f384fa6bbf45cc7fa12e, type: 3}
     baseCost: 3
     passiveTrait: 0
     levels:
@@ -734,7 +741,7 @@ MonoBehaviour:
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
   - skillName: "\uB300\uB3CC\uC9C4"
-    skillIcon: {fileID: 0}
+    skillIcon: {fileID: 21300000, guid: 32c998aacce10fd4b80c1a3f5adeac20, type: 3}
     baseCost: 3
     passiveTrait: 0
     levels:
@@ -948,4 +955,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+  enemyRoleDescription: 
+  damageBonusPerCycle: 0
+  bleedBonusPerCycle: 0
   enemyPatterns: []
+  enemyRuntimeVariables: []
+  enemyEnhancementIcon: {fileID: 0}
+  defeatGoldBonus: 0
+  returnStolenGoldOnDefeat: 0
+  stolenGoldVariableId: 
