@@ -13,10 +13,8 @@ MonoBehaviour:
   m_Name: Relic_Cheongwoon
   m_EditorClassIdentifier: 
   relicID: Relic_Cheongwoon
-  relicName: "\uCCAD\uC6B4"
-  description: "\uCCAD\uC6B4 \uC2DC\uB108\uC9C0\uAC00 +2 \uC99D\uAC00\uD569\uB2C8\uB2E4.
-    \uCCAD\uC6B4 (7) \uD6A8\uACFC \uCD94\uAC00: \uD589\uB3D9\uB825\uC744 2 \uC18C\uBAA8\uD560
-    \uB54C \uB9C8\uB2E4 \uD6A8\uACFC\uAC00 \uBC1C\uB3D9\uD569\uB2C8\uB2E4."
+  relicName: "\uCCAD\uC6B4\uC758 \uC778\uC7A5"
+  description: "\uCCAD\uC6B4 +2. \uCCAD\uC6B4 \uC18C\uC18D\uC774 \uD22C\uC785 \uB208\uAE08\uC774 \uBAA8\uB450 0~1\uC778 \uACF5\uACA9 \uC2A4\uD0AC\uC744 \uC4F0\uBA74 \uACF5\uACA9\uBC1B\uC740 \uC801\uB9C8\uB2E4 \uACE0\uC815 \uD53C\uD574 3."
   icon: {fileID: 0}
   rarity: 1
   effectType: 49

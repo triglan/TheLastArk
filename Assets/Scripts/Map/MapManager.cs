@@ -713,7 +713,7 @@ public class MapManager : MonoBehaviour
             {
                 var available = new System.Collections.Generic.List<TheLastArk.Data.RelicData>();
                 foreach (var r in relics) {
-                    if (!resManager.HasRelic(r.relicID)) available.Add(r);
+                    if (resManager.CanAcquireRelic(r)) available.Add(r);
                 }
                 if (available.Count > 0)
                 {

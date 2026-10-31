@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_WorldTreeBranch
   relicName: "\uC138\uACC4\uC218\uC758 \uAC00\uC9C0"
-  description: "\uC5D8\uBE10\uC6B0\uB4DC \uB300\uC0BC\uB9BC \uC2DC\uB108\uC9C0\uAC00
-    +3 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  description: "\uC5D8\uBE10\uC6B0\uB4DC \uB300\uC0BC\uB9BC +3."
   icon: {fileID: 0}
   rarity: 1
   effectType: 46

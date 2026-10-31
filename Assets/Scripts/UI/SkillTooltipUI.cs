@@ -200,6 +200,7 @@ namespace TheLastArk.UI
             {
                 descSb.AppendLine("기본 스킬 효과가 적용됩니다.");
             }
+            AppendDiceTable(descSb, currentLevelData, status);
 
             descriptionText.text = descSb.ToString();
 
@@ -230,6 +231,54 @@ namespace TheLastArk.UI
             }
         }
 
+        private const int PreviewMaxDie = 6;
+
+        /// <summary>Per-die-value detail (D = 0…6) for every dice-scaled effect, plus the turn limit.</summary>
+        private static void AppendDiceTable(StringBuilder sb, SkillLevelData level, CharacterStatus status)
+        {
+            if (level?.effects == null) return;
+            if (level.usesPerTurn > 1) sb.AppendLine($"<color=#FFD43B>턴당 {level.usesPerTurn}회 사용 가능</color>");
+            foreach (var effect in level.effects)
+            {
+                if (effect == null) continue;
+                bool scales = effect.multiplierPerDie != 0f || effect.fixedPerDie != 0f || effect.valuePerDieDivisor > 0
+                    || effect.chancePerDie != 0f || effect.minDie > 0;
+                if (!scales) continue;
+                var line = new StringBuilder($"<size=90%>{ActiveStatusEffect.GetDisplayName(effect.type)} 눈금별: ");
+                for (int d = 0; d <= PreviewMaxDie; d++)
+                {
+                    if (d > 0) line.Append("  ");
+                    line.Append(d).Append('→').Append(PreviewAt(effect, status, d));
+                }
+                sb.AppendLine(line.Append("</size>").ToString());
+            }
+        }
+
+        private static string PreviewAt(EffectEntry effect, CharacterStatus status, int d)
+        {
+            if (effect.minDie > 0 && d < effect.minDie) return "-";
+            float chance = Mathf.Min(100f, effect.chance + effect.chancePerDie * d);
+            string chanceText = chance < 100f ? $"({chance:0}%)" : "";
+            switch (effect.type)
+            {
+                case EffectType.Damage:
+                case EffectType.Heal:
+                case EffectType.Shield:
+                    float mult = EffectEngine.ScaledMultiplier(effect, d);
+                    float fixedPart = EffectEngine.ScaledFixed(effect, d);
+                    string stat = effect.statSource == EffectStatSource.SelfShield ? "S"
+                        : effect.statSource == EffectStatSource.AllyShieldTotal ? "T" : null;
+                    if (stat != null) return $"{stat}×{mult * 100:0}%" + chanceText;
+                    float baseStat = status == null ? 0f
+                        : effect.statSource == EffectStatSource.SpellPower || effect.statSource == EffectStatSource.Auto && effect.damageType == DamageType.Magical
+                            ? status.FinalSpellPower : status.FinalAttack;
+                    return TheLastArk.Battle.ValueModifier.Floor(baseStat * mult + fixedPart) + chanceText;
+                default:
+                    float value = EffectEngine.ScaledStatusValue(effect.value, effect, d);
+                    return (value > 0f ? value.ToString("0") : "적용") + chanceText;
+            }
+        }
+
         public void ShowTooltip(SkillInfo skill, BattleCharacter actor, RectTransform slotTransform = null)
         {
             if (skill == null) return;
@@ -238,6 +287,17 @@ namespace TheLastArk.UI
             ShowTooltip(skill, st, cName, slotTransform);
             var battle = FindObjectOfType<BattleManager>();
             string restriction = battle != null ? battle.GetDiceSkillUnavailableReason(actor, skill) : null;
+            if (actorInfoText != null && battle != null && battle.UsesDice && actor?.status != null && skill.levels != null && skill.levels.Length > 0)
+            {
+                var rule = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)]?.diceInput;
+                if (rule != null && rule.IsCharge)
+                    actorInfoText.text += battle.IsChargeReady(actor, skill)
+                        ? "\n<color=#8CF2FF>준비 완료 · 대상 지정 후 스킬을 눌러 발동 (주사위 소모 없음)</color>"
+                        : $"\n<color=#8CF2FF>충전 {battle.GetDiceCharge(actor, skill)}/{rule.chargeTarget} · {(rule.chargeByDiceCount ? "개수" : "합계")} 누적, 초과분 소멸</color>";
+                int bonus = battle.GetDiceOnUseBonus(actor, skill);
+                if (bonus != 0) actorInfoText.text += $"\n<color=#79FF5B>사용 시 {bonus:+0;-0}</color>";
+                RefreshActorInfoHeight();
+            }
             if (actorInfoText != null && !string.IsNullOrEmpty(restriction))
             {
                 actorInfoText.text += $"\n<color=#FF998C>{restriction}</color>";

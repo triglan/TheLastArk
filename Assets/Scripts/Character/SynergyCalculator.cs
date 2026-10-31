@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using TheLastArk.Data;
 using TheLastArk.Managers;
@@ -7,6 +7,8 @@ namespace TheLastArk.Character
 {
     public static class SynergyCalculator
     {
+        public const int MaxBadgesPerSynergy = 2;
+
         public static Dictionary<SynergyType, int> CalculateActiveSynergies()
         {
             Dictionary<SynergyType, int> counts = new Dictionary<SynergyType, int>();
@@ -29,6 +31,7 @@ namespace TheLastArk.Character
                         continue;
 
                     bool isLeader = (charId == leaderID);
+                    bool polyhedron = WearsPolyhedron(charId);
 
                     if (data.synergies == null) continue;
 
@@ -36,11 +39,11 @@ namespace TheLastArk.Character
                     {
                         if (!counts.ContainsKey(syn)) counts[syn] = 0;
 
-                        // 기본 파티원 +1 카운트
-                        counts[syn] += 1;
+                        // 기본 파티원 +1 카운트, 부등변다면체 착용 시 가상 인원 +1
+                        counts[syn] += polyhedron ? 2 : 1;
 
-                        // 리더 시스템 효과 1: 리더 캐릭터는 해당 시너지 카운트 +1 추가 부여!
-                        if (isLeader)
+                        // 리더 시스템 효과 1: 리더 캐릭터는 해당 시너지 카운트 +1 추가 부여 (침묵의 아르카디아 제외)
+                        if (isLeader && syn != SynergyType.SilentArcadia)
                         {
                             counts[syn] += 1;
                         }
@@ -48,17 +51,21 @@ namespace TheLastArk.Character
                 }
             }
 
-            // 시너지 증표 및 전설 유물 시너지 가산 반영
+            // 시너지 증표 및 전설 유물 시너지 가산 반영 (가상 인원)
             if (ResourceManager.Instance != null && ResourceManager.Instance.Relics != null)
             {
+                var badges = new Dictionary<SynergyType, int>();
                 foreach (var relic in ResourceManager.Instance.Relics)
                 {
                     if (relic == null) continue;
 
                     if (relic.effectType == RelicEffectType.SynergyBadge)
                     {
-                        if (!counts.ContainsKey(relic.targetSynergy)) counts[relic.targetSynergy] = 0;
-                        counts[relic.targetSynergy] += Mathf.RoundToInt(relic.effectValue > 0 ? relic.effectValue : 1);
+                        // 같은 시너지 증표는 최대 2개까지 합산
+                        badges.TryGetValue(relic.targetSynergy, out int owned);
+                        if (owned >= MaxBadgesPerSynergy) continue;
+                        badges[relic.targetSynergy] = owned + 1;
+                        AddSynergyCount(counts, relic.targetSynergy, 1);
                     }
                     else if (relic.effectType == RelicEffectType.HeartOfMagitech)
                     {
@@ -88,6 +95,10 @@ namespace TheLastArk.Character
                     {
                         AddSynergyCount(counts, SynergyType.Cheongwoon, 2);
                     }
+                    else if (relic.effectType == RelicEffectType.WhisperCultRelic)
+                    {
+                        AddSynergyCount(counts, SynergyType.WhisperCult, 2);
+                    }
                 }
             }
 
@@ -102,6 +113,16 @@ namespace TheLastArk.Character
             }
 
             return counts;
+        }
+
+        private static bool WearsPolyhedron(string characterId)
+        {
+            if (!ResourceManager.IsInitialized) return false;
+            var loadout = ResourceManager.Instance.EquipmentLoadouts?.characters?.Find(c => c.characterId == characterId);
+            if (loadout?.slots == null) return false;
+            foreach (var item in loadout.slots)
+                if (item != null && item.equipmentID == "Polyhedron") return true;
+            return false;
         }
 
         private static void AddSynergyCount(Dictionary<SynergyType, int> counts, SynergyType type, int amount)
@@ -187,15 +208,6 @@ namespace TheLastArk.Character
                 }
             }
 
-            // [하늘 십자가] 유물: 다른 세력 시너지가 없을 때 주문력 +25%
-            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.SkyCross))
-            {
-                var active = CalculateActiveSynergies();
-                if (active.TryGetValue(SynergyType.Elysium, out int elysiumCount) && elysiumCount >= 2 && !HasOtherActiveFactionSynergies(SynergyType.Elysium))
-                {
-                    totalBonus += 0.25f;
-                }
-            }
 
             // [특성 훈련소 파츠] 다중 재능 연합기 & 단일 특성 집중기 보너스
             totalBonus += GetTraitTrainingCampStatMultiplier();
@@ -258,15 +270,6 @@ namespace TheLastArk.Character
                 }
             }
 
-            // [하늘 십자가] 유물: 다른 세력 시너지가 없을 때 정신력 +25%
-            if (ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.SkyCross))
-            {
-                var active = CalculateActiveSynergies();
-                if (active.TryGetValue(SynergyType.Elysium, out int elysiumCount) && elysiumCount >= 2 && !HasOtherActiveFactionSynergies(SynergyType.Elysium))
-                {
-                    totalBonus += 0.25f;
-                }
-            }
 
             // [특성 훈련소 파츠] 다중 재능 연합기 & 단일 특성 집중기 보너스
             totalBonus += GetTraitTrainingCampStatMultiplier();

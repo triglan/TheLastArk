@@ -137,12 +137,12 @@ namespace TheLastArk.UI
                                           ResourceManager.Instance.HasRelicEffect(RelicEffectType.ShopFirstLegendary);
 
             List<RelicData> unownedLegendary = allRelics
-                .Where(r => r != null && r.rarity == RelicRarity.Legendary && (ResourceManager.Instance == null || !ResourceManager.Instance.HasRelic(r.relicID)))
+                .Where(r => r != null && r.rarity == RelicRarity.Legendary && (ResourceManager.Instance == null || ResourceManager.Instance.CanAcquireRelic(r)))
                 .OrderBy(x => Random.value)
                 .ToList();
 
             List<RelicData> unownedCommon = allRelics
-                .Where(r => r != null && r.rarity == RelicRarity.Common && (ResourceManager.Instance == null || !ResourceManager.Instance.HasRelic(r.relicID)))
+                .Where(r => r != null && r.rarity == RelicRarity.Common && (ResourceManager.Instance == null || ResourceManager.Instance.CanAcquireRelic(r)))
                 .OrderBy(x => Random.value)
                 .ToList();
 

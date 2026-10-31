@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_ShadowVeil
   relicName: "\uADF8\uB9BC\uC790 \uBCA0\uC77C"
-  description: "\uC554\uC0B4\uC790 \uC544\uAD70\uC774 \uC801\uC744 \uCC98\uCE58\uD558\uBA74
-    \uD589\uB3D9\uB825\uC744 3 \uD68C\uBCF5\uD569\uB2C8\uB2E4."
+  description: "\uC554\uC0B4\uC790 \uC18C\uC18D\uC774 \uACF5\uACA9 \uC2A4\uD0AC 1\uD68C\uB85C \uC801\uC744 \uCC98\uCE58\uD558\uBA74 \uC77C\uBC18 D6 1\uAC1C."
   icon: {fileID: 0}
   rarity: 1
   effectType: 52

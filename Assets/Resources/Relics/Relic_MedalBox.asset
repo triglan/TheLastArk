@@ -14,11 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_MedalBox
   relicName: "\uD6C8\uC7A5\uD568"
-  description: "\uD65C\uC131\uD654\uB41C \uC2DC\uB108\uC9C0\uAC00 4\uAC1C \uC774\uC0C1\uC77C
-    \uB54C, \uBAA8\uB4E0 \uC544\uAD70\uC758 \uCCB4\uB825, \uACF5\uACA9\uB825, \uC8FC\uBB38\uB825
-    +20%"
+  description: "\uD65C\uC131 \uC2DC\uB108\uC9C0\uAC00 4\uC885 \uC774\uC0C1\uC774\uBA74 \uBAA8\uB4E0 \uC544\uAD70 \uCD5C\uB300 \uCCB4\uB825\u00B7\uACF5\uACA9\uB825\u00B7\uC8FC\uBB38\uB825 +20%."
   icon: {fileID: 0}
-  rarity: 1
+  rarity: 0
   effectType: 19
   effectValue: 0.2
   targetSynergy: 0

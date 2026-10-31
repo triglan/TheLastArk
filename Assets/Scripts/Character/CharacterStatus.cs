@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
@@ -107,20 +107,95 @@ public class CharacterStatus : ISerializationCallbackReceiver
         }
     }
 
-    public float FinalMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + GetSynergyHpMultiplier() + TrainBonusHpMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
+    public float FinalMaxHp => Mathf.Max(0f, BaseMaxHp * (1f + EquipmentPercent(e => e.bonusHpPercent)));
+    private float BaseMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + GetSynergyHpMultiplier() + TrainBonusHpMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
     public float FinalMaxMental => origin != null ? (origin.maxMental * (1 + GetMultiplier() + GetSynergyMentalMultiplier() + TrainBonusMentalMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental;
     public float AttackStatusModifier => GetStatusValue(EffectType.Strength) - GetStatusValue(EffectType.Weakness);
     public float SpellPowerStatusModifier => GetStatusValue(EffectType.Amplification) - GetStatusValue(EffectType.Frailty);
     public float ArmorStatusModifier => GetStatusValue(EffectType.Protection) - GetStatusValue(EffectType.Vulnerable);
     public float MagicResistStatusModifier => GetStatusValue(EffectType.MagicGuard) - GetStatusValue(EffectType.Corrosion);
 
-    public float FinalAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + GetSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier)) + AttackStatusModifier + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : AttackStatusModifier + bonusAttack + EquipmentBonusAttack;
-    public float FinalSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + GetSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + SpellPowerStatusModifier + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : SpellPowerStatusModifier + EquipmentBonusSpellPower;
+    public float FinalAttack => Mathf.Max(0f, (AttackCore + SpellbladeBonus(true)) * (1f + EquipmentPercent(e => e.bonusAttackPercent) + turnAttackSpellPercent));
+    public float FinalSpellPower => Mathf.Max(0f, (SpellCore + SpellbladeBonus(false)) * (1f + EquipmentPercent(e => e.bonusSpellPowerPercent) + turnAttackSpellPercent));
+    public float FinalArmor => Mathf.Max(0f, PatternArmorOverride ?? (RawArmor + AdaptiveShieldBonus(true)) * (1f + EquipmentPercent(e => e.bonusArmorPercent)));
+    public float FinalMagicResist => Mathf.Max(0f, RawMagicResist + AdaptiveShieldBonus(false));
+
+    // ── equipment unique effects (each counted once even with two copies) ──
+    [Tooltip("자율주행 도우미 로봇: 이번 턴 공격력·주문력 증가 (0.3 = +30%)")]
+    public float turnAttackSpellPercent;
+
+    [Tooltip("탐욕의 관: 전투 시작 시점 골드 (-1 = 현재 골드)")]
+    public int greedGoldSnapshot = -1;
+
+    public bool HasEquipment(string equipmentId)
+    {
+        EnsureEquipmentSlots();
+        foreach (var item in equippedItems)
+            if (item != null && item.equipmentID == equipmentId) return true;
+        return false;
+    }
+
+    private float EquipmentPercent(System.Func<TheLastArk.Data.EquipmentData, float> pick)
+    {
+        EnsureEquipmentSlots();
+        float total = 0f;
+        for (int i = 0; i < equippedItems.Length; i++)
+        {
+            var item = equippedItems[i];
+            if (item == null) continue;
+            bool duplicate = false;
+            for (int j = 0; j < i; j++) duplicate |= equippedItems[j] != null && equippedItems[j].equipmentID == item.equipmentID;
+            if (!duplicate) total += pick(item);
+        }
+        return total;
+    }
+
+    private float GreedBonus => HasEquipment("GreedCrown")
+        ? Mathf.Floor(Mathf.Max(0, greedGoldSnapshot >= 0 ? greedGoldSnapshot
+            : TheLastArk.Managers.ResourceManager.IsInitialized ? TheLastArk.Managers.ResourceManager.Instance.Gold : 0) / 100f)
+        : 0f;
+
+    /// <summary>Attack before 마검사: base + 흑요석 방패 (40% DEF) + 거인의 갑옷 (10% max HP) + 탐욕의 관.</summary>
+    private float AttackCore => RawAttack
+        + (HasEquipment("ObsidianShield") ? Mathf.Floor(FinalArmor * 0.4f) : 0f)
+        + (HasEquipment("GiantArmor") ? Mathf.Floor(FinalMaxHp * 0.1f) : 0f)
+        + GreedBonus;
+
+    /// <summary>Spell power before 마검사: base + 별의 완드 (8% max sanity) + 심판자의 목걸이 (10% max HP) + 탐욕의 관.</summary>
+    private float SpellCore => RawSpellPower
+        + (HasEquipment("StarWand") ? Mathf.Floor(FinalMaxMental * 0.08f) : 0f)
+        + (HasEquipment("JudicatorNecklace") ? Mathf.Floor(FinalMaxHp * 0.1f) : 0f)
+        + GreedBonus;
+
+    private const float SpellbladeAmount = 9f;
+    private const float AdaptiveShieldAmount = 7f;
+
+    /// <summary>룬 대검 마검사: +9 to the higher of ATK / SP (excluding itself; tie → ATK).</summary>
+    private float SpellbladeBonus(bool attack)
+    {
+        if (!HasEquipment("RuneGreatsword")) return 0f;
+        bool attackHigher = AttackCore >= SpellCore;
+        return attack == attackHigher ? SpellbladeAmount : 0f;
+    }
+
+    /// <summary>룬 실드 적응형: +7 to the lower of DEF / MRES (excluding itself; tie → DEF).</summary>
+    private float AdaptiveShieldBonus(bool armor)
+    {
+        if (!HasEquipment("RuneShield")) return 0f;
+        bool armorLower = RawArmor <= RawMagicResist;
+        return armor == armorLower ? AdaptiveShieldAmount : 0f;
+    }
+
+    private float RawAttack => origin != null ? (origin.baseAttack * (1 + GetMultiplier() + GetSynergyAttackMultiplier() + TrainBonusAttackMultiplier + CombatEnhancementMultiplier)) + AttackStatusModifier + bonusAttack + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusAttack) + EquipmentBonusAttack + MegalithShieldBonusAttack : AttackStatusModifier + bonusAttack + EquipmentBonusAttack;
+    private float RawSpellPower => origin != null ? (origin.spellPower * (1 + GetMultiplier() + GetSynergySpellPowerMultiplier() + TrainBonusSpellPowerMultiplier + CombatEnhancementMultiplier)) + SpellPowerStatusModifier + EquipmentBonusSpellPower + MegalithShieldBonusSpellPower : SpellPowerStatusModifier + EquipmentBonusSpellPower;
     // Pattern-driven forms set an exact armor value until their next transition.
     public float? PatternArmorOverride { get; set; }
-    public float FinalArmor => PatternArmorOverride ?? (origin != null ? (origin.armor * (1 + GetMultiplier())) + ArmorStatusModifier + EquipmentBonusArmor : ArmorStatusModifier + EquipmentBonusArmor);
-    public float FinalMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + MagicResistStatusModifier + EquipmentBonusMagicResist : MagicResistStatusModifier + EquipmentBonusMagicResist;
-    public float FinalCritRate => origin != null ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus : EquipmentBonusCritRate;
+    private float RawArmor => origin != null ? (origin.armor * (1 + GetMultiplier())) + ArmorStatusModifier + EquipmentBonusArmor : ArmorStatusModifier + EquipmentBonusArmor;
+    private float RawMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + MagicResistStatusModifier + EquipmentBonusMagicResist : MagicResistStatusModifier + EquipmentBonusMagicResist;
+    public float FinalCritRate => Mathf.Min(MaxCritRate, origin != null
+        ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus + (CanUsePlayerSynergy() ? TheLastArk.Character.SynergyEffects.CritBonus(this) : 0f)
+        : EquipmentBonusCritRate);
+    public const float MaxCritRate = 100f;
 
     public bool HasSynergy(TheLastArk.Data.SynergyType type)
     {
@@ -140,7 +215,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
             
             if (origin.baseAttack >= origin.spellPower)
             {
-                return FinalMaxHp * 0.10f;
+                return Mathf.Floor(FinalMaxHp * 0.10f);
             }
             return 0f;
         }
@@ -156,7 +231,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
             
             if (origin.spellPower > origin.baseAttack)
             {
-                return FinalMaxHp * 0.10f;
+                return Mathf.Floor(FinalMaxHp * 0.10f);
             }
             return 0f;
         }
@@ -169,16 +244,27 @@ public class CharacterStatus : ISerializationCallbackReceiver
             if (origin == null || origin.isEnemy) return 0f;
             if (TheLastArk.Managers.ResourceManager.Instance == null || !TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.AllianceCrest)) return 0f;
             
-            if (HasSynergy(TheLastArk.Data.SynergyType.Assassin) || HasSynergy(TheLastArk.Data.SynergyType.Ranger) || HasSynergy(TheLastArk.Data.SynergyType.Mage))
-            {
-                return 10f;
-            }
+            // 연합의 문장 no longer grants crit (now: sanity at turn start, see BattleManager.Relics).
             return 0f;
         }
     }
 
+    [Tooltip("디버그/데이터용 스킬 강화 단계 강제 (0/1/2, -1 = 카드 수 기준)")]
+    public int skillUpgradeOverride = -1;
+    [Tooltip("디버그/데이터용 패시브 개화 강제 (1 = 개화, 0 = 미개화, -1 = 카드 수 기준)")]
+    public int traitBloomOverride = -1;
+
     public bool IsTraitUnlocked => charLevel >= 1;
-    public bool IsTraitAwakened => charLevel >= 4;
+    public bool IsTraitAwakened => traitBloomOverride >= 0 ? traitBloomOverride == 1 : charLevel >= 4;
+
+    /// <summary>The passive's numbers for its trait: levels[1] when bloomed, otherwise levels[0].</summary>
+    public EffectEntry GetPassiveEntry(PassiveTrait trait)
+    {
+        SkillInfo passive = origin != null ? origin.passiveSkill : null;
+        if (trait == PassiveTrait.None || passive == null || passive.passiveTrait != trait || passive.levels == null || passive.levels.Length == 0) return null;
+        SkillLevelData level = passive.levels[Mathf.Clamp(IsTraitAwakened ? 1 : 0, 0, passive.levels.Length - 1)];
+        return level?.effects != null && level.effects.Count > 0 ? level.effects[0] : null;
+    }
 
     public string LevelTitle => charLevel switch
     {
@@ -206,25 +292,25 @@ public class CharacterStatus : ISerializationCallbackReceiver
 
     private float GetSynergyHpMultiplier()
     {
-        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyHpMultiplier() : 0f;
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyHpMultiplier() + TheLastArk.Character.SynergyEffects.HpBonus(this) : 0f;
     }
 
     private float GetSynergyMentalMultiplier()
     {
-        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyMentalMultiplier() : 0f;
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyMentalMultiplier() + TheLastArk.Character.SynergyEffects.MentalBonus(this) : 0f;
     }
 
     private float GetSynergyAttackMultiplier()
     {
-        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyAttackMultiplier() : 0f;
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergyAttackMultiplier() + TheLastArk.Character.SynergyEffects.AttackBonus(this) : 0f;
     }
 
     private float GetSynergySpellPowerMultiplier()
     {
-        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergySpellPowerMultiplier() : 0f;
+        return CanUsePlayerSynergy() ? TheLastArk.Character.SynergyCalculator.GetTotalSynergySpellPowerMultiplier() + TheLastArk.Character.SynergyEffects.SpellPowerBonus(this) : 0f;
     }
 
-    public int SkillLevelIndex => charLevel switch
+    public int SkillLevelIndex => skillUpgradeOverride >= 0 ? Mathf.Clamp(skillUpgradeOverride, 0, 2) : charLevel switch
     {
         0 => 0,
         1 => 0,
@@ -379,16 +465,63 @@ public class CharacterStatus : ISerializationCallbackReceiver
         return GetStatusValue(type) * 0.01f;
     }
 
+    /// <summary>Effective value of all active instances: largest for max-type effects, sum otherwise.</summary>
     public float GetStatusValue(EffectType type)
     {
+        bool max = TheLastArk.Battle.StatusRules.IsMaxType(type);
         float total = 0f;
         for (int i = 0; i < activeStatusEffects.Count; i++)
         {
             ActiveStatusEffect effect = activeStatusEffects[i];
-            if (effect != null && effect.effectType == type && effect.IsActive)
-                total += effect.damagePerTurn;
+            if (effect == null || effect.effectType != type || !effect.IsActive) continue;
+            total = max ? Mathf.Max(total, effect.damagePerTurn) : total + effect.damagePerTurn;
         }
         return total;
+    }
+
+    /// <summary>Decrements turn-based effects at this side's turn end (round-end DoTs tick elsewhere).</summary>
+    public void TickSideTurnEnd()
+    {
+        for (int i = activeStatusEffects.Count - 1; i >= 0; i--)
+        {
+            ActiveStatusEffect effect = activeStatusEffects[i];
+            if (effect == null) { activeStatusEffects.RemoveAt(i); continue; }
+            if (ResolveDurationType(effect.effectType, effect.durationType) != StatusDurationType.Turns
+                || TheLastArk.Battle.StatusRules.TicksAtRoundEnd(effect.effectType)) continue;
+            effect.remainingTurns--;
+            if (effect.remainingTurns <= 0) activeStatusEffects.RemoveAt(i);
+        }
+    }
+
+    /// <summary>One line per effect type: final value, and the instance breakdown for hover.</summary>
+    public List<(EffectType type, string summary, string breakdown)> GetStatusSummaries()
+    {
+        var result = new List<(EffectType, string, string)>();
+        var seen = new HashSet<EffectType>();
+        foreach (ActiveStatusEffect effect in activeStatusEffects)
+        {
+            if (effect == null || !effect.IsActive || !seen.Add(effect.effectType)) continue;
+            EffectType type = effect.effectType;
+            var parts = new List<string>();
+            int count = 0;
+            foreach (ActiveStatusEffect instance in activeStatusEffects)
+            {
+                if (instance == null || instance.effectType != type || !instance.IsActive) continue;
+                count++;
+                parts.Add(instance.damagePerTurn > 0f
+                    ? $"{instance.damagePerTurn:0.##} ({instance.GetDurationText()})"
+                    : instance.GetDurationText());
+            }
+            float value = GetStatusValue(type);
+            string name = ActiveStatusEffect.GetDisplayName(type);
+            string summary = value > 0f ? $"{name} {Mathf.Floor(value + 1e-4f):0}" : $"{name} · {effect.GetDurationText()}";
+            string rule = TheLastArk.Battle.StatusRules.IsMaxType(type) ? " (가장 큰 값 적용)" : "";
+            string breakdown = count > 1 && value > 0f
+                ? $"{summary} = {string.Join(" + ", parts)}{rule}"
+                : $"{name} {string.Join(", ", parts)}";
+            result.Add((type, summary, breakdown));
+        }
+        return result;
     }
 
     public void ConsumeStatusCharge(EffectType type)
@@ -407,26 +540,31 @@ public class CharacterStatus : ISerializationCallbackReceiver
     public void ApplyStatusEffect(EffectType type, float value, int turns, float secondaryValue, int charges, int skillSlot, BattleCharacter source, StatusDurationType requestedDuration)
     {
         StatusDurationType duration = ResolveDurationType(type, requestedDuration);
-        var existing = activeStatusEffects.Find(e => e != null && e.effectType == type
-            && e.durationType == duration && (type != EffectType.Blockade || e.skillSlot == skillSlot));
+        var stacking = TheLastArk.Battle.StatusRules.Stacking(type);
+        // Each application is its own instance, except time-only / count effects (max refresh) and 반사 (ratios summed).
+        ActiveStatusEffect existing = stacking == TheLastArk.Battle.StatusStacking.Instance ? null
+            : activeStatusEffects.Find(e => e != null && e.effectType == type && e.IsActive
+                && (type != EffectType.Blockade || e.skillSlot == skillSlot));
         if (existing == null)
         {
             existing = new ActiveStatusEffect(type, value, turns, duration);
+            existing.remainingCharges = charges;
             activeStatusEffects.Add(existing);
         }
         else
         {
             existing.remainingTurns = Mathf.Max(existing.remainingTurns, turns);
             existing.remainingCharges = Mathf.Max(existing.remainingCharges, charges);
-            existing.damagePerTurn = IsFixedStatModifier(type) || type == EffectType.Poison
+            existing.damagePerTurn = stacking == TheLastArk.Battle.StatusStacking.ReflectMerge
                 ? existing.damagePerTurn + value
                 : Mathf.Max(existing.damagePerTurn, value);
+            if (duration == StatusDurationType.Permanent) existing.durationType = duration;
         }
 
         if (existing.displayIcon == null) existing.displayIcon = IconLibrary.FindIcon(type);
         existing.secondaryValue = secondaryValue;
-        existing.remainingCharges = Mathf.Max(existing.remainingCharges, charges);
         existing.skillSlot = skillSlot;
+        // A new protector / taunter source replaces the old one.
         existing.source = source;
     }
 
@@ -443,14 +581,6 @@ public class CharacterStatus : ISerializationCallbackReceiver
         if (type == EffectType.Taunt || type == EffectType.Counter || type == EffectType.Guard || type == EffectType.Reflect)
             return StatusDurationType.Charges;
         return StatusDurationType.Turns;
-    }
-
-    private static bool IsFixedStatModifier(EffectType type)
-    {
-        return type == EffectType.Strength || type == EffectType.Weakness
-            || type == EffectType.Amplification || type == EffectType.Frailty
-            || type == EffectType.Protection || type == EffectType.Vulnerable
-            || type == EffectType.MagicGuard || type == EffectType.Corrosion;
     }
 
     public void RemoveAllStatusEffects()

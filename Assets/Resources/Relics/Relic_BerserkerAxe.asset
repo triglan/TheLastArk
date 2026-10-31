@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_BerserkerAxe
   relicName: "\uAD11\uC804\uC0AC\uC758 \uB3C4\uB07C"
-  description: "\uC804\uC0AC \uC544\uAD70\uC774 \uC801\uC5D0\uAC8C \uC8FC\uB294 \uCCB4\uB825
-    \uD53C\uD574\uC758 15%\uB9CC\uD07C \uCCB4\uB825\uC744 \uD68C\uBCF5\uD569\uB2C8\uB2E4."
+  description: "\uC804\uC0AC \uC18C\uC18D \uACF5\uACA9 \uC2A4\uD0AC\uC774 \uC900 \uC2E4\uC81C \uCCB4\uB825 \uD53C\uD574 \uD569\uC758 15%\uB9CC\uD07C \uC790\uC2E0 \uD68C\uBCF5."
   icon: {fileID: 0}
   rarity: 1
   effectType: 51

@@ -14,11 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_UnityBanner
   relicName: "\uD654\uD569\uC758 \uAE43\uBC1C"
-  description: "\uD65C\uC131\uD654\uB41C \uC2DC\uB108\uC9C0\uAC00 \uC5C6\uC744 \uB54C,
-    \uBAA8\uB4E0 \uC544\uAD70\uC758 \uCCB4\uB825, \uC815\uC2E0\uB825 +40%, \uD589\uB3D9\uB825
-    +4"
+  description: "\uD65C\uC131 \uC2DC\uB108\uC9C0\uAC00 0\uC885\uC774\uBA74 \uBAA8\uB4E0 \uC544\uAD70 \uCD5C\uB300 \uCCB4\uB825\u00B7\uCD5C\uB300 \uC815\uC2E0\uB825 +40%, \uD134 \uC2DC\uC791\uC5D0 \uC77C\uBC18 D6 2\uAC1C \uCD94\uAC00."
   icon: {fileID: 0}
-  rarity: 1
+  rarity: 0
   effectType: 20
   effectValue: 0.4
   targetSynergy: 0

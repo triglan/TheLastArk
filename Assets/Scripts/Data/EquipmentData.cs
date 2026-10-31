@@ -43,6 +43,17 @@ namespace TheLastArk.Data
         public float bonusCritRate = 0f; // % 단위 (10 -> 10%)
         public int bonusAP = 0;
 
+        [Header("% 능력치 (고유 효과, 같은 장비 2개여도 1번만)")]
+        [Tooltip("0.2 = +20%, -0.25 = -25% (최종 수치에 곱함)")]
+        public float bonusAttackPercent = 0f;
+        public float bonusSpellPowerPercent = 0f;
+        public float bonusHpPercent = 0f;
+        public float bonusArmorPercent = 0f;
+
+        [Header("특수 장비")]
+        [Tooltip("강화·합성 불가, 같은 특수 장비는 파티 전체 1개만 장착")]
+        public bool isSpecial = false;
+
         [Header("3성 장비 고유 패시브 효과")]
         public string passiveSkillName = "";
         [TextArea(2, 4)]

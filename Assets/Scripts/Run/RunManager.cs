@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
@@ -208,6 +208,8 @@ public class RunManager : MonoBehaviour
         State.Reset();
         CurrentEncounter = null;
         CurrentEncounterPool = null;
+        if (TheLastArk.Managers.TrainManager.IsInitialized)
+            TheLastArk.Managers.TrainManager.Instance.ResetOriginPartsForNewRun();
 
         if (TheLastArk.Managers.ResourceManager.IsInitialized)
             TheLastArk.Managers.ResourceManager.Instance.NotifyGoldChanged();

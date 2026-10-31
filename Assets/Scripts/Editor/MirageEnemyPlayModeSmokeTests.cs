@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine.TestTools;
 
 public class MirageEnemyPlayModeSmokeTests
@@ -90,7 +90,7 @@ public class MirageEnemyPlayModeSmokeTests
             tests.Cleanup();
             tests.DevourerTracksItsOwnShieldDamageAndRejectsVictimDamage();
             tests.Cleanup();
-            tests.LastHitBleedIsSkippedWhenCounterInterruptsTheCombo();
+            tests.CounterResolvesAfterTheWholeCombo();
         }
         catch (System.Exception exception) { failure = exception; }
         finally { tests.Cleanup(); }

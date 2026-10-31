@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_Badge_Arcadia
   relicName: "\uC544\uB974\uCE74\uB514\uC544\uC758 \uC99D\uD45C"
-  description: "\uCE68\uBB35\uC758 \uC544\uB974\uCE74\uB514\uC544 \uC2DC\uB108\uC9C0\uAC00
-    1 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  description: "\uD574\uB2F9 \uC2DC\uB108\uC9C0 \uC778\uC6D0 +1 (\uAC19\uC740 \uC99D\uD45C\uB294 \uCD5C\uB300 2\uAC1C\uAE4C\uC9C0 \uD569\uC0B0)."
   icon: {fileID: 0}
   rarity: 0
   effectType: 18

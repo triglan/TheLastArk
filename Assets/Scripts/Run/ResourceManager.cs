@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using TheLastArk.Data;
@@ -117,14 +117,25 @@ namespace TheLastArk.Managers
         }
 
         // --- Relics ---
+        /// <summary>시너지 증표는 같은 것을 2개까지 보유할 수 있습니다.</summary>
+        public const int MaxSameBadges = 2;
+
+        public bool CanAcquireRelic(RelicData data)
+        {
+            if (data == null) return false;
+            if (data.effectType == RelicEffectType.SynergyBadge)
+                return Relics.FindAll(r => r != null && r.relicID == data.relicID).Count < MaxSameBadges;
+            return !HasRelic(data.relicID);
+        }
+
         public void AddRelic(RelicData data)
         {
-            if (data == null) return;
-            if (!HasRelic(data.relicID))
-            {
-                Relics.Add(data);
-                OnRelicsChanged?.Invoke();
-            }
+            if (!CanAcquireRelic(data)) return;
+            Relics.Add(data);
+            OnRelicsChanged?.Invoke();
+            // [암호 해독기] 획득 시 장착한 선택 칸 1개를 골라 강화 레벨 +1
+            if (data.effectType == RelicEffectType.CommLevelBonus && TrainManager.IsInitialized)
+                TrainManager.Instance.ApplyDecoderUpgrade();
         }
 
         public void AddRelic(string relicID)

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using TheLastArk.Managers;
 
@@ -249,6 +249,7 @@ public static class EnemyActionExecutor
         slot.AssignAndInitialize(candidates[Random.Range(0, candidates.Count)]);
         BattleCharacter summoned = slot.BattleCharacterComponent;
         if (!manager.enemyParty.Contains(summoned)) manager.enemyParty.Add(summoned);
+        manager.TrackPanic(summoned);
         EnemyAI ai = summoned.GetComponent<EnemyAI>();
         ai.allyParty = manager.enemyParty;
         ai.targetParty = manager.playerParty;

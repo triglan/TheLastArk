@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TheLastArk.Data;
 using UnityEngine;
 
@@ -99,7 +99,7 @@ namespace TheLastArk.Managers
         {
             if (!EquipmentLoadouts.CanConsumePair(Equipments, first, second, out reason)) return false;
             if (EquipmentDatabase.GetSynthesisCandidates(Equipments[first], Equipments[second]).Count == 0)
-            { reason = "같은 등급·계열의 1~2성 장비 두 개가 필요합니다."; return false; }
+            { reason = "같은 1~2성 일반 장비 두 개가 필요합니다 (특수 장비는 합성 불가)."; return false; }
             if (!CanAfford(SynthesisCost)) { reason = "합성 비용 50 G가 부족합니다."; return false; }
             return true;
         }

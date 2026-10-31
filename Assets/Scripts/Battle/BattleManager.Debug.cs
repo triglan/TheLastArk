@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using TheLastArk.UI;
 using TheLastArk.Battle;
@@ -12,14 +12,14 @@ public partial class BattleManager
 
     public bool DebugApplyPanic(BattleCharacter ally, PanicType type)
     {
-        if (type < PanicType.SelfLoathing || type > PanicType.Compulsion) return false;
+        if (type < PanicType.Hallucination || type > PanicType.Agitation) return false;
         return DebugSetPanicState(ally, type);
     }
 
     public bool DebugRollPanic(BattleCharacter ally)
     {
         if (!CanDebugPanic(ally)) return false;
-        return DebugSetPanicState(ally, (PanicType)Random.Range(1, 7));
+        return DebugSetPanicState(ally, PanicState.Roll());
     }
 
     public bool DebugClearPanic(BattleCharacter ally) => DebugSetPanicState(ally, PanicType.None);

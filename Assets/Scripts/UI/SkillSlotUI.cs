@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
@@ -14,10 +14,23 @@ namespace UI
         public TextMeshProUGUI nameText;
         public Button button;
 
+        private static readonly Color ReadyColor = new Color(0.55f, 0.95f, 1f);
+        private static readonly Color UsedColor = new Color(0.62f, 0.64f, 0.68f);
+        private static readonly Color NotEnoughDiceColor = new Color(1f, 0.78f, 0.4f);
+        private static readonly Color BlockedColor = new Color(1f, 0.6f, 0.55f);
+
         private SkillInfo currentSkill;
         private BattleCharacter currentActor;
         private BattleManager _battle;
         private GameObject _diceBorder;
+        private TextMeshProUGUI _frostPreview;
+
+        private static Color ReasonColor(string reason)
+        {
+            return reason == BattleManager.DiceReasonUsed ? UsedColor
+                : reason == BattleManager.DiceReasonNotEnoughDice ? NotEnoughDiceColor
+                : BlockedColor;
+        }
 
         private void OnEnable()
         {
@@ -51,6 +64,33 @@ namespace UI
                 }
             }
             if (_diceBorder != null) _diceBorder.SetActive(visible);
+            UpdateFrostPreview(dieId);
+        }
+
+        /// <summary>냉기: the held die shows its reduced input value on this character's slot (storage keeps the original).</summary>
+        private void UpdateFrostPreview(int dieId)
+        {
+            string preview = dieId >= 0 && _battle != null ? _battle.GetDiePreviewText(dieId, currentActor) : null;
+            bool show = preview != null;
+            if (show && _frostPreview == null)
+            {
+                var labelObject = new GameObject("FrostPreview", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+                labelObject.transform.SetParent(transform, false);
+                labelObject.GetComponent<LayoutElement>().ignoreLayout = true;
+                _frostPreview = labelObject.GetComponent<TextMeshProUGUI>();
+                var rect = _frostPreview.rectTransform;
+                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
+                rect.sizeDelta = new Vector2(140f, 22f);
+                rect.anchoredPosition = new Vector2(0f, 12f);
+                _frostPreview.fontSize = 15f;
+                _frostPreview.alignment = TextAlignmentOptions.Center;
+                _frostPreview.color = new Color(0.6f, 0.86f, 1f);
+                _frostPreview.raycastTarget = false;
+                _frostPreview.font = TMPFontManager.MainKoreanFont;
+            }
+            if (_frostPreview == null) return;
+            _frostPreview.gameObject.SetActive(show);
+            if (show) _frostPreview.text = preview;
         }
 
         private void AutoFindComponents()
@@ -125,15 +165,18 @@ namespace UI
                     if (manager != null && manager.UsesDice)
                     {
                         string condition = rule?.ShortLabel() ?? "1개 · 자유";
-                        if (rule != null && rule.chargeTarget > 0)
-                            condition += $" · {manager.GetDiceCharge(actor, skill)}/{rule.chargeTarget}";
+                        bool chargeReady = rule != null && rule.IsCharge && manager.IsChargeReady(actor, skill);
+                        int usesPerTurn = manager.GetSkillUsesPerTurn(actor, skill);
+                        if (usesPerTurn > 1) condition += $" · {manager.GetSkillUsesThisTurn(actor, skill)}/{usesPerTurn}회";
+                        if (rule != null && rule.IsCharge)
+                            condition += chargeReady ? " · 준비 완료" : $" · 충전 {manager.GetDiceCharge(actor, skill)}/{rule.chargeTarget}";
                         string reason = manager.GetDiceSkillUnavailableReason(actor, skill);
                         // Full restrictions stay in the hover detail; the card keeps a readable short status.
                         string shortReason = reason;
                         int separator = reason?.IndexOf('·') ?? -1;
                         if (separator >= 0) shortReason = reason.Substring(0, separator).Trim();
                         costText.text = reason == null ? condition : $"{condition}\n{shortReason}";
-                        costText.color = reason == null ? Color.white : new Color(1f, 0.6f, 0.55f);
+                        costText.color = reason == null ? (chargeReady ? ReadyColor : Color.white) : ReasonColor(reason);
                         costText.enableAutoSizing = true;
                         costText.fontSizeMin = 12;
                         costText.fontSizeMax = 14;

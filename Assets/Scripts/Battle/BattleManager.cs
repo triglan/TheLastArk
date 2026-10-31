@@ -8,11 +8,16 @@ using TheLastArk.Managers;
 using TheLastArk.Battle;
 using TheLastArk.Data;
 using TheLastArk.Skills;
+using TheLastArk.Character;
 
 public partial class BattleManager : MonoBehaviour
 {
     private const string SkillFirstTargetingKey = "Battle.SkillFirstTargeting";
     private const string AutoEndDiceTurnKey = "Battle.AutoEndDiceTurn";
+    public const string DiceReasonUsed = "사용 완료";
+    public const string DiceReasonNotEnoughDice = "주사위 부족";
+    public const string DiceReasonConditionMismatch = "눈 조건 불충족";
+    public const string DiceReasonStorageFull = "보관함 부족";
 
     public static bool AutoEndDiceTurn
     {
@@ -64,9 +69,6 @@ public partial class BattleManager : MonoBehaviour
     private int _lastTurnEndClickFrame = -1;
     private bool _hasUsedFirstSkillInBattle = false;
     private bool _turnEndButtonListenerBound;
-    private int _blueTowerSkillUses = 0;
-    private int _cheongwoonApSpent = 0;
-    private int _archiumInventionStep = 0;
     private int _carriedOverAP = 0;
     private int _nextTurnLockedAP = 0;
     private bool _overloadedThisTurn = false;
@@ -77,9 +79,20 @@ public partial class BattleManager : MonoBehaviour
     private readonly List<int> _selectedDiceIds = new List<int>();
     private SkillInfo _pendingDiceSkill;
     private BattleCharacter _pendingDiceActor;
-    private readonly HashSet<(BattleCharacter, SkillInfo)> _usedDiceSkills = new HashSet<(BattleCharacter, SkillInfo)>();
+    private readonly Dictionary<(BattleCharacter, SkillInfo), int> _diceSkillUses = new Dictionary<(BattleCharacter, SkillInfo), int>();
+    private readonly Dictionary<(BattleCharacter, SkillInfo), int> _firstUseInput = new Dictionary<(BattleCharacter, SkillInfo), int>();
+    private readonly HashSet<BattleCharacter> _offenseDefenseUsed = new HashSet<BattleCharacter>();
+    private readonly Dictionary<BattleCharacter, int> _attackFires = new Dictionary<BattleCharacter, int>();
+    private readonly Dictionary<BattleCharacter, List<BattleCharacter>> _huntMarks = new Dictionary<BattleCharacter, List<BattleCharacter>>();
+    private SkillCast _pendingCast;
+    private const int SkillExhausted = int.MaxValue / 2;
+    private const int UnityBannerDice = 2;
     private readonly Dictionary<(BattleCharacter, SkillInfo), int> _diceCharge = new Dictionary<(BattleCharacter, SkillInfo), int>();
     private BattleDiceUI _diceUI;
+    private OriginPartBalanceConfig _originBalance;
+    private int _parasiticStacks;
+    private int _manipulateUsesLeft;
+    private int _rerollUsesLeft;
 
     private int _gambleRolledAP = -1;
     private int _limitRolledAP = -1;
@@ -98,6 +111,11 @@ public partial class BattleManager : MonoBehaviour
         && TheLastArk.Data.NexusModuleDatabase.GetModule(TheLastArk.Managers.TrainManager.Instance.nexusCar.installedModuleId)?.moduleId
             == TheLastArk.Data.NexusModuleDatabase.OriginId;
     public BattleConfig Config => battleConfig;
+    /// <summary>The running battle (set in Start, cleared on destroy).</summary>
+    public static BattleManager Active { get; private set; }
+
+    /// <summary>True from battle scene setup until the battle ends; train edits are blocked meanwhile.</summary>
+    public bool IsBattleOngoing => _currentPhase != BattlePhase.BattleEnd;
 
     public bool CanUseDiceSkill(BattleCharacter actor, SkillInfo skill)
     {
@@ -111,7 +129,7 @@ public partial class BattleManager : MonoBehaviour
         if (!UsesDice) return null;
         if (actor?.status == null || skill == null) return "사용 불가";
         if (actor.status.currentHp <= 0f) return "전투 불능";
-        if (_usedDiceSkills.Contains((actor, skill))) return "사용 완료";
+        if (IsSkillUsedUp(actor, skill)) return DiceReasonUsed;
         if (actor.status.GetStatus(EffectType.Stun) != null) return "기절";
         if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
             return "피로";
@@ -120,17 +138,22 @@ public partial class BattleManager : MonoBehaviour
             && e.IsActive && (e.skillSlot < 0 || e.skillSlot == slot))) return "봉쇄";
 
         DiceInputRule rule = GetDiceRule(skill, actor);
+        if (rule.IsCharge && IsChargeReady(actor, skill)) return null;
+        SkillLevelData skillLevel = GetSkillLevel(skill, actor);
+        if (skillLevel != null && skillLevel.special == SkillSpecial.SplitDie
+            && _dicePool.Dice.Count - 1 + Mathf.Max(1, skillLevel.specialCount) > ActionDicePool.MaxStoredDice)
+            return DiceReasonStorageFull;
         int matching = 0;
         int available = 0;
         foreach (ActionDie die in _dicePool.Dice)
         {
             if (!die.IsAvailable) continue;
             available++;
-            if (rule.AcceptsValue(die.Value)) matching++;
+            if (rule.AcceptsValue(GetDieInputValue(actor, die))) matching++;
         }
         int needed = Mathf.Max(1, rule.diceCount);
-        if (available < needed) return "주사위 부족";
-        if (matching < needed) return "눈 조건 불충족";
+        if (available < needed) return DiceReasonNotEnoughDice;
+        if (matching < needed) return DiceReasonConditionMismatch;
         return null;
     }
 
@@ -139,33 +162,296 @@ public partial class BattleManager : MonoBehaviour
         return _diceCharge.TryGetValue((actor, skill), out int charge) ? charge : 0;
     }
 
+    /// <summary>Charge reached its target and waits for a manual fire. Persists across turns.</summary>
+    public bool IsChargeReady(BattleCharacter actor, SkillInfo skill)
+    {
+        DiceInputRule rule = actor?.status != null ? GetDiceRule(skill, actor) : null;
+        return rule != null && rule.IsCharge && GetDiceCharge(actor, skill) >= rule.chargeTarget;
+    }
+
+    /// <summary>냉기 on a player character (largest instance, floored). Enemies are never affected.</summary>
+    public int GetFrost(BattleCharacter actor)
+    {
+        if (actor?.status?.origin == null || actor.status.origin.isEnemy) return 0;
+        return Mathf.FloorToInt(actor.status.GetStatusValue(EffectType.Frost) + 1e-4f);
+    }
+
+    /// <summary>Value used for input conditions: original 0 stays 0, otherwise max(1, actual − 냉기). On-use bonus never applies.</summary>
+    public int GetDieInputValue(BattleCharacter actor, ActionDie die)
+    {
+        if (die == null) return 0;
+        int frost = GetFrost(actor);
+        return die.Value == 0 || frost <= 0 ? die.Value : Mathf.Max(1, die.Value - frost);
+    }
+
+    /// <summary>Effect / sum-charge value: base (actual value, or face count for max-value effects) + on-use bonus − 냉기,
+    /// floored at 0 for an original 0 and at 1 otherwise.</summary>
+    public int GetDieEffectValue(BattleCharacter actor, ActionDie die, int onUseBonus, bool useMaxValue = false)
+    {
+        if (die == null) return 0;
+        int raw = (useMaxValue ? die.Faces : die.Value) + onUseBonus + SynergyEffects.AssassinDiceBonus(actor?.status) - GetFrost(actor);
+        if (PanicOf(actor) == PanicType.Depression) return Mathf.Max(0, raw) / 2;
+        return Mathf.Max(die.Value == 0 ? 0 : 1, raw);
+    }
+
+    /// <summary>Held-die preview for a frosted character's slot: storage value → input value.</summary>
+    public bool TryGetFrostPreview(int dieId, BattleCharacter actor, out int original, out int input)
+    {
+        ActionDie die = _dicePool.Find(dieId);
+        original = die?.Value ?? 0;
+        input = GetDieInputValue(actor, die);
+        return die != null && GetFrost(actor) > 0;
+    }
+
+    /// <summary>Slot preview text while a die is held: 냉기 (input value) and 우울 (halved effect value).</summary>
+    public string GetDiePreviewText(int dieId, BattleCharacter actor)
+    {
+        ActionDie die = _dicePool.Find(dieId);
+        if (die == null || actor?.status == null) return null;
+        if (PanicOf(actor) == PanicType.Depression)
+            return $"우울  {die.Value} → {GetDieEffectValue(actor, die, GetDiceOnUseBonus(actor, null))}";
+        return GetFrost(actor) > 0 ? $"냉기  {die.Value} → {GetDieInputValue(actor, die)}" : null;
+    }
+
+    private List<ActionDie> SelectedDice()
+    {
+        var dice = new List<ActionDie>(_selectedDiceIds.Count);
+        foreach (int id in _selectedDiceIds) dice.Add(_dicePool.Find(id));
+        return dice;
+    }
+
+    private int SumEffectValues(BattleCharacter actor, List<ActionDie> dice)
+    {
+        int total = 0;
+        foreach (ActionDie die in dice) total += GetDieEffectValue(actor, die, ConsumeDiceBoost(actor));
+        return total;
+    }
+
+    /// <summary>
+    /// Character on-use dice bonus for the next die (저쪽을 공격해!). Applies to effect calc and sum-type charge,
+    /// never to input conditions.
+    /// </summary>
+    public int GetDiceOnUseBonus(BattleCharacter actor, SkillInfo skill)
+    {
+        ActiveStatusEffect boost = actor?.status?.activeStatusEffects.Find(e => e != null && e.effectType == EffectType.DiceBoost
+            && e.IsActive && e.remainingCharges > 0);
+        return boost != null ? Mathf.FloorToInt(boost.damagePerTurn) : 0;
+    }
+
+    /// <summary>Uses one die's worth of the oldest on-use bonus; returns the bonus (0 when none).</summary>
+    private int ConsumeDiceBoost(BattleCharacter actor)
+    {
+        ActiveStatusEffect boost = actor?.status?.activeStatusEffects.Find(e => e != null && e.effectType == EffectType.DiceBoost
+            && e.IsActive && e.remainingCharges > 0);
+        if (boost == null) return 0;
+        boost.remainingCharges--;
+        if (boost.remainingCharges <= 0) actor.status.activeStatusEffects.Remove(boost);
+        return Mathf.FloorToInt(boost.damagePerTurn);
+    }
+
+    private SkillLevelData GetSkillLevel(SkillInfo skill, BattleCharacter actor)
+    {
+        if (skill?.levels == null || skill.levels.Length == 0 || actor?.status == null) return null;
+        return skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
+    }
+
+    private int UsesOf(BattleCharacter actor, SkillInfo skill) => _diceSkillUses.TryGetValue((actor, skill), out int uses) ? uses : 0;
+    public int GetSkillUsesThisTurn(BattleCharacter actor, SkillInfo skill) => Mathf.Min(UsesOf(actor, skill), GetSkillUsesPerTurn(actor, skill));
+    public int GetSkillUsesPerTurn(BattleCharacter actor, SkillInfo skill)
+        => Mathf.Max(Mathf.Max(1, GetSkillLevel(skill, actor)?.usesPerTurn ?? 1), EndlessCleaveUses(actor, skill));
+    private bool IsSkillUsedUp(BattleCharacter actor, SkillInfo skill) => UsesOf(actor, skill) >= GetSkillUsesPerTurn(actor, skill);
+    private void MarkSkillUsed(BattleCharacter actor, SkillInfo skill) => _diceSkillUses[(actor, skill)] = UsesOf(actor, skill) + 1;
+
+    /// <summary>
+    /// Dice and shield inputs for one actual fire: per die the input value (냉기) and effect value
+    /// (one on-use bonus consumed per die), S / T snapshots, and whether a 2nd use matches the 1st.
+    /// </summary>
+    private SkillCast BuildCast(BattleCharacter actor, SkillInfo skill, List<ActionDie> dice)
+    {
+        var cast = new SkillCast { SelfShield = actor.status.GetStatusValue(EffectType.Shield) };
+        foreach (BattleCharacter ally in playerParty)
+            if (ally?.status != null && ally.status.currentHp > 0f) cast.AllyShieldTotal += ally.status.GetStatusValue(EffectType.Shield);
+        bool maxValue = actor == _arcadiaMaxActor;
+        foreach (ActionDie die in dice)
+        {
+            cast.InputValues.Add(GetDieInputValue(actor, die));
+            int effectValue = GetDieEffectValue(actor, die, ConsumeDiceBoost(actor), maxValue);
+            cast.EffectValues.Add(effectValue);
+            if (die.Kind == DieKind.North) cast.NorthValues.Add(effectValue);
+        }
+        SkillLevelData level = GetSkillLevel(skill, actor);
+        cast.PhysicalDamageBonus = WarriorBonusFor(actor, level) + EndlessCleaveBonus(actor, skill) + GearPhysicalBonus(actor);
+        cast.FirstDie = dice.Count > 0 ? dice[0] : null;
+        ApplyTraitorBeforeAttack(actor, level, cast);
+        if (level != null && level.special == SkillSpecial.MatchSecondUse && cast.InputValues.Count > 0)
+        {
+            if (_firstUseInput.TryGetValue((actor, skill), out int first)) cast.MatchedSecondUse = cast.InputValues[0] == first;
+            else _firstUseInput[(actor, skill)] = cast.InputValues[0];
+        }
+        if (level != null && level.consumeSelfShield)
+            actor.status.activeStatusEffects.RemoveAll(e => e != null && e.effectType == EffectType.Shield);
+        return cast;
+    }
+
+    /// <summary>Self / all-target skills need no picked target.</summary>
+    private BattleCharacter AutoTargetFor(SkillInfo skill, BattleCharacter actor)
+    {
+        SkillLevelData level = GetSkillLevel(skill, actor);
+        if (level == null) return null;
+        switch (level.targetType)
+        {
+            case TargetType.Self:
+            case TargetType.AllFriendly:
+                return actor;
+            case TargetType.AllEnemy:
+                return enemyParty.Find(e => e != null && e.status != null && e.status.currentHp > 0f);
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// [연운·안개] Splits one die into the player's chosen values (same actual total, each ≥ 0). The original's kept
+    /// modifier moves to the chosen result die. Fails without consuming anything if storage would overflow.
+    /// </summary>
+    public bool TrySplitDie(BattleCharacter actor, SkillInfo skill, int dieId, IReadOnlyList<int> values, int modifierIndex)
+    {
+        if (!UsesDice || !IsPlayerTurn || actor?.status == null) return false;
+        SkillLevelData level = GetSkillLevel(skill, actor);
+        if (level == null || level.special != SkillSpecial.SplitDie || values == null || values.Count != Mathf.Max(2, level.specialCount)) return false;
+        if (GetDiceSkillUnavailableReason(actor, skill) != null) return false;
+        ActionDie die = _dicePool.Find(dieId);
+        if (die == null || !die.IsAvailable || !GetDiceRule(skill, actor).AcceptsValue(GetDieInputValue(actor, die))) return false;
+        if (!_dicePool.TrySplit(dieId, values, modifierIndex)) return false;
+        MarkSkillUsed(actor, skill);
+        CountActualSkillUse(actor);
+        LockCompulsion(actor, skill);
+        actor.status.lastUsedSkill = skill;
+        actor.ResolveActionStatusEffects();
+        _selectedDiceIds.Clear();
+        RefreshDiceUI();
+        RefreshSkillSlots();
+        return true;
+    }
+
+    /// <summary>
+    /// 사냥 표식 from a 가자 댕댕아! caster: keeps at most `charges` marks, replacing the oldest; marked enemies take
+    /// `value`% more direct HP damage from allies.
+    /// </summary>
+    public void ApplyHuntMark(BattleCharacter caster, BattleCharacter target)
+    {
+        EffectEntry passive = caster?.status?.GetPassiveEntry(PassiveTrait.HuntingMark);
+        if (passive == null || target?.status == null || target.status.currentHp <= 0f) return;
+        if (!_huntMarks.TryGetValue(caster, out var marks)) _huntMarks[caster] = marks = new List<BattleCharacter>();
+        marks.RemoveAll(m => m == null || m.status == null || m.status.currentHp <= 0f || m.status.GetStatus(EffectType.HuntMark) == null);
+        if (marks.Contains(target)) return;
+        while (marks.Count >= Mathf.Max(1, passive.charges))
+        {
+            BattleCharacter oldest = marks[0];
+            marks.RemoveAt(0);
+            oldest.status.activeStatusEffects.RemoveAll(e => e != null && e.effectType == EffectType.HuntMark && e.source == caster);
+            oldest.view?.UpdateVisual(oldest.status);
+        }
+        target.status.ApplyStatusEffect(EffectType.HuntMark, passive.value, 0, 0f, 0, -1, caster, StatusDurationType.Marker);
+        marks.Add(target);
+        target.view?.UpdateVisual(target.status);
+    }
+
+    /// <summary>Ally turn start: each 가자 댕댕아! caster marks a random unmarked enemy.</summary>
+    private void RefreshHuntMarks()
+    {
+        foreach (BattleCharacter ally in playerParty)
+        {
+            if (ally?.status == null || ally.status.currentHp <= 0f || ally.status.GetPassiveEntry(PassiveTrait.HuntingMark) == null) continue;
+            _huntMarks.TryGetValue(ally, out var marks);
+            var candidates = enemyParty.FindAll(e => e != null && e.status != null && e.status.currentHp > 0f && (marks == null || !marks.Contains(e)));
+            if (candidates.Count > 0) ApplyHuntMark(ally, candidates[UnityEngine.Random.Range(0, candidates.Count)]);
+        }
+    }
+
+    /// <summary>After an actual fire: 공방일체 shield and 흑사 die generation (attack skills only).</summary>
+    private void AfterActualSkillFire(BattleCharacter actor, SkillInfo skill, SkillLevelData level, SkillCast cast)
+    {
+        LockCompulsion(actor, skill);
+        AfterSynergySkillFire(actor, skill, level, cast);
+        bool isAttack = level?.effects != null && level.special != SkillSpecial.SplitDie
+            && level.effects.Exists(e => e != null && e.type == EffectType.Damage);
+        if (!isAttack || actor?.status == null) return;
+
+        EffectEntry offense = actor.status.GetPassiveEntry(PassiveTrait.OffenseDefense);
+        if (offense != null && (offense.charges <= 0 || _offenseDefenseUsed.Add(actor)))
+        {
+            float shield = ValueModifier.Floor((cast?.HealthDamageDealt ?? 0f) * offense.value * 0.01f);
+            if (shield > 0f) actor.status.ApplyStatusEffect(EffectType.Shield, shield, 1, 0f, 0, -1, actor);
+        }
+
+        EffectEntry blackDeath = actor.status.GetPassiveEntry(PassiveTrait.BlackDeath);
+        if (blackDeath != null && UsesDice)
+        {
+            _attackFires.TryGetValue(actor, out int fires);
+            _attackFires[actor] = ++fires;
+            if (fires % Mathf.Max(1, blackDeath.charges) == 0) _dicePool.AddFixedDie(ActionDicePool.DefaultFaces, 0);
+        }
+        actor.view?.UpdateVisual(actor.status);
+    }
+
     public void DropDieOnSkill(int dieId, SkillInfo skill, BattleCharacter actor)
     {
         if (!UsesDice || !IsPlayerTurn || skill == null || actor?.status == null || targetHandler == null) return;
         string unavailableReason = GetDiceSkillUnavailableReason(actor, skill);
         if (unavailableReason != null)
         {
-            NotificationManager.Instance?.ShowMessage($"스킬 사용 불가: {unavailableReason}", Color.red);
+            Notify($"스킬 사용 불가: {unavailableReason}", Color.red);
             return;
         }
         ActionDie die = _dicePool.Find(dieId);
         if (die == null || !die.IsAvailable) return;
-        if (!GetDiceRule(skill, actor).AcceptsValue(die.Value)) return;
-
-        BattleCharacter target = targetHandler.target != null
-            ? targetHandler.target.GetComponent<BattleCharacter>() : null;
-        if (target == null)
+        DiceInputRule dropRule = GetDiceRule(skill, actor);
+        if (!dropRule.AcceptsValue(GetDieInputValue(actor, die))) return;
+        if (dropRule.IsCharge)
         {
-            NotificationManager.Instance?.ShowMessage("먼저 대상을 지정하세요.", Color.yellow);
+            if (IsChargeReady(actor, skill))
+            {
+                Notify("충전 완료 — 대상을 지정하고 스킬을 눌러 발동하세요.", Color.cyan);
+                return;
+            }
+            if (_pendingDiceSkill != skill || _pendingDiceActor != actor)
+                _selectedDiceIds.Clear();
+            _pendingDiceSkill = skill;
+            _pendingDiceActor = actor;
+            if (_selectedDiceIds.Contains(dieId)) return;
+            _selectedDiceIds.Add(dieId);
+            if (_selectedDiceIds.Count >= Mathf.Max(1, dropRule.diceCount))
+            {
+                TryInsertChargeDice(actor, skill);
+                _pendingDiceSkill = null;
+                _pendingDiceActor = null;
+            }
+            RefreshDiceUI();
             return;
         }
+
         if (skill.levels == null || skill.levels.Length == 0) return;
         SkillLevelData level = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
-        if (level == null || !(level.targetType == TargetType.Self
-            ? target == actor
-            : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty)))
+        if (level != null && level.special == SkillSpecial.SplitDie)
         {
-            NotificationManager.Instance?.ShowMessage("이 스킬에 맞는 대상이 아닙니다.", Color.red);
+            EnsureDiceUI();
+            _diceUI?.ShowSplitDialog(die, Mathf.Max(2, level.specialCount),
+                (values, modifierIndex) => TrySplitDie(actor, skill, dieId, values, modifierIndex));
+            return;
+        }
+        BattleCharacter target = AutoTargetFor(skill, actor) ?? (targetHandler.target != null
+            ? targetHandler.target.GetComponent<BattleCharacter>() : null);
+        if (target == null)
+        {
+            Notify("먼저 대상을 지정하세요.", Color.yellow);
+            return;
+        }
+        if (level == null || (level.excludeSelf && target == actor) || !(level.targetType == TargetType.Self
+            ? target == actor
+            : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty, actor)))
+        {
+            Notify("이 스킬에 맞는 대상이 아닙니다.", Color.red);
             return;
         }
 
@@ -190,7 +476,143 @@ public partial class BattleManager : MonoBehaviour
         RefreshDiceUI();
     }
 
-    public int RollAdditionalDice(int count, int sides = 6)
+    /// <summary>Inserts the selected dice into a charge skill. Consumes dice only on a valid insert;
+    /// overflow above the target is discarded. Charging alone is not a use.</summary>
+    private bool TryInsertChargeDice(BattleCharacter actor, SkillInfo skill)
+    {
+        DiceInputRule rule = GetDiceRule(skill, actor);
+        if (!rule.IsCharge || IsChargeReady(actor, skill) || IsSkillUsedUp(actor, skill)) return false;
+        if (!TryGetSelectedDice(actor, rule, out List<int> values))
+        {
+            Notify($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
+            return false;
+        }
+        List<ActionDie> inserted = SelectedDice();
+        if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
+        // Sum-type charge uses effect values (on-use bonuses consumed per die); count-type counts dice only.
+        int contribution = rule.chargeByDiceCount ? values.Count : SumEffectValues(actor, inserted);
+        var northValues = new List<int>();
+        foreach (ActionDie die in inserted)
+            if (die.Kind == DieKind.North) northValues.Add(GetDieEffectValue(actor, die, 0));
+        GrantNorthShields(actor, northValues);
+        int nextCharge = Mathf.Min(rule.chargeTarget, GetDiceCharge(actor, skill) + contribution);
+        _diceCharge[(actor, skill)] = nextCharge;
+        _selectedDiceIds.Clear();
+        RefreshDiceUI();
+        RefreshSkillSlots();
+        Notify(nextCharge >= rule.chargeTarget
+            ? $"{skill.skillName} 준비 완료 — 대상을 지정해 발동하세요"
+            : $"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
+        TryAutoEndDiceTurn();
+        return true;
+    }
+
+    /// <summary>Origin part numbers snapshotted at battle start; Inspector edits apply from the next battle.</summary>
+    private OriginPartBalanceConfig BattleOriginBalance
+    {
+        get
+        {
+            if (_originBalance == null && TheLastArk.Managers.TrainManager.IsInitialized)
+            {
+                OriginPartBalanceConfig source = TheLastArk.Managers.TrainManager.Instance.OriginPartBalance;
+                if (source != null) _originBalance = Instantiate(source);
+            }
+            return _originBalance;
+        }
+    }
+
+    private int OriginPartLevel(TrainPartEffectType effect)
+    {
+        var car = TheLastArk.Managers.TrainManager.IsInitialized ? TheLastArk.Managers.TrainManager.Instance.nexusCar : null;
+        return car != null ? car.GetEquippedPartLevel(effect) : -1;
+    }
+
+    public bool HasNumberManipulator => UsesDice && OriginPartLevel(TrainPartEffectType.NumberManipulator) >= 0;
+    public bool HasChanceProtocol => UsesDice && OriginPartLevel(TrainPartEffectType.ChanceProtocol) >= 0;
+    public int ManipulateUsesLeft => _manipulateUsesLeft;
+    public int RerollUsesLeft => _rerollUsesLeft;
+    public int ParasiticStacks => _parasiticStacks;
+
+    /// <summary>기회 프로토콜 기본형 rerolls every available die; upgraded levels reroll the selected dice.</summary>
+    public bool RerollTargetsAll
+    {
+        get
+        {
+            int level = OriginPartLevel(TrainPartEffectType.ChanceProtocol);
+            return level >= 0 && BattleOriginBalance != null && OriginPartBalanceConfig.At(BattleOriginBalance.chanceRerollsAll, level);
+        }
+    }
+
+    /// <summary>[숫자 조작 장치] ±1 on one available die. Invalid input consumes no use.</summary>
+    public bool TryManipulateDie(int dieId, int delta)
+    {
+        if (!HasNumberManipulator || !IsPlayerTurn || _manipulateUsesLeft <= 0 || Mathf.Abs(delta) != 1) return false;
+        if (!_dicePool.TryAdjust(dieId, delta))
+        {
+            Notify("조정할 수 없는 주사위입니다.", Color.red);
+            return false;
+        }
+        _manipulateUsesLeft--;
+        _selectedDiceIds.Clear();
+        RefreshDiceUI();
+        RefreshSkillSlots();
+        return true;
+    }
+
+    /// <summary>[기회 프로토콜] One use rerolls all available dice (기본형) or the given dice together.</summary>
+    public bool TryRerollDice(IReadOnlyList<int> dieIds)
+    {
+        if (!HasChanceProtocol || !IsPlayerTurn || _rerollUsesLeft <= 0) return false;
+        bool rerolled = RerollTargetsAll ? _dicePool.TryRerollAll() : _dicePool.TryReroll(dieIds);
+        if (!rerolled)
+        {
+            Notify("리롤할 주사위를 선택하세요.", Color.yellow);
+            return false;
+        }
+        _rerollUsesLeft--;
+        _selectedDiceIds.Clear();
+        RefreshDiceUI();
+        RefreshSkillSlots();
+        return true;
+    }
+
+    /// <summary>
+    /// Origin turn start: reset turn counters → update 기생 accumulation and count → roll the first batch →
+    /// apply 고에너지 to one die of that batch.
+    /// </summary>
+    private void BeginOriginDiceTurn()
+    {
+        var car = TheLastArk.Managers.TrainManager.Instance.nexusCar;
+        OriginPartBalanceConfig balance = BattleOriginBalance;
+        int manipulator = car.GetEquippedPartLevel(TrainPartEffectType.NumberManipulator);
+        int chance = car.GetEquippedPartLevel(TrainPartEffectType.ChanceProtocol);
+        _manipulateUsesLeft = manipulator >= 0 && balance != null ? OriginPartBalanceConfig.At(balance.manipulatorUses, manipulator) : 0;
+        _rerollUsesLeft = chance >= 0 && balance != null ? OriginPartBalanceConfig.At(balance.chanceUses, chance) : 0;
+
+        int parasitic = car.GetEquippedPartLevel(TrainPartEffectType.ParasiticOrgan);
+        if (parasitic >= 0 && balance != null)
+            _parasiticStacks = Mathf.Min(OriginPartBalanceConfig.At(balance.parasiticStackCap, parasitic), _parasiticStacks + 1);
+
+        int baseNormal = TheLastArk.Managers.TrainManager.OriginNormalDiceRequest(car, balance, _parasiticStacks);
+        int archiumExtra = SynergyExtraNormalDice();
+        int bannerDice = RelicRules.Has(RelicEffectType.UnityBanner) && SynergyEffects.ActiveSynergyCount() == 0 ? UnityBannerDice : 0;
+        _dicePool.BeginTurn(baseNormal + archiumExtra + bannerDice, ActionDicePool.DefaultFaces, SynergySpecialDice(), TakeCarriedDice());
+        ApplyArchiumTopBonus();
+        int placedNormal = 0;
+        foreach (ActionDie die in _dicePool.Dice) if (!die.IsCarried && !die.IsSpecial) placedNormal++;
+        ApplyMagitech(Mathf.Clamp(placedNormal - baseNormal, 0, archiumExtra));
+
+        int highEnergy = car.GetEquippedPartLevel(TrainPartEffectType.HighEnergyModule);
+        var firstBatch = new List<ActionDie>();
+        foreach (ActionDie die in _dicePool.Dice) if (!die.IsCarried) firstBatch.Add(die);
+        if (highEnergy >= 0 && balance != null && firstBatch.Count > 0)
+        {
+            ActionDie target = firstBatch[_dicePool.PickIndex(firstBatch.Count)];
+            _dicePool.AddModifier(target.Id, OriginPartBalanceConfig.At(balance.highEnergyBonus, highEnergy));
+        }
+    }
+
+    public int RollAdditionalDice(int count, int sides = ActionDicePool.DefaultFaces)
     {
         if (!UsesDice || !IsPlayerTurn) return 0;
         int rolled = _dicePool.Roll(count, sides);
@@ -216,7 +638,7 @@ public partial class BattleManager : MonoBehaviour
         return skill.levels[index]?.diceInput ?? new DiceInputRule();
     }
 
-    private bool TryGetSelectedDice(DiceInputRule rule, out List<int> values)
+    private bool TryGetSelectedDice(BattleCharacter actor, DiceInputRule rule, out List<int> values)
     {
         values = new List<int>(_selectedDiceIds.Count);
         if (_selectedDiceIds.Count != Mathf.Max(1, rule.diceCount)) return false;
@@ -224,7 +646,7 @@ public partial class BattleManager : MonoBehaviour
         {
             ActionDie die = _dicePool.Find(id);
             if (die == null || !die.IsAvailable) return false;
-            values.Add(die.Value);
+            values.Add(GetDieInputValue(actor, die));
         }
         return rule.Accepts(values);
     }
@@ -242,8 +664,15 @@ public partial class BattleManager : MonoBehaviour
     private void RefreshDiceUI()
     {
         EnsureDiceUI();
-        _diceUI?.Refresh(_dicePool.Dice, _selectedDiceIds);
+        _diceUI?.Refresh(_dicePool, _selectedDiceIds, DicePreviewHint());
         UpdateAPUI();
+    }
+
+    private string DicePreviewHint()
+    {
+        if (_pendingDiceSkill == null || _pendingDiceActor == null) return null;
+        int bonus = GetDiceOnUseBonus(_pendingDiceActor, _pendingDiceSkill);
+        return bonus != 0 ? $"{_pendingDiceSkill.skillName} · 사용 시 {bonus:+0;-0}" : null;
     }
 
     private void RefreshSkillSlots()
@@ -255,16 +684,27 @@ public partial class BattleManager : MonoBehaviour
     {
         if (!CanUseDiceSkill(actor, skill)) return false;
         DiceInputRule rule = GetDiceRule(skill, actor);
-        if (!TryGetSelectedDice(rule, out List<int> values))
+        if (rule.IsCharge)
         {
-            NotificationManager.Instance?.ShowMessage($"주사위 조건을 확인하세요: {rule.Describe()}", Color.red);
+            if (!IsChargeReady(actor, skill)) return false;
+            // Firing consumes no dice; afterwards the skill can't be charged or fired again this turn.
+            _pendingCast = BuildCast(actor, skill, new List<ActionDie>());
+            _diceCharge.Remove((actor, skill));
+            _diceSkillUses[(actor, skill)] = SkillExhausted;
+            _selectedDiceIds.Clear();
+            RefreshDiceUI();
+            RefreshSkillSlots();
+            return true;
+        }
+        if (!TryGetSelectedDice(actor, rule, out List<int> values))
+        {
+            Notify($"주사위 조건을 확인하세요: {rule.Describe()}", Color.red);
             return false;
         }
-        if (rule.chargeTarget > 0 && GetDiceCharge(actor, skill) + rule.ChargeFrom(values) < rule.chargeTarget)
-            return false;
+        List<ActionDie> spent = SelectedDice();
         if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
-        if (rule.chargeTarget > 0) _diceCharge.Remove((actor, skill));
-        _usedDiceSkills.Add((actor, skill));
+        _pendingCast = BuildCast(actor, skill, spent);
+        MarkSkillUsed(actor, skill);
         _selectedDiceIds.Clear();
         RefreshDiceUI();
         RefreshSkillSlots();
@@ -326,6 +766,7 @@ public partial class BattleManager : MonoBehaviour
 
     private void Start()
     {
+        Active = this;
         Debug.Log("[Battle] BattleManager.Start() - BeginBattleSetup()은 GameManager에서 호출되어야 합니다.");
     }
 
@@ -445,19 +886,8 @@ public partial class BattleManager : MonoBehaviour
 
         _hasUsedFirstSkillInBattle = false;
 
-        // [철벽 성채의 조각] 유물: 전투 시작 시 모든 아군에게 보호 20(2턴) 부여
-        if (TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.IronFortressFragment))
-        {
-            foreach (var ally in playerParty)
-            {
-                if (ally != null && ally.status != null)
-                {
-                    ally.status.ApplyStatusEffect(EffectType.Shield, 20f, 2, StatusDurationType.Turns);
-                    Debug.Log($"[철벽 성채의 조각] {ally.characterName}에게 보호막 20 부여!");
-                }
-            }
-        }
+        OnBattleStartRelics();
+        OnBattleStartEquipment();
 
         // [적응형 보호막 생성기] 전투 시작 시 모든 아군이 잃은 체력의 20%만큼 1턴간 보호막 생성
         if (TheLastArk.Managers.TrainManager.IsInitialized &&
@@ -491,7 +921,9 @@ public partial class BattleManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Active == this) Active = null;
         ClearBattlePanic(false);
+        if (_originBalance != null) DestroyImmediate(_originBalance);
         if (targetHandler == null) return;
         targetHandler.TargetSelected -= OnTargetSelected;
         targetHandler.TargetCanceled -= CancelPendingSelection;
@@ -572,7 +1004,7 @@ public partial class BattleManager : MonoBehaviour
         Debug.Log($"[Battle] 페이즈 전환: {_currentPhase} -> {next}");
         _currentPhase = next;
         UpdateTurnEndButtonState();
-        if (_diceUI != null) _diceUI.Refresh(_dicePool.Dice, _selectedDiceIds);
+        if (_diceUI != null) _diceUI.Refresh(_dicePool, _selectedDiceIds, DicePreviewHint());
 
         switch (next)
         {
@@ -605,7 +1037,7 @@ public partial class BattleManager : MonoBehaviour
         string panicReason = GetPanicSkillUnavailableReason(actor, skill);
         if (panicReason != null)
         {
-            NotificationManager.Instance?.ShowMessage(panicReason, Color.red);
+            Notify(panicReason, Color.red);
             return;
         }
 
@@ -613,40 +1045,39 @@ public partial class BattleManager : MonoBehaviour
         {
             if (actor.status.GetStatus(EffectType.Stun) != null)
             {
-                NotificationManager.Instance?.ShowMessage("[기절] 행동할 수 없습니다.", Color.red);
+                Notify("[기절] 행동할 수 없습니다.", Color.red);
                 return;
             }
             if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
             {
-                NotificationManager.Instance?.ShowMessage("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
+                Notify("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
                 return;
             }
-            if (!CanUseDiceSkill(actor, skill))
+            string diceReason = GetDiceSkillUnavailableReason(actor, skill);
+            if (diceReason != null)
             {
-                NotificationManager.Instance?.ShowMessage("이번 턴에 이미 사용한 스킬칸입니다.", Color.red);
+                Notify($"스킬 사용 불가: {diceReason}", Color.red);
                 return;
             }
             DiceInputRule rule = GetDiceRule(skill, actor);
-            if (!TryGetSelectedDice(rule, out List<int> values))
+            if (rule.IsCharge && !IsChargeReady(actor, skill))
             {
-                NotificationManager.Instance?.ShowMessage($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
+                TryInsertChargeDice(actor, skill);
                 return;
             }
-            if (rule.chargeTarget > 0)
+            if (rule.IsCharge)
             {
-                int nextCharge = Mathf.Min(rule.chargeTarget, GetDiceCharge(actor, skill) + rule.ChargeFrom(values));
-                if (nextCharge < rule.chargeTarget)
+                // Ready charge: the user picks a target and fires manually.
+                if (!_executingPanicSkill && AutoTargetFor(skill, actor) == null && (targetHandler == null || targetHandler.target == null))
                 {
-                    if (!_dicePool.TrySpend(_selectedDiceIds)) return;
-                    _diceCharge[(actor, skill)] = nextCharge;
-                    _selectedDiceIds.Clear();
-                    RefreshDiceUI();
-                    RefreshSkillSlots();
-                    actor.ResolveActionStatusEffects();
-                    NotificationManager.Instance?.ShowMessage($"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
-                    TryAutoEndDiceTurn();
+                    Notify("먼저 대상을 지정한 뒤 발동하세요.", Color.yellow);
                     return;
                 }
+            }
+            else if (!TryGetSelectedDice(actor, rule, out _))
+            {
+                Notify($"주사위를 선택하세요: {rule.Describe()}", Color.yellow);
+                return;
             }
         }
 
@@ -661,21 +1092,23 @@ public partial class BattleManager : MonoBehaviour
 
         if (UsesDice)
         {
-            PerformSkill();
+            BattleCharacter autoTarget = AutoTargetFor(skill, actor);
+            if (autoTarget != null) PerformSkillOnTarget(autoTarget);
+            else PerformSkill();
             return;
         }
 
         if (SkillFirstTargeting)
         {
             if (targetHandler != null) targetHandler.Deselect(false);
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
+            Notify("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
             return;
         }
 
         if (targetHandler != null && targetHandler.target != null)
             PerformSkill();
         else
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
+            Notify("대상을 선택하세요.", Color.yellow);
     }
 
     public void SelectConsumable(int consumableIndex)
@@ -698,14 +1131,14 @@ public partial class BattleManager : MonoBehaviour
         if (SkillFirstTargeting)
         {
             if (targetHandler != null) targetHandler.Deselect(false);
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
+            Notify("대상을 선택하세요. (우클릭/Esc: 취소)", Color.yellow);
             return;
         }
 
         if (targetHandler != null && targetHandler.target != null)
             PerformConsumable();
         else
-            NotificationManager.Instance.ShowMessage("대상을 선택하세요.", Color.yellow);
+            Notify("대상을 선택하세요.", Color.yellow);
     }
 
     public void PerformSkill() => PerformSkillOnTarget(null);
@@ -724,12 +1157,12 @@ public partial class BattleManager : MonoBehaviour
         string panicReason = GetPanicSkillUnavailableReason(actor, skill);
         if (panicReason != null)
         {
-            NotificationManager.Instance?.ShowMessage(panicReason, Color.red);
+            Notify(panicReason, Color.red);
             return;
         }
         if (actor.status.GetStatus(EffectType.Stun) != null)
         {
-            NotificationManager.Instance.ShowMessage("[기절] 행동할 수 없습니다.", Color.red);
+            Notify("[기절] 행동할 수 없습니다.", Color.red);
             return;
         }
         int selectedSkillSlot = actor.status.dynamicActiveSkill.IndexOf(skill);
@@ -737,12 +1170,12 @@ public partial class BattleManager : MonoBehaviour
             && e.IsActive && (e.skillSlot < 0 || e.skillSlot == selectedSkillSlot));
         if (isBlocked)
         {
-            NotificationManager.Instance.ShowMessage("[봉쇄] 해당 스킬칸을 사용할 수 없습니다.", Color.red);
+            Notify("[봉쇄] 해당 스킬칸을 사용할 수 없습니다.", Color.red);
             return;
         }
         if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
         {
-            NotificationManager.Instance.ShowMessage("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
+            Notify("[피로] 같은 스킬을 연속으로 사용할 수 없습니다.", Color.red);
             return;
         }
         int skillIdx = actor.status.SkillLevelIndex;
@@ -750,14 +1183,15 @@ public partial class BattleManager : MonoBehaviour
 
         bool isValidTarget = levelData.targetType == TargetType.Self
             ? primaryTarget == actor
-            : TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty);
+            : !(levelData.excludeSelf && primaryTarget == actor)
+                && TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
         if (!isValidTarget)
         {
             string message = TargetResolver.IsTauntAffected(levelData.targetType)
                 && TargetResolver.FindTauntTarget(enemyParty) != null
                 ? "[도발] 도발 상태의 적만 공격할 수 있습니다."
                 : $"{skill.skillName}에 맞는 대상이 아닙니다.";
-            NotificationManager.Instance.ShowMessage(message, Color.red);
+            Notify(message, Color.red);
             if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
@@ -765,7 +1199,7 @@ public partial class BattleManager : MonoBehaviour
         // [색욕] 매혹된 캐릭터 직접 조종 제한
         if (_sinState.charmedCharacters != null && _sinState.charmedCharacters.Contains(actor))
         {
-            NotificationManager.Instance.ShowMessage($"[매혹] {actor.characterName}(은)는 매혹되어 이번 턴에 직접 조종할 수 없습니다!", Color.magenta);
+            Notify($"[매혹] {actor.characterName}(은)는 매혹되어 이번 턴에 직접 조종할 수 없습니다!", Color.magenta);
             if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
@@ -776,7 +1210,7 @@ public partial class BattleManager : MonoBehaviour
         {
             if (_sinState.skillsUsedThisTurn >= 3)
             {
-                NotificationManager.Instance.ShowMessage("[나태의 죄] 이번 턴에는 스킬을 최대 3회까지만 사용할 수 있습니다!", Color.red);
+                Notify("[나태의 죄] 이번 턴에는 스킬을 최대 3회까지만 사용할 수 있습니다!", Color.red);
                 if (!SkillFirstTargeting) _selection.Clear();
                 return;
             }
@@ -785,7 +1219,7 @@ public partial class BattleManager : MonoBehaviour
         // [황제] 이전 턴 사용 스킬 금지 체크
         if (_arcanaState.emperorBannedSkillsNextTurn != null && _arcanaState.emperorBannedSkillsNextTurn.Contains(skill))
         {
-            NotificationManager.Instance.ShowMessage("[황제] 이전 턴에 사용했던 스킬은 이번 턴에 사용할 수 없습니다!", Color.red);
+            Notify("[황제] 이전 턴에 사용했던 스킬은 이번 턴에 사용할 수 없습니다!", Color.red);
             if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
@@ -793,7 +1227,7 @@ public partial class BattleManager : MonoBehaviour
         // [황제] 이번 턴 이미 사용한 스킬 중복 시전 금지 체크
         if (_arcanaState.isEmperorActiveThisTurn && _arcanaState.emperorUsedSkillsThisTurn.Contains(skill))
         {
-            NotificationManager.Instance.ShowMessage("[황제] 이번 턴에 이미 사용한 스킬은 다시 사용할 수 없습니다!", Color.red);
+            Notify("[황제] 이번 턴에 이미 사용한 스킬은 다시 사용할 수 없습니다!", Color.red);
             if (!SkillFirstTargeting) _selection.Clear();
             return;
         }
@@ -819,14 +1253,14 @@ public partial class BattleManager : MonoBehaviour
             {
                 cost = 0;
                 _arcanaState.foolFreeSkillsRemaining--;
-                NotificationManager.Instance?.ShowMessage($"[광대] 스킬 비용 0 소모! (남은 횟수: {_arcanaState.foolFreeSkillsRemaining})", Color.yellow);
+                Notify($"[광대] 스킬 비용 0 소모! (남은 횟수: {_arcanaState.foolFreeSkillsRemaining})", Color.yellow);
             }
             // [완전수 모듈] 수치가 6 또는 28일 때 이번 턴 첫 스킬 비용 0 소모
             else if (_limitFirstSkillFreeThisTurn)
             {
                 cost = 0;
                 _limitFirstSkillFreeThisTurn = false;
-                NotificationManager.Instance?.ShowMessage("[완전수 모듈] 첫 스킬 비용 0 소모!", Color.green);
+                Notify("[완전수 모듈] 첫 스킬 비용 0 소모!", Color.green);
             }
 
             // [교황] 3코스트 이상 스킬 비용 -1
@@ -849,8 +1283,7 @@ public partial class BattleManager : MonoBehaviour
             }
         }
 
-        var frost = actor.status.GetStatus(EffectType.Frost);
-        if (frost != null) cost += Mathf.Max(0, Mathf.RoundToInt(frost.damagePerTurn));
+        cost += Mathf.Max(0, Mathf.RoundToInt(actor.status.GetStatusValue(EffectType.Frost)));
 
         if (_arcanaState.isEmperorActiveThisTurn)
         {
@@ -870,11 +1303,11 @@ public partial class BattleManager : MonoBehaviour
                 _nextTurnLockedAP = needed;
                 _overloadedThisTurn = true;
                 currentAP += needed;
-                NotificationManager.Instance.ShowMessage($"[과부하 모듈] 다음 턴 행동력 {needed}를 미리 사용합니다! (다음 턴 {needed} 잠김)", Color.yellow);
+                Notify($"[과부하 모듈] 다음 턴 행동력 {needed}를 미리 사용합니다! (다음 턴 {needed} 잠김)", Color.yellow);
             }
             else
             {
-                NotificationManager.Instance.ShowMessage(canOverload ? "행동력이 부족합니다. (과부하는 최대 5까지 가능)" : "행동력이 부족합니다.", Color.red);
+                Notify(canOverload ? "행동력이 부족합니다. (과부하는 최대 5까지 가능)" : "행동력이 부족합니다.", Color.red);
                 return;
             }
         }
@@ -895,63 +1328,39 @@ public partial class BattleManager : MonoBehaviour
                 var victim = livingAllies[UnityEngine.Random.Range(0, livingAllies.Count)];
                 victim.TakeMentalDamage(6f);
                 if (victim.view != null) victim.view.UpdateVisual(victim.status);
-                NotificationManager.Instance?.ShowMessage($"[오만의 죄] 스킬 사용으로 {victim.characterName} 정신력 -6 감소!", Color.magenta);
+                Notify($"[오만의 죄] 스킬 사용으로 {victim.characterName} 정신력 -6 감소!", Color.magenta);
             }
         }
 
-        // [연속 전투 촉진기] 한 전투에서 스킬을 7번 사용할 때마다 행동력 +2 획득
-        _skillsUsedThisBattle++;
-        if (TheLastArk.Managers.TrainManager.IsInitialized &&
-            TheLastArk.Managers.TrainManager.Instance.HasPartEffectInAnyCar(TheLastArk.Data.TrainPartEffectType.ContinuousCombatCatalyst))
+        CountActualSkillUse(actor);
+
         {
-            if (_skillsUsedThisBattle % 7 == 0)
-            {
-                currentAP = Mathf.Min(MaxAP, currentAP + 2);
-                UpdateAPUI();
-                NotificationManager.Instance?.ShowMessage("[연속 전투 촉진기] 7회 스킬 사용 달성! 행동력 +2 획득!", Color.cyan);
-            }
-        }
-
-        // [끊임없는 전투] 유물 스킬 발동 처리
-        if (skill != null && !string.IsNullOrEmpty(skill.skillName) && skill.skillName.Contains("끊임없는 전투"))
-        {
-            float lostHp = Mathf.Max(0f, actor.status.FinalMaxHp - actor.status.currentHp);
-            float atkBuff = lostHp * 0.20f;
-            actor.status.bonusAttack += atkBuff;
-            if (actor.view != null) actor.view.UpdateVisual(actor.status);
-
-            int slashCount = skillIdx >= 1 ? 2 : 1;
-            actor.CastSlashOnRandomEnemy(slashCount);
-
-            NotificationManager.Instance.ShowMessage($"[끊임없는 전투] 잃은 체력 비례 공격력 +{atkBuff:F1} 획득 & 가르기 {slashCount}회 시전!", Color.red);
-
-            if (skillIdx < 2)
-            {
-                actor.status.dynamicActiveSkill.Remove(skill);
-                NotificationManager.Instance.ShowMessage("[끊임없는 전투] 일회성 스킬 소모 완료.", Color.gray);
-            }
-        }
-        else
-        {
-            var confusion = actor.status.GetStatus(EffectType.Confusion);
-            if (confusion != null && UnityEngine.Random.value < confusion.damagePerTurn * 0.01f)
-            {
-                var pool = levelData.targetType == TargetType.Friendly || levelData.targetType == TargetType.AllFriendly ? playerParty : enemyParty;
-                var alive = pool.FindAll(c => c != null && c.status != null && c.status.currentHp > 0f);
-                if (alive.Count > 0) primaryTarget = alive[UnityEngine.Random.Range(0, alive.Count)];
-                NotificationManager.Instance?.ShowMessage("[혼란] 스킬 대상이 무작위로 변경되었습니다!", Color.magenta);
-            }
-            List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty);
-            ConsumeTauntForAttack(levelData.targetType, targets);
-            EffectEngine.ProcessSkill(actor, targets, levelData, skill.skillName);
+            // Order: 혼란 (at fire) → 도발 → 보호 (per hit in the damage path).
+            // 환각: random final target among all living combatants (self included); 혼란 / 도발 skipped, 보호 still applies.
+            bool hallucinating = IsHallucinatingAttack(actor, levelData);
+            if (hallucinating) primaryTarget = HallucinationTarget(actor) ?? primaryTarget;
+            else primaryTarget = ApplyConfusion(actor, primaryTarget, levelData.targetType);
+            BattleCharacter resolvedPrimary = hallucinating ? primaryTarget : TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor);
+            List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor, hallucinating);
+            SkillCast cast = _pendingCast ?? new SkillCast();
+            cast.IgnoreTaunt = hallucinating;
+            cast.DamageBonus += TwinStarBonus(actor, levelData, resolvedPrimary);
+            EffectEngine.CurrentCast = cast;
+            try { EffectEngine.ProcessSkill(actor, targets, levelData, resolvedPrimary, skill.skillName); }
+            finally { EffectEngine.CurrentCast = null; }
+            ResolveEquipmentAfterSkill(actor, levelData, cast);
+            ResolveRelicsAfterSkill(actor, skill, levelData, cast);
+            AfterActualSkillFire(actor, skill, levelData, cast);
 
             // [탑] 이번 턴 처음 사용하는 스킬 2번 발동 (더블 캐스트)
             if (_arcanaState.isTowerDoubleCastActive)
             {
                 _arcanaState.isTowerDoubleCastActive = false;
-                List<BattleCharacter> doubleTargets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty);
-                EffectEngine.ProcessSkill(actor, doubleTargets, levelData, skill.skillName);
-                NotificationManager.Instance?.ShowMessage("[탑] 첫 스킬이 2번 연속 발동되었습니다!", Color.red);
+                List<BattleCharacter> doubleTargets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
+                EffectEngine.CurrentCast = cast;
+                try { EffectEngine.ProcessSkill(actor, doubleTargets, levelData, TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor), skill.skillName); }
+                finally { EffectEngine.CurrentCast = null; }
+                Notify("[탑] 첫 스킬이 2번 연속 발동되었습니다!", Color.red);
             }
 
             // [식탐] 적 처치 시 추가 행동력 획득
@@ -976,13 +1385,13 @@ public partial class BattleManager : MonoBehaviour
 
                     currentAP = Mathf.Min(MaxAP + 10, currentAP + bonus);
                     UpdateAPUI();
-                    NotificationManager.Instance?.ShowMessage($"[식탐의 죄] 적 처치 달성! 행동력 +{bonus} 획득!", Color.yellow);
+                    Notify($"[식탐의 죄] 적 처치 달성! 행동력 +{bonus} 획득!", Color.yellow);
                 }
             }
         }
 
+        _pendingCast = null;
         actor.status.lastUsedSkill = skill;
-        actor.status.panic?.SkillUsed(skill);
         actor.ResolveActionStatusEffects();
 
         // [별자리] 스킬 3회 사용 시마다 행동력 +1 획득
@@ -993,65 +1402,13 @@ public partial class BattleManager : MonoBehaviour
             {
                 currentAP = Mathf.Min(MaxAP + 5, currentAP + 1);
                 UpdateAPUI();
-                NotificationManager.Instance?.ShowMessage("[별자리] 스킬 3회 사용 달성! 행동력 +1 획득!", Color.cyan);
+                Notify("[별자리] 스킬 3회 사용 달성! 행동력 +1 획득!", Color.cyan);
             }
-        }
-
-        // [푸른 마탑] 시너지 및 [별의 그리모어] 유물: 스킬 사용 시 효과 발동
-        if (actor.status.HasSynergy(TheLastArk.Data.SynergyType.BlueTower))
-        {
-            var activeSyn = TheLastArk.Character.SynergyCalculator.CalculateActiveSynergies();
-            if (activeSyn.TryGetValue(TheLastArk.Data.SynergyType.BlueTower, out int btCount) && btCount >= 2)
-            {
-                bool hasGrimoire = TheLastArk.Managers.ResourceManager.Instance != null &&
-                                   TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.GrimoireOfStars);
-                int reqUses = (btCount >= 8 || hasGrimoire) ? 1 : (btCount >= 6 ? 2 : 3);
-                _blueTowerSkillUses++;
-                if (_blueTowerSkillUses >= reqUses)
-                {
-                    _blueTowerSkillUses = 0;
-                    TriggerBlueTowerEffect(actor, btCount);
-                }
-            }
-        }
-
-        // [청운] 시너지 및 [청운] 유물: 행동력 소모 시 효과 발동
-        if (cost > 0 && actor.status.HasSynergy(TheLastArk.Data.SynergyType.Cheongwoon))
-        {
-            var activeSyn = TheLastArk.Character.SynergyCalculator.CalculateActiveSynergies();
-            if (activeSyn.TryGetValue(TheLastArk.Data.SynergyType.Cheongwoon, out int cwCount) && cwCount >= 3)
-            {
-                bool hasCwRelic = TheLastArk.Managers.ResourceManager.Instance != null &&
-                                  TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.CheongwoonRelic);
-                int apThreshold = (cwCount >= 7 || hasCwRelic) ? 2 : 3;
-                _cheongwoonApSpent += cost;
-                while (_cheongwoonApSpent >= apThreshold)
-                {
-                    _cheongwoonApSpent -= apThreshold;
-                    TriggerCheongwoonEffect(cwCount);
-                }
-            }
-        }
-
-        // [한 잔 더!] 유물: 비용이 0인 스킬을 사용할 때 행동력 1 회복
-        if (!UsesDice && cost == 0 && TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.OneMoreDrink))
-        {
-            currentAP = Mathf.Min(MaxAP, currentAP + 1);
-            UpdateAPUI();
-            NotificationManager.Instance.ShowMessage("[한 잔 더!] 행동력 1 회복!", Color.cyan);
-        }
-
-        // [기름칠된 톱니바퀴] 유물: 각 전투에서 가장 처음으로 사용하는 스킬에 유지 효과 부여
-        if (!_hasUsedFirstSkillInBattle && TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.OiledGear))
-        {
-            _hasUsedFirstSkillInBattle = true;
-            NotificationManager.Instance.ShowMessage("[기름칠된 톱니바퀴] 첫 스킬 유지 효과 적용!", Color.yellow);
         }
 
         _selection.Clear();
-        if (targetHandler != null) targetHandler.Deselect(false);
+        // Dice mode keeps a living target selected so the player can keep acting on it.
+        if (targetHandler != null && !(UsesDice && IsKeptTargetAlive())) targetHandler.Deselect(false);
         if (TryEndBattleIfPartyWiped()) return;
         RefreshSkillSlots();
 
@@ -1062,21 +1419,57 @@ public partial class BattleManager : MonoBehaviour
         else if (currentAP <= 0 && !_resolvingPanicTurn) EndPlayerTurn();
     }
 
+    /// <summary>Player-facing message; skipped outside Play Mode (edit-mode tests).</summary>
+    private static void Notify(string message, Color color)
+    {
+        if (Application.isPlaying) NotificationManager.Instance?.ShowMessage(message, color);
+    }
+
+    private bool IsKeptTargetAlive()
+    {
+        BattleCharacter kept = targetHandler != null && targetHandler.target != null
+            ? targetHandler.target.GetComponent<BattleCharacter>() : null;
+        return kept != null && kept.status != null && kept.status.currentHp > 0f;
+    }
+
     private void TryAutoEndDiceTurn()
     {
         if (_resolvingPanicTurn) return;
-        if (!UsesDice || !IsPlayerTurn || !AutoEndDiceTurn || _dicePool.CreatedThisTurn == 0) return;
+        if (!UsesDice || !IsPlayerTurn || !AutoEndDiceTurn || _dicePool.GeneratedThisTurn == 0) return;
+        // Remaining dice that only fail conditions still block auto end; so does a fireable ready charge.
         foreach (ActionDie die in _dicePool.Dice)
             if (die.IsAvailable) return;
+        if (HasFireableReadyCharge()) return;
         EndPlayerTurn();
     }
 
-    private void ConsumeTauntForAttack(TargetType targetType, List<BattleCharacter> targets)
+    private bool HasFireableReadyCharge()
     {
-        if (!TargetResolver.IsTauntAffected(targetType)) return;
-        BattleCharacter taunter = TargetResolver.FindTauntTarget(enemyParty);
-        if (taunter != null && targets.Contains(taunter))
-            taunter.status.ConsumeStatusCharge(EffectType.Taunt);
+        foreach (BattleCharacter actor in playerParty)
+        {
+            if (actor?.status == null) continue;
+            foreach (SkillInfo skill in actor.status.dynamicActiveSkill)
+                if (IsChargeReady(actor, skill) && CanUseDiceSkill(actor, skill)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 혼란: on an actual fire, the summed % chance moves a single-primary skill to a random target among the
+    /// skill's original valid targets (taunt not yet applied). Self and all-target skills are unaffected.
+    /// </summary>
+    private BattleCharacter ApplyConfusion(BattleCharacter actor, BattleCharacter primaryTarget, TargetType type)
+    {
+        float chance = actor.status.GetStatusValue(EffectType.Confusion) * 0.01f;
+        if (chance <= 0f || type == TargetType.Self || type == TargetType.AllEnemy || type == TargetType.AllFriendly) return primaryTarget;
+        if (UnityEngine.Random.value >= chance) return primaryTarget;
+        var pool = type == TargetType.Friendly || type == TargetType.FriendlyLeft || type == TargetType.FriendlyRight
+            || type == TargetType.FriendlyAdjacent ? playerParty : enemyParty;
+        var candidates = pool.FindAll(c => c != null && c.status != null && c.status.currentHp > 0f
+            && TargetResolver.IsValid(c, type, playerParty, enemyParty, actor, true));
+        if (candidates.Count == 0) return primaryTarget;
+        Notify("[혼란] 스킬 대상이 무작위로 변경되었습니다!", Color.magenta);
+        return candidates[UnityEngine.Random.Range(0, candidates.Count)];
     }
 
     public void PerformConsumable()
@@ -1096,7 +1489,7 @@ public partial class BattleManager : MonoBehaviour
             case TheLastArk.Data.ConsumableEffectType.DamageSingle:
                 if (primaryTarget == null || playerParty.Contains(primaryTarget))
                 {
-                    NotificationManager.Instance.ShowMessage("적을 선택하세요.", Color.red);
+                    Notify("적을 선택하세요.", Color.red);
                     if (!SkillFirstTargeting) _selection.Clear();
                     return;
                 }
@@ -1107,7 +1500,7 @@ public partial class BattleManager : MonoBehaviour
             case TheLastArk.Data.ConsumableEffectType.HealMental:
                 if (primaryTarget == null || enemyParty.Contains(primaryTarget))
                 {
-                    NotificationManager.Instance.ShowMessage("아군을 선택하세요.", Color.red);
+                    Notify("아군을 선택하세요.", Color.red);
                     if (!SkillFirstTargeting) _selection.Clear();
                     return;
                 }
@@ -1138,7 +1531,7 @@ public partial class BattleManager : MonoBehaviour
             }
         }
 
-        NotificationManager.Instance.ShowMessage($"{consumable.consumableName} 사용.", Color.cyan);
+        Notify($"{consumable.consumableName} 사용.", Color.cyan);
 
         var resMgr = TheLastArk.Managers.ResourceManager.Instance;
         if (resMgr != null) resMgr.RemoveConsumable(_selection.ConsumableIndex);
@@ -1182,8 +1575,16 @@ public partial class BattleManager : MonoBehaviour
         if (UsesDice)
         {
             _selectedDiceIds.Clear();
+            _pendingDiceSkill = null;
+            _pendingDiceActor = null;
+            PrepareCarryOver();
+            ResetTwinStar();
+            _dicePool.EndTurn();
             RefreshDiceUI();
+            if (targetHandler != null) targetHandler.Deselect(false);
         }
+        ApplySeizure(playerParty);
+        TickSideTurnEnd(playerParty);
 
         // [에너지 저장소] 미사용 행동력 최대 3까지 다음 턴으로 이월 저장
         if (!UsesDice && TheLastArk.Managers.TrainManager.IsInitialized && TheLastArk.Managers.TrainManager.Instance.nexusCar != null &&
@@ -1212,7 +1613,7 @@ public partial class BattleManager : MonoBehaviour
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
             }
-            NotificationManager.Instance?.ShowMessage("[죽음] 턴 종료로 모든 아군 체력/정신력 -4 감소", Color.black);
+            Notify("[죽음] 턴 종료로 모든 아군 체력/정신력 -4 감소", Color.black);
         }
 
         // [악마 계약] 턴 종료 시 지속 효과 처리
@@ -1226,7 +1627,7 @@ public partial class BattleManager : MonoBehaviour
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
             }
-            NotificationManager.Instance?.ShowMessage("[악마 계약] 턴 종료로 모든 아군 정신력 -6 감소", Color.red);
+            Notify("[악마 계약] 턴 종료로 모든 아군 정신력 -6 감소", Color.red);
         }
         else if (_arcanaState.activeDevilContract == TheLastArk.Battle.DevilContractType.Option3_EveryTurnAP_GainDebuffs)
         {
@@ -1237,7 +1638,7 @@ public partial class BattleManager : MonoBehaviour
                     a.status.ApplyStatusEffect(EffectType.Bleed, 1f, 2);
                 }
             }
-            NotificationManager.Instance?.ShowMessage("[악마 계약] 턴 종료로 모든 아군 약화/취약 획득", Color.red);
+            Notify("[악마 계약] 턴 종료로 모든 아군 약화/취약 획득", Color.red);
         }
 
         // [황제] 다음 턴 스킬 밴 목록 갱신 및 턴 플래그 리셋
@@ -1252,7 +1653,7 @@ public partial class BattleManager : MonoBehaviour
                 bool hasMartyr = TheLastArk.Managers.TrainManager.IsInitialized && TheLastArk.Managers.TrainManager.Instance.nexusCar != null && TheLastArk.Managers.TrainManager.Instance.nexusCar.HasPartEffect(TrainPartEffectType.SinMartyrVow);
                 bool hasGevil = TheLastArk.Managers.TrainManager.IsInitialized && TheLastArk.Managers.TrainManager.Instance.nexusCar != null && TheLastArk.Managers.TrainManager.Instance.nexusCar.HasPartEffect(TrainPartEffectType.SinGreaterEvil);
                 _sinState.pendingGluttonyPenaltyNextTurn = hasMartyr ? 9 : (hasGevil ? 6 : 3);
-                NotificationManager.Instance?.ShowMessage($"[식탐의 죄] 적 미처치로 다음 턴 행동력 -{_sinState.pendingGluttonyPenaltyNextTurn} 감소 예정", Color.red);
+                Notify($"[식탐의 죄] 적 미처치로 다음 턴 행동력 -{_sinState.pendingGluttonyPenaltyNextTurn} 감소 예정", Color.red);
             }
         }
 
@@ -1279,7 +1680,7 @@ public partial class BattleManager : MonoBehaviour
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
             }
-            NotificationManager.Instance?.ShowMessage($"[탐욕의 죄] 미사용 행동력({currentAP}) 비례 모든 아군 정신력 감소!", Color.red);
+            Notify($"[탐욕의 죄] 미사용 행동력({currentAP}) 비례 모든 아군 정신력 감소!", Color.red);
         }
 
         // 씬 턴 카운터 리셋
@@ -1312,6 +1713,13 @@ public partial class BattleManager : MonoBehaviour
     private void OnEnterPlayerTurn()
     {
         RemoveOwnerPhaseEffects(playerParty);
+        ResetSynergyTurnState();
+        ResetRelicTurnState();
+        ResetEquipmentTurnState();
+        RefreshHuntMarks();
+        ApplySynergyTurnStart();
+        ApplyRelicTurnStart();
+        ApplyEquipmentTurnStart();
         ClearEnemyTargetMarkers();
         PrepareEnemyIntents();
         Debug.Log($"[Battle] {_turnCount}턴: 아군 턴 시작");
@@ -1438,7 +1846,7 @@ public partial class BattleManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(result.summary))
         {
-            NotificationManager.Instance?.ShowMessage($"[아르카나 개방] {result.summary}", Color.yellow);
+            Notify($"[아르카나 개방] {result.summary}", Color.yellow);
         }
     }
 
@@ -1470,7 +1878,7 @@ public partial class BattleManager : MonoBehaviour
         {
             case TarotCardType.Fool:
                 _arcanaState.foolFreeSkillsRemaining = 2;
-                NotificationManager.Instance?.ShowMessage("[광대] 이번 턴 사용하는 첫 스킬 2개의 비용이 0이 됩니다!", Color.yellow);
+                Notify("[광대] 이번 턴 사용하는 첫 스킬 2개의 비용이 0이 됩니다!", Color.yellow);
                 break;
 
             case TarotCardType.HighPriestess:
@@ -1478,12 +1886,12 @@ public partial class BattleManager : MonoBehaviour
                 {
                     a.status.ApplyStatusEffect(EffectType.Shield, 1f, 1);
                 }
-                NotificationManager.Instance?.ShowMessage("[여사제] 모든 아군에게 보호(방어막) 1 부여!", Color.cyan);
+                Notify("[여사제] 모든 아군에게 보호(방어막) 1 부여!", Color.cyan);
                 break;
 
             case TarotCardType.Lovers:
                 _arcanaState.isLoversActiveThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[연인] 이번 턴 아군이 얻는 힘/보호 효과가 전체에게 공유됩니다!", Color.magenta);
+                Notify("[연인] 이번 턴 아군이 얻는 힘/보호 효과가 전체에게 공유됩니다!", Color.magenta);
                 break;
 
             case TarotCardType.Chariot:
@@ -1492,7 +1900,7 @@ public partial class BattleManager : MonoBehaviour
                     a.status.bonusAttack += 1;
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
-                NotificationManager.Instance?.ShowMessage("[전차] 모든 아군 힘(공격력) +1 증가!", Color.cyan);
+                Notify("[전차] 모든 아군 힘(공격력) +1 증가!", Color.cyan);
                 break;
 
             case TarotCardType.Strength:
@@ -1502,12 +1910,12 @@ public partial class BattleManager : MonoBehaviour
                     a.status.bonusAttack += 3;
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
-                NotificationManager.Instance?.ShowMessage("[힘] 모든 아군 힘 +3 증가! (이번 턴 공격 스킬 비용 +1)", Color.red);
+                Notify("[힘] 모든 아군 힘 +3 증가! (이번 턴 공격 스킬 비용 +1)", Color.red);
                 break;
 
             case TarotCardType.WheelOfFortune:
                 _arcanaState.isWheelOfFortunePending = true;
-                NotificationManager.Instance?.ShowMessage("[운명] 다음 턴에 얻는 행동력이 2배로 증가합니다!", Color.yellow);
+                Notify("[운명] 다음 턴에 얻는 행동력이 2배로 증가합니다!", Color.yellow);
                 break;
 
             case TarotCardType.Justice:
@@ -1515,27 +1923,27 @@ public partial class BattleManager : MonoBehaviour
                 {
                     e.status.ApplyStatusEffect(EffectType.Bleed, 3f, 3);
                 }
-                NotificationManager.Instance?.ShowMessage("[정의] 모든 적에게 약화 3 / 취약 3(출혈) 부여!", Color.cyan);
+                Notify("[정의] 모든 적에게 약화 3 / 취약 3(출혈) 부여!", Color.cyan);
                 break;
 
             case TarotCardType.Hierophant:
                 _arcanaState.isHierophantActiveThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[교황] 비용 3 이상인 스킬들의 비용이 -1 감소합니다!", Color.yellow);
+                Notify("[교황] 비용 3 이상인 스킬들의 비용이 -1 감소합니다!", Color.yellow);
                 break;
 
             case TarotCardType.HangedMan:
                 _arcanaState.hangedManPenaltyPending = 4;
-                NotificationManager.Instance?.ShowMessage("[매달린 사람] 대량 AP 획득! (다음 턴 행동력 -4)", Color.magenta);
+                Notify("[매달린 사람] 대량 AP 획득! (다음 턴 행동력 -4)", Color.magenta);
                 break;
 
             case TarotCardType.Temperance:
                 _arcanaState.temperanceAccumulatedAP += 1;
-                NotificationManager.Instance?.ShowMessage($"[절제] 매 턴 행동력 +1 영구 누적! (현재 누적: +{_arcanaState.temperanceAccumulatedAP} AP)", Color.green);
+                Notify($"[절제] 매 턴 행동력 +1 영구 누적! (현재 누적: +{_arcanaState.temperanceAccumulatedAP} AP)", Color.green);
                 break;
 
             case TarotCardType.Tower:
                 _arcanaState.isTowerDoubleCastActive = true;
-                NotificationManager.Instance?.ShowMessage("[탑] 이번 턴에 처음 사용하는 스킬이 2번 발동(더블 캐스트)됩니다!", Color.red);
+                Notify("[탑] 이번 턴에 처음 사용하는 스킬이 2번 발동(더블 캐스트)됩니다!", Color.red);
                 break;
 
             case TarotCardType.Empress:
@@ -1545,34 +1953,34 @@ public partial class BattleManager : MonoBehaviour
                     a.ReceiveMentalHeal(5f);
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
-                NotificationManager.Instance?.ShowMessage("[여제] 모든 아군 체력 +5, 정신력 +5 회복!", Color.green);
+                Notify("[여제] 모든 아군 체력 +5, 정신력 +5 회복!", Color.green);
                 break;
 
             case TarotCardType.Emperor:
                 _arcanaState.isEmperorActiveThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[황제] 이번 턴 모든 스킬 비용 0 고정! (스킬당 1회 제한, 사용 스킬 다음 턴 사용 불가)", Color.red);
+                Notify("[황제] 이번 턴 모든 스킬 비용 0 고정! (스킬당 1회 제한, 사용 스킬 다음 턴 사용 불가)", Color.red);
                 break;
 
             case TarotCardType.Death:
                 _arcanaState.isDeathPendingThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[죽음] 막대한 AP 획득! (턴 종료 시 모든 아군 체력/정신력 -4 감소)", Color.black);
+                Notify("[죽음] 막대한 AP 획득! (턴 종료 시 모든 아군 체력/정신력 -4 감소)", Color.black);
                 break;
 
             case TarotCardType.Devil:
                 if (devilChoice == DevilContractType.Option1_MoreAP_MoreDevil)
                 {
                     _arcanaState.devilOption1PickCount++;
-                    NotificationManager.Instance?.ShowMessage("[악마] 탐욕 계약 체결! (악마 AP 및 등장 확률 증가)", Color.red);
+                    Notify("[악마] 탐욕 계약 체결! (악마 AP 및 등장 확률 증가)", Color.red);
                 }
                 else if (devilChoice == DevilContractType.Option2_EveryTurnAP_LoseMental_NoMoreDevil)
                 {
                     _arcanaState.activeDevilContract = DevilContractType.Option2_EveryTurnAP_LoseMental_NoMoreDevil;
-                    NotificationManager.Instance?.ShowMessage("[악마] 광기 계약 체결! (매 턴 +6 AP, 매 턴 전원 정신력 -6, 악마 등장 제외)", Color.red);
+                    Notify("[악마] 광기 계약 체결! (매 턴 +6 AP, 매 턴 전원 정신력 -6, 악마 등장 제외)", Color.red);
                 }
                 else if (devilChoice == DevilContractType.Option3_EveryTurnAP_GainDebuffs)
                 {
                     _arcanaState.activeDevilContract = DevilContractType.Option3_EveryTurnAP_GainDebuffs;
-                    NotificationManager.Instance?.ShowMessage("[악마] 고통 계약 체결! (매 턴 +6 AP, 매 턴 전원 약화/취약 획득)", Color.red);
+                    Notify("[악마] 고통 계약 체결! (매 턴 +6 AP, 매 턴 전원 약화/취약 획득)", Color.red);
                 }
                 break;
 
@@ -1585,13 +1993,13 @@ public partial class BattleManager : MonoBehaviour
                         if (e.status.currentHp > highestHpEnemy.status.currentHp) highestHpEnemy = e;
                     }
                     highestHpEnemy.status.ApplyStatusEffect(EffectType.Stun, 0f, 1);
-                    NotificationManager.Instance?.ShowMessage($"[심판] 최고 체력 적 {highestHpEnemy.characterName} 1턴 기절!", Color.yellow);
+                    Notify($"[심판] 최고 체력 적 {highestHpEnemy.characterName} 1턴 기절!", Color.yellow);
                 }
                 break;
 
             case TarotCardType.Sun:
                 _arcanaState.isSunRetainActiveThisTurn = true;
-                NotificationManager.Instance?.ShowMessage("[태양] 이번 턴 모든 스킬에 유지(Retain) 효과 부여!", Color.yellow);
+                Notify("[태양] 이번 턴 모든 스킬에 유지(Retain) 효과 부여!", Color.yellow);
                 break;
 
             case TarotCardType.Moon:
@@ -1612,13 +2020,13 @@ public partial class BattleManager : MonoBehaviour
                 {
                     currentAP = Mathf.Min(MaxAP + 10, currentAP + highMentalCount);
                     UpdateAPUI();
-                    NotificationManager.Instance?.ShowMessage($"[달] 정신력 50% 이상 아군({highMentalCount}명) 비례 행동력 +{highMentalCount} 추가 획득 & 회복!", Color.cyan);
+                    Notify($"[달] 정신력 50% 이상 아군({highMentalCount}명) 비례 행동력 +{highMentalCount} 추가 획득 & 회복!", Color.cyan);
                 }
                 break;
 
             case TarotCardType.Star:
                 _arcanaState.isConstellationActive = true;
-                NotificationManager.Instance?.ShowMessage("[별] 별자리 효과 획득! (스킬 3회 사용 시마다 행동력 +1 충전)", Color.cyan);
+                Notify("[별] 별자리 효과 획득! (스킬 3회 사용 시마다 행동력 +1 충전)", Color.cyan);
                 break;
 
             case TarotCardType.World:
@@ -1627,7 +2035,7 @@ public partial class BattleManager : MonoBehaviour
                     a.status.RemoveAllStatusEffects();
                     if (a.view != null) a.view.UpdateVisual(a.status);
                 }
-                NotificationManager.Instance?.ShowMessage("[세계] 모든 아군의 모든 상태이상이 완전히 정화되었습니다!", Color.green);
+                Notify("[세계] 모든 아군의 모든 상태이상이 완전히 정화되었습니다!", Color.green);
                 break;
         }
     }
@@ -1642,7 +2050,7 @@ public partial class BattleManager : MonoBehaviour
         {
             currentAP = Mathf.Max(1, currentAP - _sinState.pendingGluttonyPenaltyNextTurn);
             UpdateAPUI();
-            NotificationManager.Instance?.ShowMessage($"<color=#FF5555>[식탐 페널티] 이전 턴 적 미처치로 행동력 -{_sinState.pendingGluttonyPenaltyNextTurn} 감소</color>", Color.red);
+            Notify($"<color=#FF5555>[식탐 페널티] 이전 턴 적 미처치로 행동력 -{_sinState.pendingGluttonyPenaltyNextTurn} 감소</color>", Color.red);
             _sinState.pendingGluttonyPenaltyNextTurn = 0;
         }
 
@@ -1692,7 +2100,7 @@ public partial class BattleManager : MonoBehaviour
                     e.status.ApplyStatusEffect(EffectType.Bleed, wrathBuff, 2);
                     if (e.view != null) e.view.UpdateVisual(e.status);
                 }
-                NotificationManager.Instance?.ShowMessage($"[분노의 죄] 모든 아군과 적에게 힘 +{wrathBuff}, 취약 +{wrathBuff} 동시 부여!", Color.red);
+                Notify($"[분노의 죄] 모든 아군과 적에게 힘 +{wrathBuff}, 취약 +{wrathBuff} 동시 부여!", Color.red);
                 break;
 
             case SinType.Envy:
@@ -1711,7 +2119,7 @@ public partial class BattleManager : MonoBehaviour
     private void ExecuteSlothMartyrAutoSkills(List<BattleCharacter> livingAllies, List<BattleCharacter> livingEnemies)
     {
         if (livingAllies.Count == 0) return;
-        NotificationManager.Instance?.ShowMessage("[순교자 나태] 턴 시작 시 무작위 스킬 3개 자동 시전!", Color.cyan);
+        Notify("[순교자 나태] 턴 시작 시 무작위 스킬 3개 자동 시전!", Color.cyan);
 
         for (int i = 0; i < 3; i++)
         {
@@ -1764,7 +2172,7 @@ public partial class BattleManager : MonoBehaviour
             ExecuteCharmedAutoCast(c, livingAllies, livingEnemies);
         }
 
-        NotificationManager.Instance?.ShowMessage($"[색욕의 죄] {charmedList.Count}명이 '매혹'되어 자동 행동합니다!", Color.magenta);
+        Notify($"[색욕의 죄] {charmedList.Count}명이 '매혹'되어 자동 행동합니다!", Color.magenta);
     }
 
     private void ExecuteCharmedAutoCast(BattleCharacter actor, List<BattleCharacter> allies, List<BattleCharacter> enemies)
@@ -1818,7 +2226,7 @@ public partial class BattleManager : MonoBehaviour
         float actualDrain = highestEnemy.ReceiveDamage(drainAmount, lowestAlly, DamageType.True);
         lowestAlly.ReceiveHeal(actualDrain, lowestAlly);
 
-        NotificationManager.Instance?.ShowMessage($"[순교자 질투] {lowestAlly.characterName}이(가) {highestEnemy.characterName}의 체력 {actualDrain:F0} 강탈!", Color.green);
+        Notify($"[순교자 질투] {lowestAlly.characterName}이(가) {highestEnemy.characterName}의 체력 {actualDrain:F0} 강탈!", Color.green);
     }
 
     private void ExecuteEnvyBuffCopy(List<BattleCharacter> livingAllies, List<BattleCharacter> livingEnemies, bool greaterEvil)
@@ -1847,7 +2255,7 @@ public partial class BattleManager : MonoBehaviour
             if (totalShield > 0f) chosenAlly.status.ApplyStatusEffect(EffectType.Shield, totalShield, 1);
             if (chosenAlly.view != null) chosenAlly.view.UpdateVisual(chosenAlly.status);
 
-            NotificationManager.Instance?.ShowMessage($"[질투의 죄] 적 버프 복사 -> {chosenAlly.characterName}에게 공격력 +{totalBonusAtk:F0}, 보호막 +{totalShield:F0} 부여!", Color.green);
+            Notify($"[질투의 죄] 적 버프 복사 -> {chosenAlly.characterName}에게 공격력 +{totalBonusAtk:F0}, 보호막 +{totalShield:F0} 부여!", Color.green);
         }
     }
 
@@ -1919,7 +2327,7 @@ public partial class BattleManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(result.summary))
         {
-            NotificationManager.Instance?.ShowMessage($"[클러스터 덱 완성] {result.summary}", Color.cyan);
+            Notify($"[클러스터 덱 완성] {result.summary}", Color.cyan);
         }
     }
 
@@ -1927,12 +2335,13 @@ public partial class BattleManager : MonoBehaviour
     {
         if (UsesDice)
         {
-            int level = TheLastArk.Managers.TrainManager.Instance.nexusCar.level;
-            _dicePool.BeginTurn(Mathf.Clamp(level + 2, 0, ActionDicePool.MaxDicePerTurn));
+            BeginOriginDiceTurn();
             _selectedDiceIds.Clear();
             _pendingDiceSkill = null;
             _pendingDiceActor = null;
-            _usedDiceSkills.Clear();
+            _diceSkillUses.Clear();
+            _firstUseInput.Clear();
+            _offenseDefenseUsed.Clear();
             currentAP = 0;
             RefreshDiceUI();
             RefreshSkillSlots();
@@ -1945,7 +2354,7 @@ public partial class BattleManager : MonoBehaviour
             if (_carriedOverAP > 0)
             {
                 currentAP += _carriedOverAP;
-                NotificationManager.Instance?.ShowMessage($"[에너지 저장소] 이월 행동력 +{_carriedOverAP} 추가!", Color.cyan);
+                Notify($"[에너지 저장소] 이월 행동력 +{_carriedOverAP} 추가!", Color.cyan);
                 _carriedOverAP = 0;
             }
 
@@ -1954,7 +2363,7 @@ public partial class BattleManager : MonoBehaviour
             {
                 int locked = _nextTurnLockedAP;
                 currentAP = Mathf.Max(0, currentAP - locked);
-                NotificationManager.Instance?.ShowMessage($"[과부하 모듈] 이전 턴 과부하로 행동력 -{locked} 잠김! (이번 턴 과부하 불가)", Color.red);
+                Notify($"[과부하 모듈] 이전 턴 과부하로 행동력 -{locked} 잠김! (이번 턴 과부하 불가)", Color.red);
                 _nextTurnLockedAP = 0;
                 _canOverloadThisTurn = false;
             }
@@ -1981,190 +2390,20 @@ public partial class BattleManager : MonoBehaviour
                     bool hasBleed = enemy.status.activeStatusEffects.Exists(e => e.effectType == EffectType.Bleed);
                     if (!hasBleed)
                     {
-                        enemy.status.ApplyStatusEffect(EffectType.Bleed, 2f, 2);
+                        enemy.status.ApplyStatusEffect(EffectType.Bleed, RelicRules.Value(TheLastArk.Data.RelicEffectType.RedShoes), 3);
                         Debug.Log($"[빨간 구두] {enemy.characterName}에게 출혈 2 부여!");
                     }
                 }
             }
         }
 
-        // [연합의 문장] 유물: 수호자, 전사, 지원가 아군이 잃은 정신력의 3%만큼 회복
-        if (TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.AllianceCrest))
-        {
-            foreach (var ally in playerParty)
-            {
-                if (ally != null && ally.status != null && ally.status.currentHp > 0)
-                {
-                    if (ally.status.HasSynergy(TheLastArk.Data.SynergyType.Guardian) ||
-                        ally.status.HasSynergy(TheLastArk.Data.SynergyType.Warrior) ||
-                        ally.status.HasSynergy(TheLastArk.Data.SynergyType.Support))
-                    {
-                        float lostMental = ally.status.FinalMaxMental - ally.status.currentMental;
-                        if (lostMental > 0)
-                        {
-                            float recovery = Mathf.Max(1f, lostMental * 0.03f);
-                            ally.ReceiveMentalHeal(recovery);
-                            if (ally.view != null) ally.view.UpdateVisual(ally.status);
-                            Debug.Log($"[연합의 문장] {ally.characterName} 잃은 정신력 3%({recovery:F1}) 회복!");
-                        }
-                    }
-                }
-            }
-        }
-
-        // [아르키움 유니온] 발명품 발동 및 [마도공학의 심장] 공격력/주문력 증가
-        var curSyn = TheLastArk.Character.SynergyCalculator.CalculateActiveSynergies();
-        if (curSyn.TryGetValue(TheLastArk.Data.SynergyType.ArchiumUnion, out int auCount) && auCount >= 2)
-        {
-            TriggerArchiumUnionInvention(auCount);
-        }
         StartCoroutine(ResolvePanicTurnStart());
-    }
-
-    private void TriggerArchiumUnionInvention(int auCount)
-    {
-        _archiumInventionStep++;
-        int mod = _archiumInventionStep % 3;
-        string inventionName = "";
-
-        if (auCount >= 8 || (auCount >= 6 && mod == 0))
-        {
-            // 기계장치의 신 (모든 발명품 발동)
-            inventionName = "기계장치의 신 (모든 발명품)";
-            currentAP = Mathf.Min(MaxAP, currentAP + 1);
-            UpdateAPUI();
-            foreach (var e in enemyParty)
-            {
-                if (e != null && e.status != null && e.status.currentHp > 0)
-                {
-                    e.status.ApplyStatusEffect(EffectType.Burn, 1f, 2);
-                    e.status.ApplyStatusEffect(EffectType.Bleed, 1f, 2);
-                    e.status.ApplyStatusEffect(EffectType.Poison, 1f, 2);
-                }
-            }
-        }
-        else if (mod == 1)
-        {
-            // 다각도 프레임: 행동력 +1
-            inventionName = "다각도 프레임 (행동력 +1)";
-            currentAP = Mathf.Min(MaxAP, currentAP + 1);
-            UpdateAPUI();
-        }
-        else if (mod == 2)
-        {
-            // 연장 총열: 아군 버프
-            inventionName = "연장 총열 (화력 지원)";
-        }
-        else
-        {
-            // 유해 화학품: 모든 적 화상/출혈/독 1
-            inventionName = "유해 화학품 (상태이상 부여)";
-            foreach (var e in enemyParty)
-            {
-                if (e != null && e.status != null && e.status.currentHp > 0)
-                {
-                    e.status.ApplyStatusEffect(EffectType.Burn, 1f, 2);
-                    e.status.ApplyStatusEffect(EffectType.Bleed, 1f, 2);
-                    e.status.ApplyStatusEffect(EffectType.Poison, 1f, 2);
-                }
-            }
-        }
-
-        Debug.Log($"[아르키움 유니온] 발명품 발동: {inventionName}");
-
-        // [마도공학의 심장] 이번 전투동안 마법공학 발명품이 발동할 때 마다 아군의 공격력, 주문력 1 증가
-        if (TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.HeartOfMagitech))
-        {
-            foreach (var ally in playerParty)
-            {
-                if (ally != null && ally.status != null && ally.status.currentHp > 0)
-                {
-                    ally.status.bonusAttack += 1f;
-                    if (ally.view != null) ally.view.UpdateVisual(ally.status);
-                }
-            }
-            NotificationManager.Instance?.ShowMessage($"[마도공학의 심장] 발명품 '{inventionName}' 발동! 전 아군 공/주 +1!", Color.cyan);
-        }
-        else
-        {
-            NotificationManager.Instance?.ShowMessage($"[아르키움 유니온] 발명품 '{inventionName}' 발동!", Color.cyan);
-        }
-    }
-
-    private void TriggerBlueTowerEffect(BattleCharacter actor, int btCount)
-    {
-        List<BattleCharacter> aliveEnemies = new List<BattleCharacter>();
-        foreach (var e in enemyParty)
-        {
-            if (e != null && e.status != null && e.status.currentHp > 0) aliveEnemies.Add(e);
-        }
-
-        if (aliveEnemies.Count > 0)
-        {
-            var target = aliveEnemies[Random.Range(0, aliveEnemies.Count)];
-            target.status.ApplyStatusEffect(EffectType.Burn, 5f, 2);
-            Debug.Log($"[푸른 마탑] {target.characterName}에게 화상 5 부여!");
-        }
-
-        if (btCount >= 4 && actor != null && actor.status != null)
-        {
-            actor.ReceiveMentalHeal(actor.status.FinalMaxMental * 0.05f);
-            if (actor.view != null) actor.view.UpdateVisual(actor.status);
-            Debug.Log($"[푸른 마탑] {actor.characterName} 정신력 5% 회복!");
-        }
-
-        NotificationManager.Instance?.ShowMessage("[푸른 마탑] 마법 효과 발동!", Color.blue);
-    }
-
-    private void TriggerCheongwoonEffect(int cwCount)
-    {
-        List<BattleCharacter> aliveEnemies = new List<BattleCharacter>();
-        foreach (var e in enemyParty)
-        {
-            if (e != null && e.status != null && e.status.currentHp > 0) aliveEnemies.Add(e);
-        }
-
-        float multiplier = cwCount >= 7 ? 2.0f : 1.0f;
-
-        if (aliveEnemies.Count > 0)
-        {
-            var target = aliveEnemies[Random.Range(0, aliveEnemies.Count)];
-            float dmg = Mathf.Max(1f, target.status.FinalMaxHp * 0.04f * multiplier);
-            target.ReceiveDamage(dmg, null, DamageType.True);
-            Debug.Log($"[청운] {target.characterName}에게 고정 피해 {dmg:F1} 부여!");
-        }
-
-        if (cwCount >= 5)
-        {
-            List<BattleCharacter> aliveAllies = new List<BattleCharacter>();
-            foreach (var a in playerParty)
-            {
-                if (a != null && a.status != null && a.status.currentHp > 0) aliveAllies.Add(a);
-            }
-            if (aliveAllies.Count > 0)
-            {
-                var ally = aliveAllies[Random.Range(0, aliveAllies.Count)];
-                float heal = Mathf.Max(1f, ally.status.FinalMaxHp * 0.05f * multiplier);
-                ally.ReceiveHeal(heal, null);
-                ally.ReceiveMentalHeal(ally.status.FinalMaxMental * 0.05f * multiplier);
-                if (ally.view != null) ally.view.UpdateVisual(ally.status);
-            }
-        }
-
-        if (cwCount >= 7)
-        {
-            currentAP = Mathf.Min(MaxAP, currentAP + 1);
-            UpdateAPUI();
-        }
-
-        NotificationManager.Instance?.ShowMessage("[청운] 청운 기운 발동!", Color.green);
     }
 
     private IEnumerator RunEnemyTurn()
     {
         RemoveOwnerPhaseEffects(enemyParty);
+        _vengeanceCounts.Clear();
         ClearEnemyTargetMarkers();
         Debug.Log($"[Battle] {_turnCount}턴: 적 턴 시작. 생존 적 수 확인 중...");
         Debug.Log($"[Battle] enemyParty 총 수: {enemyParty.Count}");
@@ -2180,6 +2419,7 @@ public partial class BattleManager : MonoBehaviour
         if (aliveEnemies == 0)
         {
             Debug.LogWarning("[Battle] 생존 적이 없습니다. 상태이상 처리로 넘어갑니다.");
+            TickSideTurnEnd(enemyParty);
             EnterPhase(BattlePhase.StatusEffect);
             yield break;
         }
@@ -2225,6 +2465,8 @@ public partial class BattleManager : MonoBehaviour
         }
 
         Debug.Log("[Battle] 적 턴 완료. 상태이상 처리로 넘어갑니다.");
+        ApplySeizure(enemyParty);
+        TickSideTurnEnd(enemyParty);
         EnterPhase(BattlePhase.StatusEffect);
     }
 
@@ -2254,6 +2496,18 @@ public partial class BattleManager : MonoBehaviour
         EnterPhase(BattlePhase.PlayerTurn);
     }
 
+    /// <summary>Turn effects (other than round-end DoTs) decrement at their own side's turn end.</summary>
+    private static void TickSideTurnEnd(List<BattleCharacter> party)
+    {
+        if (party == null) return;
+        foreach (BattleCharacter character in party)
+        {
+            if (character?.status == null) continue;
+            character.status.TickSideTurnEnd();
+            character.view?.UpdateVisual(character.status);
+        }
+    }
+
     private static void RemoveOwnerPhaseEffects(List<BattleCharacter> party)
     {
         if (party == null) return;
@@ -2272,6 +2526,13 @@ public partial class BattleManager : MonoBehaviour
 
     private void OnEnterBattleEnd()
     {
+        _diceCharge.Clear();
+        _parasiticStacks = 0;
+        _carriedDice.Clear();
+        _blueTowerSkills.Clear();
+        // Battle statuses (permanent ones included) never carry into the next battle.
+        foreach (BattleCharacter ally in playerParty)
+            ally?.status?.RemoveAllStatusEffects();
         ClearBattlePanic();
         CancelPendingSelection();
         ClearEnemyTargetMarkers();
@@ -2300,7 +2561,7 @@ public partial class BattleManager : MonoBehaviour
         }
 
         if (playerWin) GiveVictoryRewards();
-        NotificationManager.Instance.ShowMessage(playerWin ? "승리!" : "패배...", playerWin ? Color.cyan : Color.red);
+        Notify(playerWin ? "승리!" : "패배...", playerWin ? Color.cyan : Color.red);
         Invoke(nameof(LoadMapScene), 2f);
     }
 
@@ -2328,7 +2589,7 @@ public partial class BattleManager : MonoBehaviour
             int available = 0;
             foreach (ActionDie die in _dicePool.Dice)
                 if (die.IsAvailable) available++;
-            apText.text = $"주사위 {available}<size=55%><color=#8CAFC8> / {_dicePool.CreatedThisTurn}</color></size>";
+            apText.text = $"주사위 {available}<size=55%><color=#8CAFC8> / {ActionDicePool.MaxStoredDice}</color></size>";
             return;
         }
         apText.text = $"{currentAP}<size=55%><color=#8CAFC8> / {MaxAP}</color></size>";

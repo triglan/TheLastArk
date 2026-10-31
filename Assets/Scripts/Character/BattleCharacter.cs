@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
+using TheLastArk.Battle;
 
 public readonly struct DamageResult
 {
@@ -68,23 +69,6 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             }
         }
 
-        // [힐링 말랑이] 유물 / 지원가 4단계: 모든 아군 지원가의 스킬칸 +1
-        bool hasHealingMallangi = TheLastArk.Managers.ResourceManager.Instance != null &&
-                                  TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.HealingMallangi);
-        if (status.HasSynergy(TheLastArk.Data.SynergyType.Support) && (hasHealingMallangi || TheLastArk.Character.SynergyCalculator.CalculateActiveSynergies().GetValueOrDefault(TheLastArk.Data.SynergyType.Support) >= 4))
-        {
-            for (int i = 0; i < status.origin.activeSkills.Length; i++)
-            {
-                var sk = status.origin.activeSkills[i];
-                if (sk != null && !status.dynamicActiveSkill.Contains(sk))
-                {
-                    status.dynamicActiveSkill.Add(sk);
-                    Debug.Log($"[힐링 말랑이] 지원가 {characterName} 스킬칸 +1 해금 ({sk.skillName})");
-                    break;
-                }
-            }
-        }
-
         // 2. 리더인 경우: 권위자의 지팡이 보유 시 4개 전부 해금, 아니면 3번째 스킬 탑재
         if (isLeader)
         {
@@ -130,49 +114,65 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         }
     }
 
+    // 끊임없는 전투 per level (0 / +1 / +2): charge target and total 가르기 uses that turn.
+    private static readonly int[] EndlessChargeTargets = { 10, 10, 8 };
+    private static readonly int[] EndlessCleaveUses = { 2, 2, 3 };
+
+    /// <summary>재정비 → 끊임없는 전투: same heal / shield, shorter charge, and 가르기 uses granted on fire.</summary>
     private SkillInfo CreateEndlessBattleSkill(SkillInfo baseSkill)
     {
-        SkillInfo endless = new SkillInfo
+        var endless = new SkillInfo
         {
-            skillName = "끊임없는 전투",
-            skillIcon = baseSkill != null ? baseSkill.skillIcon : null,
-            baseCost = 2,
+            skillName = BattleManager.EndlessBattleSkillName,
+            skillIcon = baseSkill?.skillIcon,
+            baseCost = baseSkill?.baseCost ?? 0,
             levels = new SkillLevelData[3]
         };
-
-        for (int l = 0; l < 3; l++)
+        for (int l = 0; l < endless.levels.Length; l++)
         {
+            SkillLevelData source = baseSkill?.levels != null && baseSkill.levels.Length > l ? baseSkill.levels[l] : null;
             endless.levels[l] = new SkillLevelData
             {
-                overrideCost = 2,
-                targetType = TargetType.Friendly,
-                effects = new List<EffectEntry>
+                overrideCost = source?.overrideCost ?? -1,
+                targetType = source?.targetType ?? TargetType.Self,
+                diceInput = new TheLastArk.Skills.DiceInputRule
                 {
-                    new EffectEntry
-                    {
-                        type = EffectType.Strength,
-                        damageType = DamageType.Physical,
-                        value = 1f,
-                        duration = 3
-                    }
-                }
+                    diceCount = source?.diceInput?.diceCount ?? 1,
+                    condition = source?.diceInput?.condition ?? TheLastArk.Skills.DiceCondition.Any,
+                    value = source?.diceInput?.value ?? 1,
+                    maxValue = source?.diceInput?.maxValue ?? 6,
+                    chargeTarget = EndlessChargeTargets[l]
+                },
+                usesPerTurn = 1,
+                specialCount = EndlessCleaveUses[l],
+                effects = source?.effects != null ? new List<EffectEntry>(source.effects) : new List<EffectEntry>()
             };
         }
-
         return endless;
     }
 
     [HideInInspector] public bool hasResurrectedThisStage = false;
+    /// <summary>마법장 갑주 already negated a hit this battle.</summary>
+    [HideInInspector] public bool magicShellUsed;
     public event System.Action<BattleCharacter> MentalDepleted;
     public event System.Action<BattleCharacter> PanicChanged;
 
+    /// <summary>
+    /// Shared panic for players and enemies: sanity 0 starts one of the six panics (uniform); real healing that lifts
+    /// sanity above 0 ends it. While panicking, more sanity damage never stacks or rerolls.
+    /// </summary>
     public void SynchronizePanic()
     {
-        if (status?.origin == null || status.origin.isEnemy || status.currentHp <= 0f) return;
+        if (status?.origin == null || status.currentHp <= 0f) return;
         if (status.panic == null) status.panic = new TheLastArk.Battle.PanicState();
         if (status.currentMental <= 0f && !status.panic.IsActive)
         {
-            status.panic.Begin((TheLastArk.Battle.PanicType)Random.Range(1, 7));
+            status.panic.Begin(TheLastArk.Battle.PanicState.Roll());
+            PanicChanged?.Invoke(this);
+        }
+        else if (status.currentMental > 0f && status.panic.IsActive)
+        {
+            status.panic.Clear();
             PanicChanged?.Invoke(this);
         }
     }
@@ -182,7 +182,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     internal bool DebugSetPanic(TheLastArk.Battle.PanicType type)
     {
         if (status?.origin == null || status.origin.isEnemy || status.currentHp <= 0f
-            || !gameObject.activeInHierarchy || (int)type < 0 || (int)type > 6) return false;
+            || !gameObject.activeInHierarchy || (int)type < 0 || (int)type > TheLastArk.Battle.PanicState.TypeCount) return false;
         float mentalBefore = status.currentMental;
         if (status.panic == null) status.panic = new TheLastArk.Battle.PanicState();
         status.panic.Begin(type);
@@ -215,36 +215,73 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         if (status == null || amount <= 0f)
             return new DamageResult(amount, 0f, 0f, 0f, 0f, this, false);
 
-        if (allowRedirect)
+        // Direct hits outside a skill still resolve responses, as a one-hit attack of their own.
+        AttackContext context = allowReactions ? AttackContext.Current : null;
+        bool ownContext = false;
+        if (allowReactions && context == null && attacker != null && attacker != this)
         {
-            var guard = status.GetStatus(EffectType.Guard);
-            if (guard != null && guard.source != null && guard.source != this && guard.source.status != null && guard.source.status.currentHp > 0f)
-            {
-                status.ConsumeStatusCharge(EffectType.Guard);
-                if (view != null) view.UpdateVisual(status);
-                return guard.source.ReceiveDamageInternal(amount, attacker, damageType, false, allowReactions);
-            }
-
-            bool ignoresTaunt = attacker?.status?.GetStatus(EffectType.Focus) != null;
-            var taunter = ignoresTaunt ? null : FindTaunter();
-            if (taunter != null)
-            {
-                taunter.status.ConsumeStatusCharge(EffectType.Taunt);
-                if (taunter != this)
-                    return taunter.ReceiveDamageInternal(amount, attacker, damageType, false, allowReactions);
-            }
+            context = AttackContext.Begin(attacker, this, TargetType.SingleEnemy);
+            ownContext = true;
         }
-
-        // [날카로운 못] 유물: 아군 공격자가 물리 피해를 입힐 때 +1 고정 피해
-        if (damageType == DamageType.Physical && attacker?.status?.origin != null && !attacker.status.origin.isEnemy)
+        try
         {
-            if (Application.isPlaying && TheLastArk.Managers.ResourceManager.Instance != null &&
-                TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.SharpNail))
+            BattleCharacter receiver = this;
+            bool redirected = false;
+            if (allowRedirect && context != null)
             {
-                amount += TheLastArk.Managers.ResourceManager.Instance.GetRelicBonus(TheLastArk.Data.RelicEffectType.SharpNail);
-            }
-        }
+                // Order: 도발 target fixed → 보호.
+                if (context.TauntAffected && this == context.PrimaryTarget)
+                {
+                    BattleCharacter taunter = context.LockedTaunter;
+                    if (taunter == null && attacker?.status?.GetStatus(EffectType.Focus) == null) taunter = FindTaunter();
+                    if (taunter != null && taunter.status != null && taunter.status.currentHp > 0f)
+                    {
+                        // One count per hit; once exhausted mid-attack the attack stays on the taunter.
+                        if (taunter.status.GetStatus(EffectType.Taunt) != null) taunter.status.ConsumeStatusCharge(EffectType.Taunt);
+                        context.LockedTaunter = taunter;
+                        receiver = taunter;
+                        redirected = true;
+                        taunter.view?.UpdateVisual(taunter.status);
+                    }
+                }
 
+                BattleCharacter protector = receiver.FindProtector(context);
+                if (protector != null)
+                {
+                    float reduction = Mathf.Clamp01(context.GuardReduction(receiver));
+                    return protector.ApplyHit(amount, attacker, damageType, reduction, allowReactions ? context : null, true);
+                }
+            }
+            return receiver.ApplyHit(amount, attacker, damageType, 0f, allowReactions ? context : null, redirected);
+        }
+        finally
+        {
+            if (ownContext) context.End();
+        }
+    }
+
+    /// <summary>보호: the living caster of this ally's protect takes direct hits. One count per attack skill;
+    /// later hits of the same skill keep going to that protector. Works while the protector is stunned.</summary>
+    private BattleCharacter FindProtector(AttackContext context)
+    {
+        BattleCharacter known = context.GetGuardian(this);
+        if (known != null) return known.status != null && known.status.currentHp > 0f ? known : null;
+        var guard = status.GetStatus(EffectType.Guard);
+        if (guard == null || guard.source == null || guard.source == this || guard.source.status == null || guard.source.status.currentHp <= 0f)
+            return null;
+        // 수호자의 맹세: the protector's passive adds its own reduction (each decrease multiplies in turn).
+        float reduction = guard.secondaryValue * 0.01f;
+        EffectEntry oath = guard.source.status.GetPassiveEntry(PassiveTrait.GuardianOath);
+        if (oath != null) reduction = 1f - (1f - reduction) * (1f - Mathf.Clamp01(oath.value * 0.01f));
+        context.SetGuardian(this, guard.source, reduction);
+        status.ConsumeStatusCharge(EffectType.Guard);
+        view?.UpdateVisual(status);
+        return guard.source;
+    }
+
+    /// <summary>Defense → protect reduction → floor → shield → HP. Responses are deferred to the attack's end.</summary>
+    private DamageResult ApplyHit(float amount, BattleCharacter attacker, DamageType damageType, float protectReduction, AttackContext context, bool viaProtectOrTaunt = false)
+    {
         float defense = damageType switch
         {
             DamageType.Physical => Mathf.Max(0f, status.FinalArmor),
@@ -253,8 +290,25 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         };
         if (attacker?.status != null)
             defense *= Mathf.Clamp01(1f - attacker.status.GetStatusPercent(EffectType.Pierce));
+        defense *= Mathf.Clamp01(1f - (AttackContext.Current?.ArmorIgnore ?? 0f));
         float damageAfterDefense = damageType == DamageType.True ? amount : Mathf.Max(0f, amount - defense);
-        float resolvedDamage = Mathf.Ceil(damageAfterDefense);
+        // 사냥 표식: allies' direct HP damage on a marked enemy is increased.
+        float markBonus = context != null && attacker?.status?.origin != null && !attacker.status.origin.isEnemy
+            ? status.GetStatusValue(EffectType.HuntMark) * 0.01f : 0f;
+        var damageModifier = new ValueModifier().AddIncrease(markBonus).AddDecrease(protectReduction);
+        if (status.panic != null && status.panic.Type == PanicType.Agitation) damageModifier.AddMultiplier(PanicState.AgitationDamageMultiplier);
+        // 거석 방패 부동: below 20% HP right before the hit, physical damage −50% (protected hits included).
+        if (damageType == DamageType.Physical && status.HasEquipment("MegalithShield") && status.currentHp < status.FinalMaxHp * 0.2f)
+            damageModifier.AddDecrease(0.5f);
+        // 수호자: team reduction, plus extra while protecting / taunting (applied before shields).
+        if (context != null) TheLastArk.Character.SynergyEffects.AddGuardianReductions(status, viaProtectOrTaunt, damageModifier);
+        float resolvedDamage = damageModifier.Apply(damageAfterDefense);
+        // 마법장 갑주: the battle's first direct-attack HP damage hit is negated (after defense, before shields).
+        if (context != null && attacker != null && resolvedDamage > 0f && !magicShellUsed && status.HasEquipment("AegisArmor"))
+        {
+            magicShellUsed = true;
+            resolvedDamage = 0f;
+        }
         float healthDamage = resolvedDamage;
         float shieldDamage = 0f;
 
@@ -297,27 +351,9 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         status.currentHp = Mathf.Max(0f, status.currentHp - healthDamage);
         float appliedHealthDamage = hpBefore - status.currentHp;
 
-        // [복수의 인장] 유물: 아군이 체력 피해를 입을 때마다 힘(공격력) +1 획득
-        if (appliedHealthDamage > 0f && status.origin != null && !status.origin.isEnemy)
-        {
-            if (Application.isPlaying && TheLastArk.Managers.ResourceManager.Instance != null &&
-                TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.SealOfVengeance))
-            {
-                status.bonusAttack += 1f;
-                Debug.Log($"[복수의 인장] {characterName} 피격으로 힘(공격력) +1 획득!");
-            }
-        }
-
-        // [정신 분열의 룬] 유물: 마법 피해의 10%만큼 대상 정신력에 추가 피해
-        if (damageType == DamageType.Magical && appliedHealthDamage > 0f && attacker?.status?.origin != null && !attacker.status.origin.isEnemy)
-        {
-            if (Application.isPlaying && TheLastArk.Managers.ResourceManager.Instance != null &&
-                TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.MindFractureRune))
-            {
-                float mentalDmg = appliedHealthDamage * 0.10f;
-                TakeMentalDamage(mentalDmg);
-            }
-        }
+        // [복수의 인장] 유물: 직접 공격으로 실제 체력 피해를 받은 아군 힘 1 (1턴, 진영 턴당 3회)
+        if (appliedHealthDamage > 0f && context != null && attacker != null)
+            (BattleManager.Active != null ? BattleManager.Active : FindObjectOfType<BattleManager>())?.TryVengeance(this);
 
         // 특성 [회생] / [배반자] 발동 검사 (체력 1 이하일 때 발동)
         if (appliedHealthDamage > 0f && status.currentHp <= 1f)
@@ -326,24 +362,8 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         }
 
         Debug.Log($"{gameObject.name} 피격! 남은 체력: {status.currentHp}");
-        if (allowReactions && attacker != null && attacker != this && attacker.status != null && attacker.status.currentHp > 0f)
-        {
-            var counter = status.GetStatus(EffectType.Counter);
-            if (counter != null)
-            {
-                status.ConsumeStatusCharge(EffectType.Counter);
-                attacker.ReceiveDamage(status.FinalAttack + counter.damagePerTurn, this, DamageType.Physical, false);
-            }
-
-            var reflect = status.GetStatus(EffectType.Reflect);
-            if (reflect != null && attacker.status.currentHp > 0f)
-            {
-                float reflectedDamage = attacker.status.FinalAttack * Mathf.Max(0f, reflect.damagePerTurn) * 0.01f;
-                status.ConsumeStatusCharge(EffectType.Reflect);
-                if (reflectedDamage > 0f)
-                    attacker.ReceiveDamage(reflectedDamage, this, damageType, false);
-            }
-        }
+        // 반격/반사 resolve once after every hit of the attack skill, even for 0 HP damage.
+        if (context != null && attacker != null && attacker != this) context.RecordHit(this, damageType);
 
         if (view != null) view.UpdateVisual(status);
 
@@ -360,6 +380,35 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             status.currentHp <= 0f);
         DamageResolved?.Invoke(result);
         return result;
+    }
+
+    /// <summary>
+    /// After an attack skill: 반격 (own ATK, physical) first, then 반사 (attacker ATK × summed ratio, same damage type)
+    /// if the attacker still lives. Each at most once per attack skill; needs this character alive and not stunned.
+    /// </summary>
+    public void ResolveAttackResponses(BattleCharacter attacker, DamageType receivedType)
+    {
+        if (attacker == null || attacker == this || status == null || attacker.status == null) return;
+        if (status.currentHp <= 0f || status.GetStatus(EffectType.Stun) != null) return;
+
+        var counter = status.GetStatus(EffectType.Counter);
+        if (counter != null && attacker.status.currentHp > 0f)
+        {
+            // Own ATK; an authored counter value is added on top (0 in the default data).
+            float counterDamage = status.FinalAttack + Mathf.Max(0f, counter.damagePerTurn);
+            status.ConsumeStatusCharge(EffectType.Counter);
+            attacker.ReceiveDamage(counterDamage, this, DamageType.Physical, false);
+        }
+
+        var reflect = status.GetStatus(EffectType.Reflect);
+        if (reflect != null && attacker.status.currentHp > 0f)
+        {
+            float ratio = Mathf.Max(0f, status.GetStatusValue(EffectType.Reflect)) * 0.01f;
+            status.ConsumeStatusCharge(EffectType.Reflect);
+            float reflected = ValueModifier.Floor(attacker.status.FinalAttack * ratio);
+            if (reflected > 0f) attacker.ReceiveDamage(reflected, this, receivedType, false);
+        }
+        view?.UpdateVisual(status);
     }
 
     // Ritual costs consume HP directly; shields, redirection and retaliation do not pay a cost.
@@ -383,39 +432,31 @@ public class BattleCharacter : MonoBehaviour, IDamageable
 
     public void ResolveActionStatusEffects()
     {
-        var bleed = status?.GetStatus(EffectType.Bleed);
-        if (bleed != null) ReceiveDamage(bleed.damagePerTurn * 0.5f, null, DamageType.True, false);
+        if (status == null) return;
+        float bleed = status.GetStatusValue(EffectType.Bleed);
+        if (bleed > 0f) ReceiveDamage(ValueModifier.Floor(bleed * 0.5f), null, DamageType.True, false);
 
-        var pressure = status?.GetStatus(EffectType.Pressure);
-        if (pressure != null) TakeMentalDamage(pressure.damagePerTurn);
+        float pressure = status.GetStatusValue(EffectType.Pressure);
+        if (pressure > 0f) TakeMentalDamage(ValueModifier.Floor(pressure));
     }
 
-    public float TakeMentalDamage(float amount)
+    /// <param name="fromAlly">Sanity damage dealt by the player's side (파쇄 주문서 checks only these).</param>
+    public float TakeMentalDamage(float amount, bool fromAlly = false)
     {
         if (status == null || amount <= 0f) return 0f;
 
         float mentalBefore = status.currentMental;
-        float resolvedDamage = Mathf.Ceil(Mathf.Max(0f, amount));
+        float resolvedDamage = ValueModifier.Floor(amount);
         status.currentMental = Mathf.Max(0f, status.currentMental - resolvedDamage);
 
-        // [속삭임 교단] 유물: 전용 스킬 정신 피해가 체력에도 동일한 피해를 줌
-        if (Application.isPlaying && status.origin != null && status.origin.isEnemy &&
-            TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.WhisperCultRelic))
-        {
-            ReceiveDamage(resolvedDamage, null, DamageType.True);
-            Debug.Log($"[속삭임 교단] {characterName} 체력에도 동일한 피해 {resolvedDamage} 부여!");
-        }
-
         // [파쇄 주문서] 유물: 정신 피해를 줄 때 대상의 정신력이 10% 미만이면 즉시 패닉
-        if (Application.isPlaying && TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.ShatterScroll))
+        // 아군 정신 피해 후 10% 미만이면 0 → 기존 패닉 진입 경로. 이미 0이거나 패닉 중이면 중복 없음.
+        if (fromAlly && RelicRules.Has(TheLastArk.Data.RelicEffectType.ShatterScroll)
+            && status.currentMental > 0f && status.currentMental < status.FinalMaxMental * 0.10f
+            && (status.panic == null || !status.panic.IsActive))
         {
-            if (status.currentMental < status.FinalMaxMental * 0.10f)
-            {
-                status.currentMental = 0f;
-                Debug.Log($"[파쇄 주문서] {characterName} 정신력 10% 미만으로 즉시 패닉!");
-            }
+            status.currentMental = 0f;
+            Debug.Log($"[파쇄 주문서] {characterName} 정신력 10% 미만 → 0");
         }
 
         float appliedDamage = mentalBefore - status.currentMental;
@@ -430,8 +471,9 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     public float ReceiveMentalHeal(float amount)
     {
         if (status == null || amount <= 0f) return 0f;
-        var despair = status.GetStatus(EffectType.Despair);
-        if (despair != null) amount *= Mathf.Clamp01(1f - despair.damagePerTurn * 0.01f);
+        amount = new ValueModifier().AddIncrease(status.HasEquipment("SaintNecklace") ? SaintNecklaceBonus : 0f)
+            .AddDecrease(status.GetStatusValue(EffectType.Despair) * 0.01f).Apply(amount);
+        if (amount <= 0f) return 0f;
         float before = status.currentMental;
         status.currentMental = Mathf.Min(status.FinalMaxMental, status.currentMental + amount);
         SynchronizePanic();
@@ -443,53 +485,6 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     {
         if (status == null || status.origin == null) return;
         if (hasResurrectedThisStage) return;
-
-        bool hasTraitorRelic = TheLastArk.Managers.ResourceManager.Instance != null &&
-                               TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.Traitor);
-
-        // [배반자] 유물: 회생 특성이 배반자 특성으로 변경
-        if (hasTraitorRelic && (characterName.Contains("알렉스") || (status.origin.passiveSkill != null && !string.IsNullOrEmpty(status.origin.passiveSkill.skillName) && status.origin.passiveSkill.skillName.Contains("회생"))))
-        {
-            hasResurrectedThisStage = true;
-            status.currentHp = 1f;
-
-            var bm = FindObjectOfType<BattleManager>();
-            float totalAbsorbed = 0f;
-
-            if (bm != null && bm.playerParty != null)
-            {
-                foreach (var ally in bm.playerParty)
-                {
-                    if (ally != null && ally != this && ally.status != null && ally.status.currentHp > 0)
-                    {
-                        float absorb = Mathf.Max(0f, ally.status.currentMental * 0.5f);
-                        ally.status.currentMental = Mathf.Max(1f, ally.status.currentMental - absorb);
-                        if (ally.view != null) ally.view.UpdateVisual(ally.status);
-                        totalAbsorbed += absorb;
-                    }
-                }
-            }
-
-            float alexMental = Mathf.Max(0f, status.currentMental - 1f);
-            totalAbsorbed += alexMental;
-            status.currentMental = 1f;
-
-            float healAmount = Mathf.Max(status.FinalMaxHp * 0.4f, totalAbsorbed * 2f);
-            ReceiveHeal(healAmount, this);
-
-            // 부활 후 공격력 50% 증가
-            status.bonusAttack += status.FinalAttack * 0.50f;
-            Debug.Log($"[{characterName}] 특성 [배반자] 발동! 아군 정신력 흡수({totalAbsorbed:F1}) -> 체력 {healAmount:F1} 회복 및 공격력 +50%!");
-
-            // (개화 / 4강) 부활 시 무작위 적에게 가르기를 시전합니다. 2번 반복합니다.
-            if (status.IsTraitAwakened)
-            {
-                CastSlashOnRandomEnemy(2);
-            }
-
-            TheLastArk.UI.NotificationManager.Instance?.ShowMessage($"[{characterName}] 특성 [배반자] 발동! 부활 & 공격력 +50%!", Color.red);
-            return;
-        }
 
         bool canResurrect = false;
 
@@ -592,23 +587,43 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         }
     }
 
-    public float ReceiveHeal(float amount, BattleCharacter healer)
+    private const float SaintNecklaceBonus = 0.2f;
+
+    public float ReceiveHeal(float amount, BattleCharacter healer) => ReceiveHeal(amount, healer, 0f);
+
+    /// <summary>
+    /// Grants a shield through the shared rule: received-shield bonuses (서포터), then floor. Default duration lasts
+    /// until this side's next turn start. Returns the amount granted.
+    /// </summary>
+    public float GainShield(float amount, BattleCharacter source, int turns = 1, StatusDurationType duration = StatusDurationType.Default)
     {
         if (status == null || amount <= 0f) return 0f;
+        float granted = new ValueModifier().AddIncrease(TheLastArk.Character.SynergyEffects.SupportReceiveBonus(status)).Apply(amount);
+        if (granted <= 0f) return 0f;
+        status.ApplyStatusEffect(EffectType.Shield, granted, Mathf.Max(1, turns), 0f, 0, -1, source, duration);
+        view?.UpdateVisual(status);
+        return granted;
+    }
+
+    /// <param name="healIncrease">Caller-side % increase (e.g. 기도실), summed with other increases.</param>
+    public float ReceiveHeal(float amount, BattleCharacter healer, float healIncrease)
+    {
+        if (status == null || amount <= 0f) return 0f;
+        var heal = new ValueModifier().AddIncrease(healIncrease).AddIncrease(TheLastArk.Character.SynergyEffects.SupportReceiveBonus(status));
+        if (status.HasEquipment("SaintNecklace")) heal.AddIncrease(SaintNecklaceBonus);
+        else if (healer != null && healer != this && healer.status != null && healer.status.HasEquipment("SaintNecklace")) heal.AddIncrease(SaintNecklaceBonus);
 
         // [회광반조] 유물: 잃은 체력에 비례해 치유량이 최대 50%까지 증가 (체력 10%에서 최대)
-        if (Application.isPlaying && status.origin != null && !status.origin.isEnemy &&
-            TheLastArk.Managers.ResourceManager.Instance != null &&
-            TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.FlashOfTwilight))
+        // 회광반조: the target's and (for another ally's heal) the healer's lost-HP bonus, each up to +50%.
+        if (RelicRules.Has(TheLastArk.Data.RelicEffectType.FlashOfTwilight) && RelicRules.IsAlly(this))
         {
-            float maxHp = Mathf.Max(1f, status.FinalMaxHp);
-            float hpRatio = status.currentHp / maxHp;
-            float lostRatio = Mathf.Clamp01((1f - hpRatio) / 0.9f); // 100% -> 0, 10% 이하 -> 1.0
-            float healBonus = lostRatio * 0.50f;
-            amount *= (1f + healBonus);
+            heal.AddIncrease(RelicRules.TwilightBonus(status));
+            if (healer != null && healer != this && RelicRules.IsAlly(healer)) heal.AddIncrease(RelicRules.TwilightBonus(healer.status));
         }
 
-        if (status.GetStatus(EffectType.Burn) != null) amount *= 0.5f;
+        if (status.GetStatus(EffectType.Burn) != null) heal.AddDecrease(StatusRules.BurnHealDecrease);
+        amount = heal.Apply(amount);
+        if (amount <= 0f) return 0f;
         float beforeHp = status.currentHp;
         status.currentHp += amount;
         if (status.currentHp > status.FinalMaxHp)

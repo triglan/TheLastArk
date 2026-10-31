@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_CouragePotion
   relicName: "\uC6A9\uAE30\uC758 \uBB3C\uC57D"
-  description: "\uC8FC\uC810 \uC120\uD0DD\uC9C0\uC5D0\uC11C \uC6A9\uBCD1\uC774 \uD558\uB098
-    \uB354 \uB4F1\uC7A5\uD569\uB2C8\uB2E4."
+  description: "\uC8FC\uC810 \uC6A9\uBCD1 \uC120\uD0DD\uC9C0 +1."
   icon: {fileID: 0}
   rarity: 0
   effectType: 9

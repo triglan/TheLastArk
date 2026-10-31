@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_Decoder
   relicName: "\uC554\uD638 \uD574\uB3C5\uAE30"
-  description: "\uAE30\uCC28\uC758 \uD1B5\uC2E0\uC18C \uB808\uBCA8\uC774 +1 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  description: "\uD68D\uB4DD \uC2DC \uC7A5\uCC29\uD55C \uC120\uD0DD \uCE78 1\uAC1C\uB97C \uACE8\uB77C \uAC15\uD654 \uB808\uBCA8 +1 (\uCD5C\uB300 \uAC15\uD654 \uCD08\uACFC \uBD88\uAC00)."
   icon: {fileID: 0}
   rarity: 0
   effectType: 6

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_Dice
   relicName: "\uC804\uC124\uC758 \uC8FC\uC0AC\uC704"
-  description: "\uBAA8\uB4E0 \uC0C8\uB85C\uACE0\uCE68 \uD69F\uC218\uAC00 +1 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  description: "\uBAA8\uB4E0 \uC0C8\uB85C\uACE0\uCE68 \uD69F\uC218 +1."
   icon: {fileID: 0}
   rarity: 1
   effectType: 11

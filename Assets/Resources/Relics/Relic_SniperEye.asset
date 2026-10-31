@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relicID: Relic_SniperEye
   relicName: "\uC800\uACA9\uC218\uC758 \uB208"
-  description: "\uC0AC\uC218 \uC544\uAD70\uC758 \uCE58\uBA85\uD0C0 \uD53C\uD574\uB7C9\uC774
-    +25% \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  description: "\uC0AC\uC218 \uC18C\uC18D \uCE58\uBA85 \uD53C\uD574 +25%p."
   icon: {fileID: 0}
   rarity: 1
   effectType: 53

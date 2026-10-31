@@ -1,0 +1,170 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc293b08b0fc4f7daf1a09ed940899f3, type: 3}
+  m_Name: SynergyBalanceConfig
+  m_EditorClassIdentifier: 
+  archiumExtraDice:
+  - 1
+  - 1
+  - 2
+  - 3
+  archiumTopBonus:
+  - 0
+  - 2
+  - 2
+  - 4
+  lionheartNorthDice:
+  - 1
+  - 2
+  - 3
+  lionheartShieldMultiplier:
+  - 1
+  - 1
+  - 2
+  northDieFaces: 6
+  beastSlayerNorthFaces: 8
+  elysiumCelestialDice:
+  - 1
+  - 2
+  - 2
+  - 3
+  elysiumOverhealShieldPercent:
+  - 0
+  - 0
+  - 50
+  - 100
+  blueTowerSpellPowerPercent:
+  - 10
+  - 20
+  - 30
+  blueTowerDistinctSkills:
+  - 3
+  - 3
+  - 2
+  grimoireDistinctSkills:
+  - 2
+  - 2
+  - 1
+  blueTowerMental:
+  - 2
+  - 3
+  - 4
+  blueTowerPerTurn:
+  - 1
+  - 1
+  - 2
+  elvenwoodFaces:
+  - 12
+  - 18
+  - 24
+  mirageGoldPercent:
+  - 0
+  - 25
+  - 50
+  - 100
+  mirageGoldDiceCost: 30
+  mirageGuardianShieldPercent:
+  - 4
+  - 6
+  - 8
+  - 12
+  mirageWarriorAttackPercent:
+  - 8
+  - 12
+  - 16
+  - 24
+  mirageAssassinCrit:
+  - 5
+  - 7.5
+  - 10
+  - 15
+  mirageRangerCritDamage:
+  - 10
+  - 15
+  - 20
+  - 30
+  mirageMageSpellPercent:
+  - 8
+  - 12
+  - 16
+  - 24
+  mirageSupportMental:
+  - 1
+  - 1
+  - 2
+  - 3
+  whisperDice:
+  - 1
+  - 2
+  - 2
+  whisperFear:
+  - 1
+  - 2
+  - 3
+  whisperLowMentalBonusPercent:
+  - 25
+  - 40
+  - 50
+  whisperFearRounds: 3
+  cheongwoonCloudCount:
+  - 2
+  - 2
+  - 4
+  cheongwoonCloudValue:
+  - 0
+  - 1
+  - 1
+  cheongwoonFrailty:
+  - 1
+  - 2
+  - 3
+  arcadiaCarry:
+  - 1
+  - 2
+  - 2
+  arcadiaMaxValueFromTurn: 6
+  guardianTeamReductionPercent:
+  - 10
+  - 15
+  guardianProtectReductionPercent:
+  - 10
+  - 20
+  warriorFirstSkillPercent:
+  - 35
+  - 50
+  warriorSecondSkillPercent:
+  - 0
+  - 25
+  assassinStatPercent:
+  - 10
+  - 20
+  assassinDiceBonus:
+  - 1
+  - 2
+  rangerCrit:
+  - 10
+  - 20
+  rangerCritDamage:
+  - 15
+  - 25
+  baseCritDamagePercent: 180
+  mageDebuffMultiplier:
+  - 1.5
+  - 2
+  supportReceivePercent:
+  - 15
+  - 25
+  - 35
+  supportMental:
+  - 1
+  - 2
+  - 3
