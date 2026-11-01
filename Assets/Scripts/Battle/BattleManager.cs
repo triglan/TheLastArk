@@ -88,6 +88,7 @@ public partial class BattleManager : MonoBehaviour
     private const int UnityBannerDice = 2;
     private readonly Dictionary<(BattleCharacter, SkillInfo), int> _diceCharge = new Dictionary<(BattleCharacter, SkillInfo), int>();
     private BattleDiceUI _diceUI;
+    public bool IsDiceDialogOpen => _diceUI != null && _diceUI.IsSplitDialogOpen;
     private OriginPartBalanceConfig _originBalance;
     private int _parasiticStacks;
     private int _manipulateUsesLeft;
@@ -408,7 +409,8 @@ public partial class BattleManager : MonoBehaviour
         {
             if (IsChargeReady(actor, skill))
             {
-                Notify("충전 완료 — 대상을 지정하고 스킬을 눌러 발동하세요.", Color.cyan);
+                // Kept ready because it could not fire on completion: retry without spending the die.
+                TryFireReadyCharge(actor, skill);
                 return;
             }
             if (_pendingDiceSkill != skill || _pendingDiceActor != actor)
@@ -419,6 +421,15 @@ public partial class BattleManager : MonoBehaviour
             _selectedDiceIds.Add(dieId);
             if (_selectedDiceIds.Count >= Mathf.Max(1, dropRule.diceCount))
             {
+                // The completing insert fires at once, so like a normal skill it needs a valid target first.
+                if (WouldCompleteCharge(actor, skill, dropRule)
+                    && ResolveDiceSkillTarget(skill, actor, out string targetReason, out Color reasonColor) == null)
+                {
+                    _selectedDiceIds.Remove(dieId);
+                    Notify(targetReason, reasonColor);
+                    RefreshDiceUI();
+                    return;
+                }
                 TryInsertChargeDice(actor, skill);
                 _pendingDiceSkill = null;
                 _pendingDiceActor = null;
@@ -436,18 +447,9 @@ public partial class BattleManager : MonoBehaviour
                 (values, modifierIndex) => TrySplitDie(actor, skill, dieId, values, modifierIndex));
             return;
         }
-        BattleCharacter target = AutoTargetFor(skill, actor) ?? (targetHandler.target != null
-            ? targetHandler.target.GetComponent<BattleCharacter>() : null);
-        if (target == null)
+        if (ResolveDiceSkillTarget(skill, actor, out string reason, out Color color) == null)
         {
-            Notify("먼저 대상을 지정하세요.", Color.yellow);
-            return;
-        }
-        if (level == null || (level.excludeSelf && target == actor) || !(level.targetType == TargetType.Self
-            ? target == actor
-            : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty, actor)))
-        {
-            Notify("이 스킬에 맞는 대상이 아닙니다.", Color.red);
+            Notify(reason, color);
             return;
         }
 
@@ -472,8 +474,61 @@ public partial class BattleManager : MonoBehaviour
         RefreshDiceUI();
     }
 
+    /// <summary>Auto target first, then the selected target when it is valid for the skill.</summary>
+    private BattleCharacter ResolveDiceSkillTarget(SkillInfo skill, BattleCharacter actor, out string reason, out Color reasonColor)
+    {
+        reason = null;
+        reasonColor = Color.white;
+        SkillLevelData level = GetSkillLevel(skill, actor);
+        BattleCharacter target = AutoTargetFor(skill, actor) ?? (targetHandler != null && targetHandler.target != null
+            ? targetHandler.target.GetComponent<BattleCharacter>() : null);
+        if (target == null)
+        {
+            reason = "먼저 대상을 지정하세요.";
+            reasonColor = Color.yellow;
+            return null;
+        }
+        if (level == null || (level.excludeSelf && target == actor) || !(level.targetType == TargetType.Self
+            ? target == actor
+            : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty, actor)))
+        {
+            reason = "이 스킬에 맞는 대상이 아닙니다.";
+            reasonColor = Color.red;
+            return null;
+        }
+        return target;
+    }
+
+    /// <summary>Whether inserting the selected dice reaches the charge target (on-use bonus estimated, not consumed).</summary>
+    private bool WouldCompleteCharge(BattleCharacter actor, SkillInfo skill, DiceInputRule rule)
+    {
+        int bonus = GetDiceOnUseBonus(actor, skill);
+        int contribution = 0;
+        foreach (ActionDie die in SelectedDice())
+            if (die != null) contribution += rule.chargeByDiceCount ? 1 : GetDieEffectValue(actor, die, bonus);
+        return GetDiceCharge(actor, skill) + contribution >= rule.chargeTarget;
+    }
+
+    /// <summary>Fires a ready charge through the normal skill path (panic, stun and fatigue rules apply).
+    /// Returns false while it stays ready, e.g. without a valid target.</summary>
+    public bool TryFireReadyCharge(BattleCharacter actor, SkillInfo skill)
+    {
+        if (!IsPlayerTurn || !IsChargeReady(actor, skill)) return false;
+        if (!_executingPanicSkill && ResolveDiceSkillTarget(skill, actor, out string reason, out Color color) == null)
+        {
+            Notify(reason, color);
+            return false;
+        }
+        SelectSkill(skill, actor);
+        _selection.Clear();
+        _pendingDiceSkill = null;
+        _pendingDiceActor = null;
+        RefreshDiceUI();
+        return !IsChargeReady(actor, skill);
+    }
+
     /// <summary>Inserts the selected dice into a charge skill. Consumes dice only on a valid insert;
-    /// overflow above the target is discarded. Charging alone is not a use.</summary>
+    /// overflow above the target is discarded. Charging alone is not a use; reaching the target fires at once.</summary>
     private bool TryInsertChargeDice(BattleCharacter actor, SkillInfo skill)
     {
         DiceInputRule rule = GetDiceRule(skill, actor);
@@ -496,9 +551,10 @@ public partial class BattleManager : MonoBehaviour
         _selectedDiceIds.Clear();
         RefreshDiceUI();
         RefreshSkillSlots();
-        Notify(nextCharge >= rule.chargeTarget
-            ? $"{skill.skillName} 준비 완료 — 대상을 지정해 발동하세요"
-            : $"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
+        if (nextCharge < rule.chargeTarget)
+            Notify($"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
+        else if (!TryFireReadyCharge(actor, skill) && IsChargeReady(actor, skill))
+            Notify($"{skill.skillName} 준비 완료 — 대상을 지정하고 스킬을 누르면 발동합니다", Color.cyan);
         TryAutoEndDiceTurn();
         return true;
     }
@@ -1084,7 +1140,7 @@ public partial class BattleManager : MonoBehaviour
             }
             if (rule.IsCharge)
             {
-                // Ready charge: the user picks a target and fires manually.
+                // Ready charge that could not fire on completion: fires at the current target.
                 if (!_executingPanicSkill && AutoTargetFor(skill, actor) == null && (targetHandler == null || targetHandler.target == null))
                 {
                     Notify("먼저 대상을 지정한 뒤 발동하세요.", Color.yellow);

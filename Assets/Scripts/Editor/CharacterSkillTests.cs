@@ -175,8 +175,7 @@ public class CharacterSkillTests
         alex.status.currentHp = 20f;
         Dice(6, 6, 6);
         Insert(alex, "재정비", 0); Insert(alex, "재정비", 1); Insert(alex, "재정비", 2);
-        Assert.IsTrue(_battle.IsChargeReady(alex, Skill(alex, "재정비")));
-        Fire(alex, "재정비", alex);
+        Assert.IsFalse(_battle.IsChargeReady(alex, Skill(alex, "재정비")), "The completing insert fires at once");
         Assert.AreEqual(24f, alex.status.currentHp, "Heal A × 80% = 4");
         Assert.AreEqual(4f, alex.status.GetStatusValue(EffectType.Shield));
         alex.status.skillUpgradeOverride = 2;
@@ -250,10 +249,9 @@ public class CharacterSkillTests
     {
         var aegis = Hero(Aegis, 0); var ally = Hero(Kaede); var a = Enemy(); var b = Enemy();
         Dice(6, 6, 6, 2);
-        for (int i = 0; i < 4; i++) Insert(aegis, "대돌진", i);
-        Assert.IsTrue(_battle.IsChargeReady(aegis, Skill(aegis, "대돌진")));
         aegis.status.ApplyStatusEffect(EffectType.Shield, 20f, 1);
-        Fire(aegis, "대돌진", a);
+        for (int i = 0; i < 4; i++) Insert(aegis, "대돌진", i);
+        Assert.IsFalse(_battle.IsChargeReady(aegis, Skill(aegis, "대돌진")), "The completing insert fires at once");
         Assert.AreEqual(80f, a.status.currentHp, "S20 × 100% to every enemy");
         Assert.AreEqual(80f, b.status.currentHp);
         Assert.AreEqual(5f, ally.status.GetStatusValue(EffectType.Shield), "S20 × 25% to every ally");

@@ -239,7 +239,7 @@ public class PanicAndDiceTests
         _battle.SelectSkill(skill, actor);
         Assert.AreEqual(5, _battle.GetDiceCharge(actor, skill), "Overflow above the target is discarded");
         Assert.IsTrue(_battle.IsChargeReady(actor, skill));
-        Assert.AreEqual(100f, _battle.enemyParty[0].status.currentHp, "Reaching the target never auto-fires");
+        Assert.AreEqual(100f, _battle.enemyParty[0].status.currentHp, "Without a target the ready charge waits");
 
         Select(2);
         _battle.SelectSkill(skill, actor);
@@ -255,6 +255,34 @@ public class PanicAndDiceTests
         _battle.SelectSkill(skill, actor);
         Assert.AreEqual(0, _battle.GetDiceCharge(actor, skill));
         Assert.AreEqual(2, pool.Dice.Count);
+    }
+
+    [Test] public void CompletingChargeFiresAtSelectedTargetAndWaitingChargeFiresOnRetry()
+    {
+        var actor = Actor(); var skill = ChargeSkill(actor, 5);
+        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
+        var pool = Pool(6, 6, 6);
+        pool.BeginTurn(3);
+        var enemy = _battle.enemyParty[0];
+        _battle.targetHandler = Own(new GameObject("PanicTestArrow")).AddComponent<TargetArrow>();
+        _battle.targetHandler.target = enemy.gameObject;
+
+        Select(0);
+        _battle.SelectSkill(skill, actor);
+        Assert.IsFalse(_battle.IsChargeReady(actor, skill), "The completing insert fires at once");
+        Assert.Less(enemy.status.currentHp, 100f);
+        Assert.AreEqual(2, pool.Dice.Count, "Only the inserted die is spent");
+
+        var other = ChargeSkill(actor, 5);
+        _battle.targetHandler.target = null;
+        Select(pool.Dice[0].Id);
+        _battle.SelectSkill(other, actor);
+        Assert.IsTrue(_battle.IsChargeReady(actor, other), "No target: stays ready");
+        float hp = enemy.status.currentHp;
+        Assert.IsFalse(_battle.TryFireReadyCharge(actor, other));
+        _battle.targetHandler.target = enemy.gameObject;
+        Assert.IsTrue(_battle.TryFireReadyCharge(actor, other));
+        Assert.Less(enemy.status.currentHp, hp);
     }
 
     [Test] public void ChargePersistsAcrossTurnsAndCountTypeCountsZero()

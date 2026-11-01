@@ -234,7 +234,12 @@ namespace UI
                 var bm = FindObjectOfType<BattleManager>();
                 if (bm != null)
                 {
-                    if (bm.UsesDice) return;
+                    if (bm.UsesDice)
+                    {
+                        // Dice go in by drag; a click only retries a charge that stayed ready (e.g. no target yet).
+                        bm.TryFireReadyCharge(currentActor, currentSkill);
+                        return;
+                    }
                     if (BattleManager.SkillFirstTargeting && button != null) button.Select();
                     bm.SelectSkill(currentSkill, currentActor);
                 }

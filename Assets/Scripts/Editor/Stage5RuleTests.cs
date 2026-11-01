@@ -352,8 +352,7 @@ public class Stage5RuleTests
         Dice(new[] { 6, 2 });
         Select(Pool.Dice[0].Id); _battle.SelectSkill(endless, alex);
         Select(Pool.Dice[0].Id); _battle.SelectSkill(endless, alex);
-        Assert.IsTrue(_battle.IsChargeReady(alex, endless));
-        Fire(alex, endless, alex);
+        Assert.IsFalse(_battle.IsChargeReady(alex, endless), "The completing insert fires at once");
         Assert.AreEqual(3, _battle.GetSkillUsesPerTurn(alex, cleave), "+2: 가르기 3 uses this turn");
     }
 

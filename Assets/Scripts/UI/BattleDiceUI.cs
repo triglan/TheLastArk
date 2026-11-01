@@ -234,6 +234,7 @@ namespace TheLastArk.UI
         }
 
         private GameObject _splitPanel;
+        public bool IsSplitDialogOpen => _splitPanel != null && _splitPanel.activeInHierarchy;
 
         /// <summary>
         /// [연운·안개] Lets the player choose the result values (same total, each ≥ 0) and which result keeps the
