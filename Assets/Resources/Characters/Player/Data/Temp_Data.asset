@@ -20,8 +20,15 @@ MonoBehaviour:
   regionId: temp
   standingSprite: {fileID: 21300000, guid: dd20b3ff80019de49976f9c79db4dabe, type: 3}
   portraitSprite: {fileID: 21300000, guid: 6c6088c09e1a0b643af8511df669fb78, type: 3}
+  useStandingPortrait: 1
+  portraitFocus: {x: 0.53, y: 0.85}
+  portraitZoom: 3
   closedEyesSprite: {fileID: 0}
-  panicIllustrations: []
+  panicIllustrations:
+  - {fileID: 21300000, guid: ab9892e2a77945548a88efd0768d3bf7, type: 3}
+  - {fileID: 21300000, guid: 614776c199c2f8b48b1680d2d5372f2e, type: 3}
+  - {fileID: 21300000, guid: 6672c03f573572940b5122ff53e90ffe, type: 3}
+  - {fileID: 21300000, guid: f6e3fdf8295a77245a9ea9e4a1846184, type: 3}
   enemyFormationType: 0
   enemyIllustrationScale: 1
   enemyIllustrationHeight: 180
