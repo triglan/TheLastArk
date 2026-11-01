@@ -137,7 +137,7 @@ namespace UI
                 button.onClick.RemoveAllListeners();
                 button.onClick.AddListener(OnClickSlot);
                 BattleManager manager = FindObjectOfType<BattleManager>();
-                button.interactable = manager == null || manager.CanUseDiceSkill(actor, skill);
+                button.interactable = manager == null || manager.CanUseDiceSkill(actor, skill) || manager.CanRestoreSkill(actor, skill);
             }
 
             if (skill != null)
@@ -162,10 +162,13 @@ namespace UI
                 {
                     BattleManager manager = FindObjectOfType<BattleManager>();
                     var rule = skill.levels != null && skill.levels.Length > skillLevelIdx
-                        ? skill.levels[skillLevelIdx]?.diceInput : null;
+                        ? (manager != null ? manager.GetDiceRule(skill, actor) : skill.levels[skillLevelIdx]?.diceInput) : null;
                     if (manager != null && manager.UsesDice)
                     {
                         string condition = rule?.ShortLabel() ?? "1개 · 자유";
+                        var special = skill.levels[skillLevelIdx].special;
+                        if (special == SkillSpecial.PreparedShot || special == SkillSpecial.ElectromagneticField)
+                            condition += manager.GetSkillUsesThisTurn(actor, skill) == 0 ? " · 준비" : " · 공격";
                         bool chargeReady = rule != null && rule.IsCharge && manager.IsChargeReady(actor, skill);
                         int usesPerTurn = manager.GetSkillUsesPerTurn(actor, skill);
                         if (usesPerTurn > 1) condition += $" · {manager.GetSkillUsesThisTurn(actor, skill)}/{usesPerTurn}회";
@@ -177,6 +180,10 @@ namespace UI
                         int separator = reason?.IndexOf('·') ?? -1;
                         if (separator >= 0) shortReason = reason.Substring(0, separator).Trim();
                         costText.text = reason == null ? condition : $"{condition}\n{shortReason}";
+                        if (manager.IsRestorableSkillUsed(actor, skill))
+                            costText.text = manager.CanRestoreSkill(actor, skill)
+                                ? $"클릭하여 복구 · 마력 {manager.SkillRestoreCost(actor, skill)}"
+                                : $"복구에 마력 {manager.SkillRestoreCost(actor, skill)} 필요";
                         costText.color = reason == null ? (chargeReady ? ReadyColor : Color.white) : ReasonColor(reason);
                         costText.enableAutoSizing = true;
                         costText.fontSizeMin = 12;
@@ -236,8 +243,8 @@ namespace UI
                 {
                     if (bm.UsesDice)
                     {
-                        // Dice go in by drag; a click only retries a charge that stayed ready (e.g. no target yet).
-                        bm.TryFireReadyCharge(currentActor, currentSkill);
+                        if (bm.IsRestorableSkillUsed(currentActor, currentSkill)) bm.TryRestoreSkill(currentActor, currentSkill);
+                        else if (bm.IsChargeReady(currentActor, currentSkill)) bm.SelectSkill(currentSkill, currentActor);
                         return;
                     }
                     if (BattleManager.SkillFirstTargeting && button != null) button.Select();

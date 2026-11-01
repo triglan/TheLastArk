@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using System.Collections;
 using TheLastArk.Data;
 using TheLastArk.Managers;
 using TheLastArk.UI;
@@ -58,7 +59,78 @@ public static class EffectEngine
     /// </summary>
     public static void ProcessSkill(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data, BattleCharacter primaryTarget, string skillName = "", System.Action<DamageResult> onDamage = null)
     {
-        if (actor == null || actor.status == null || targets == null || data?.effects == null) return;
+        var sequence = ProcessSkillSequence(actor, targets, data, primaryTarget, CurrentCast, skillName, onDamage, false);
+        try { while (sequence.MoveNext()) { } }
+        finally { (sequence as System.IDisposable)?.Dispose(); }
+    }
+
+    /// <summary>Player skill timeline. Cast/attack contexts exist only during a hit, never across a wait.</summary>
+    public static IEnumerator ProcessSkillSequence(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data,
+        BattleCharacter primaryTarget, TheLastArk.Skills.SkillCast cast, string skillName = "",
+        System.Action<DamageResult> onDamage = null, bool animate = true)
+    {
+        if (actor == null || actor.status == null || targets == null || data?.effects == null) yield break;
+        if (data.excludeSelf && data.targetType == TargetType.Friendly && targets.Contains(actor)) yield break;
+        bool magicLand = data.special == SkillSpecial.MagicLand;
+        data = TheLastArk.Skills.PrimordialManaRules.Resolve(data, actor.status);
+        if (TheLastArk.Skills.PrimordialManaRules.UnavailableReason(actor.status, data) != null) yield break;
+        if (magicLand)
+        {
+            if (data.targetType == TargetType.Self) targets = new List<BattleCharacter> { actor };
+            else
+            {
+                var battle = Object.FindObjectOfType<BattleManager>();
+                if (battle != null)
+                    targets = TargetResolver.Resolve(primaryTarget, data.targetType, battle.playerParty, battle.enemyParty, actor);
+            }
+        }
+        if (cast == null && (actor.status.UsesPrimalMana || actor.status.UsesCapacitor || data.consumeAllPrimalMana || data.primalManaCost > 0))
+            cast = new TheLastArk.Skills.SkillCast();
+        int die = cast?.DiceSum ?? 0;
+        bool repeat = data.primalManaRepeatThreshold > 0 && actor.status.PrimalMana >= data.primalManaRepeatThreshold;
+        int spent = data.primalManaCostAfterShield ? 0
+            : actor.status.SpendPrimalMana(data.consumeAllPrimalMana ? actor.status.PrimalMana : data.primalManaCost);
+        if (cast != null) cast.SpentPrimalMana = spent;
+        TheLastArk.Skills.CapacitorRules.BeforeSkill(actor.status, data, cast);
+        var previousCast = CurrentCast;
+        CurrentCast = cast;
+        try
+        {
+            if (data.primalManaGainBeforeEffects) TheLastArk.Skills.PrimordialManaRules.GainActiveMana(actor.status, data, die);
+            ProcessSkillCore(actor, targets, data, primaryTarget, skillName, onDamage);
+        }
+        finally { CurrentCast = previousCast; }
+
+        if (repeat && CanRepeat(actor, targets, data))
+        {
+            if (animate && data.primalManaRepeatDelay > 0f)
+                yield return new WaitForSeconds(data.primalManaRepeatDelay);
+            // Recheck after the gap: never charge mana for a dead caster/target or reroll a target.
+            if (CanRepeat(actor, targets, data))
+            {
+                int repeatSpent = actor.status.SpendPrimalMana(data.primalManaRepeatCost);
+                if (cast != null) cast.SpentPrimalMana += repeatSpent;
+                previousCast = CurrentCast;
+                CurrentCast = cast;
+                try { ProcessSkillCore(actor, targets, data, primaryTarget, skillName, onDamage); }
+                finally { CurrentCast = previousCast; }
+            }
+        }
+        if (actor != null && actor.status != null)
+        {
+            if (!data.primalManaGainBeforeEffects) TheLastArk.Skills.PrimordialManaRules.GainActiveMana(actor.status, data, die);
+            TheLastArk.Skills.PrimordialManaRules.AfterSkill(actor.status, cast);
+            TheLastArk.Skills.CapacitorRules.AfterSkill(actor.status, data, cast);
+            if ((actor.status.UsesPrimalMana || actor.status.UsesCapacitor) && actor.view != null) actor.view.UpdateVisual(actor.status);
+        }
+    }
+
+    private static bool CanRepeat(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data)
+        => actor != null && actor.status != null && actor.status.currentHp > 0f && actor.status.PrimalMana >= data.primalManaRepeatCost
+            && targets.Exists(t => t != null && t.status != null && t.status.currentHp > 0f);
+
+    private static void ProcessSkillCore(BattleCharacter actor, List<BattleCharacter> targets, SkillLevelData data, BattleCharacter primaryTarget, string skillName, System.Action<DamageResult> onDamage)
+    {
         var current = TheLastArk.Battle.AttackContext.Current;
         if (current != null && current.IsPatternScope && current.Attacker == actor)
         {
@@ -84,9 +156,11 @@ public static class EffectEngine
         // 스킬 또는 패턴의 효과를 대상들에게 순서대로 적용합니다.
 
         float lastCalculatedValue = 0f;
+        bool hadFocus = actor.status.GetStatus(EffectType.Focus) != null;
+        var visuals = new TheLastArk.Skills.SkillVfxPlayback(data.visualEffect, data.effects);
 
         // 스킬 레벨에 지정된 커스텀 VFX가 있으면 대상들에게 재생
-        if (Application.isPlaying && !string.IsNullOrEmpty(data.customVfxName))
+        if (Application.isPlaying && data.visualEffect?.IsConfigured != true && !string.IsNullOrEmpty(data.customVfxName))
         {
             foreach (BattleCharacter target in targets)
             {
@@ -103,19 +177,26 @@ public static class EffectEngine
             if (effect.type == EffectType.Taunt)
             {
                 BattleCharacter target = targets.Find(candidate => candidate != null && candidate.status != null);
-                if (target != null) ExecuteEffect(effect, actor, target, skillName, ref lastCalculatedValue);
+                if (target != null) ExecuteEffect(effect, actor, target, skillName, ref lastCalculatedValue, null, visuals);
                 continue;
             }
 
             if (effect.type != EffectType.Focus) continue;
-            ExecuteEffect(effect, actor, actor, skillName, ref lastCalculatedValue);
+            ExecuteEffect(effect, actor, actor, skillName, ref lastCalculatedValue, null, visuals);
         }
 
         bool focusOnlyThisSkill = false;
+        bool deferredManaPaid = false;
         foreach (EffectEntry effect in data.effects)
         {
             if (effect == null) continue;
             if (effect.type == EffectType.Focus) { focusOnlyThisSkill |= effect.focusOnlyThisSkill; continue; }
+            if (data.primalManaCostAfterShield && !deferredManaPaid && effect.type == EffectType.Damage)
+            {
+                int paid = actor.status.SpendPrimalMana(data.primalManaCost);
+                if (CurrentCast != null) CurrentCast.SpentPrimalMana += paid;
+                deferredManaPaid = true;
+            }
             foreach (BattleCharacter target in ScopedTargets(effect, actor, targets))
             {
                 if (target == null || target.status == null) continue;
@@ -128,30 +209,17 @@ public static class EffectEngine
                 {
                     if ((effect.type == EffectType.Damage || effect.type == EffectType.MentalDamage)
                         && (target.status.currentHp <= 0f || actor.status.currentHp <= 0f)) break;
-                    ExecuteEffect(effect, actor, target, skillName, ref lastCalculatedValue, onDamage);
+                    ExecuteEffect(effect, actor, target, skillName, ref lastCalculatedValue, onDamage, visuals);
                 }
             }
         }
         // 집중 that lasts only for this skill.
-        if (focusOnlyThisSkill) actor.status.activeStatusEffects.RemoveAll(e => e != null && e.effectType == EffectType.Focus);
+        if (focusOnlyThisSkill && !hadFocus) actor.status.activeStatusEffects.RemoveAll(e => e != null && e.effectType == EffectType.Focus);
     }
 
-    private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target, string skillName, ref float lastCalculatedValue, System.Action<DamageResult> onDamage = null)
+    private static void ExecuteEffect(EffectEntry effect, BattleCharacter actor, BattleCharacter target, string skillName, ref float lastCalculatedValue, System.Action<DamageResult> onDamage = null, TheLastArk.Skills.SkillVfxPlayback visuals = null)
     {
-        // 1. VFX 재생: 커스텀 지정이 있으면 그것을 재생, 없으면 스킬명/효과 타입별 스마트 VFX 자동 재생
-        if (!Application.isPlaying)
-        {
-            // EditMode 테스트와 데이터 미리보기에서는 씬 VFX를 생성하지 않습니다.
-        }
-        else if (!string.IsNullOrEmpty(effect.customVfxName))
-        {
-            VFXManager.Instance?.SpawnVFX(effect.customVfxName, target.transform.position);
-        }
-        else
-        {
-            VFXManager.Instance?.PlaySmartSkillEffect(skillName, effect.type, effect.damageType, target);
-        }
-
+        if ((CurrentCast?.SpentCapacitor ?? 0) < effect.minSpentCapacitor || actor.status.CapacitorCharge < effect.minCurrentCapacitor) return;
         int dice = CastDiceSum;
         if (effect.minDie > 0 && dice < effect.minDie) return;
         if (ResistedByFortress(effect.type, actor, target)) return;
@@ -178,6 +246,11 @@ public static class EffectEngine
                 ? 0f
                 : StatFor(effect, actor, usesSpellPower);
         float calculatedValue = (baseValue * multiplier) + ScaledFixed(effect, dice);
+        calculatedValue += actor.status.PrimalMana * effect.primalManaScaling
+            + (CurrentCast?.SpentPrimalMana ?? 0) * effect.spentPrimalManaScaling;
+        calculatedValue += actor.status.FinalSpellPower * effect.additionalSpellPowerMultiplier
+            + actor.status.CapacitorCharge * effect.capacitorScaling
+            + (CurrentCast?.SpentCapacitor ?? 0) * effect.spentCapacitorScaling;
         if (effect.type == EffectType.Damage && actor.status.origin != null && actor.status.origin.isEnemy
             && Mathf.Approximately(multiplier, 0f))
         {
@@ -187,14 +260,24 @@ public static class EffectEngine
                 calculatedValue += actor.status.SpellPowerStatusModifier;
         }
 
+        if (effect.type != EffectType.Damage) visuals?.Play(effect, actor, target, skillName);
         switch (effect.type)
         {
             case EffectType.Damage:
+                calculatedValue *= 1f + (CurrentCast?.SpentCapacitor ?? 0) * effect.damageBonusPercentPerSpentCapacitor * .01f;
+                List<BattleCharacter> otherEnemies = effect.splashOtherEnemiesPercent > 0f || effect.loneTargetDamageBonusPercent > 0f
+                    ? OtherLivingEnemies(actor, target) : null;
+                if (otherEnemies != null && otherEnemies.Count == 0)
+                    calculatedValue *= 1f + effect.loneTargetDamageBonusPercent * .01f;
+                if (!effect.spentManaBonusIsFinalDamage && effect.spentPrimalManaBonusThreshold > 0 && (CurrentCast?.SpentPrimalMana ?? 0) >= effect.spentPrimalManaBonusThreshold)
+                    calculatedValue *= 1f + effect.spentPrimalManaDamageBonusPercent * .01f;
                 calculatedValue += Mathf.Max(0f, target.status.FinalMaxHp-target.status.currentHp) * effect.targetMissingHealthPercent * .01f;
                 if (target.status.currentHp >= target.status.FinalMaxHp)
                     calculatedValue *= 1f + effect.fullHealthDamageBonusPercent * .01f;
                 if (target.status.currentHp * 2f < target.status.FinalMaxHp)
                     calculatedValue *= 1f + effect.belowHalfHealthDamageBonusPercent * .01f;
+                if (target.status.currentHp * 4f < target.status.FinalMaxHp)
+                    calculatedValue *= 1f + effect.belowQuarterHealthDamageBonusPercent * .01f;
                 // 치명타 판정
                 bool isCrit = Random.value < (actor.status.FinalCritRate * 0.01f);
                 bool isCritHit = false;
@@ -237,6 +320,15 @@ public static class EffectEngine
                 if (CurrentCast != null && target.status.origin != null && target.status.origin.isEnemy) CurrentCast.HitTargets.Add(target);
                 var attack = TheLastArk.Battle.AttackContext.Current;
                 float previousIgnore = attack?.ArmorIgnore ?? 0f;
+                float previousFinal = attack?.FinalDamageMultiplier ?? 1f;
+                if (attack != null)
+                {
+                    if (effect.noAdjacentFinalDamageBonusPercent > 0f && !HasLivingNeighbour(target))
+                        attack.FinalDamageMultiplier *= 1f + effect.noAdjacentFinalDamageBonusPercent * .01f;
+                    if (effect.spentManaBonusIsFinalDamage && effect.spentPrimalManaBonusThreshold > 0
+                        && (CurrentCast?.SpentPrimalMana ?? 0) >= effect.spentPrimalManaBonusThreshold)
+                        attack.FinalDamageMultiplier *= 1f + effect.spentPrimalManaDamageBonusPercent * .01f;
+                }
                 if (attack != null && CurrentCast != null && CurrentCast.MatchedSecondUse && effect.matchedArmorIgnorePercent > 0f)
                     attack.ArmorIgnore = effect.matchedArmorIgnorePercent * 0.01f;
                 if (attack != null) attack.ArmorIgnore = Mathf.Max(attack.ArmorIgnore, effect.armorIgnorePercent * .01f);
@@ -248,6 +340,7 @@ public static class EffectEngine
                     CurrentCast.FirstHitDone = true;
                 }
                 DamageResult damageResult = target.ReceiveDamageDetailed(hitValue, actor, effect.damageType);
+                visuals?.Play(effect, actor, damageResult.FinalTarget ?? target, skillName);
                 if (attack != null) attack.ArmorIgnore = previousIgnore;
                 lastCalculatedValue = damageResult.HealthDamage;
                 if (CurrentCast != null)
@@ -264,10 +357,13 @@ public static class EffectEngine
                 }
                 onDamage?.Invoke(damageResult);
                 if (effect.splashAdjacentPercent > 0f)
-                    SplashAdjacent(effect, actor, damageResult.FinalTarget ?? target,
-                        (effect.splashUsesActualDamage ? damageResult.HealthDamage : calculatedValue) * effect.splashAdjacentPercent * .01f);
+                    SplashAdjacent(effect, actor, effect.noAdjacentFinalDamageBonusPercent > 0f ? target : damageResult.FinalTarget ?? target,
+                        (effect.splashUsesActualDamage ? damageResult.HealthDamage : calculatedValue) * effect.splashAdjacentPercent * .01f, visuals, skillName);
                 if (effect.splashAllPercent > 0f)
-                    SplashAll(effect, actor, damageResult.HealthDamage * effect.splashAllPercent * .01f);
+                    SplashAll(effect, actor, damageResult.HealthDamage * effect.splashAllPercent * .01f, visuals, skillName);
+                if (effect.splashOtherEnemiesPercent > 0f && otherEnemies != null)
+                    SplashOthers(effect, actor, otherEnemies, calculatedValue * effect.splashOtherEnemiesPercent * .01f, onDamage, visuals, skillName);
+                if (attack != null) attack.FinalDamageMultiplier = previousFinal;
 
                 break;
 
@@ -600,12 +696,23 @@ public static class EffectEngine
             case EffectStatSource.SpellPower: return actor.status.FinalSpellPower;
             case EffectStatSource.SelfShield: return CurrentCast?.SelfShield ?? actor.status.GetStatusValue(EffectType.Shield);
             case EffectStatSource.AllyShieldTotal: return CurrentCast?.AllyShieldTotal ?? 0f;
+            case EffectStatSource.CurrentSelfShield: return actor.status.GetStatusValue(EffectType.Shield);
             default: return usesSpellPower ? actor.status.FinalSpellPower : actor.status.FinalAttack;
         }
     }
 
     /// <summary>Extra attack on each living neighbour of the target (each takes its own defense).</summary>
-    private static void SplashAdjacent(EffectEntry effect, BattleCharacter actor, BattleCharacter target, float amount)
+    private static bool HasLivingNeighbour(BattleCharacter target)
+    {
+        var battle = Object.FindObjectOfType<BattleManager>();
+        if (battle == null || target?.status?.origin == null) return false;
+        var party = target.status.origin.isEnemy ? battle.enemyParty : battle.playerParty;
+        int i = party.IndexOf(target);
+        return i >= 0 && ((i > 0 && party[i - 1]?.status?.currentHp > 0f)
+            || (i + 1 < party.Count && party[i + 1]?.status?.currentHp > 0f));
+    }
+
+    private static void SplashAdjacent(EffectEntry effect, BattleCharacter actor, BattleCharacter target, float amount, TheLastArk.Skills.SkillVfxPlayback visuals, string skillName)
     {
         var bm = Object.FindObjectOfType<BattleManager>();
         if (bm == null || amount <= 0f || target?.status?.origin == null) return;
@@ -618,12 +725,13 @@ public static class EffectEngine
             BattleCharacter side = party[neighbour];
             if (side?.status == null || side.status.currentHp <= 0f) continue;
             DamageResult result = side.ReceiveDamageDetailed(amount, actor, effect.damageType);
+            visuals?.Play(effect, actor, result.FinalTarget ?? side, skillName);
             if (CurrentCast != null) CurrentCast.HealthDamageDealt += result.HealthDamage;
         }
     }
 
     // Follow-up damage uses the primary hit's actual HP loss; it does not roll another critical hit.
-    private static void SplashAll(EffectEntry effect, BattleCharacter actor, float amount)
+    private static void SplashAll(EffectEntry effect, BattleCharacter actor, float amount, TheLastArk.Skills.SkillVfxPlayback visuals, string skillName)
     {
         var bm = Object.FindObjectOfType<BattleManager>();
         if (bm == null || amount <= 0f) return;
@@ -632,7 +740,38 @@ public static class EffectEngine
         {
             if (target?.status == null || target.status.currentHp <= 0f) continue;
             var result=target.ReceiveDamageDetailed(amount,actor,effect.damageType);
+            visuals?.Play(effect, actor, result.FinalTarget ?? target, skillName);
             if (CurrentCast != null) CurrentCast.HealthDamageDealt+=result.HealthDamage;
+        }
+    }
+
+    private static List<BattleCharacter> OtherLivingEnemies(BattleCharacter actor, BattleCharacter primary)
+    {
+        var result = new List<BattleCharacter>();
+        var battle = Object.FindObjectOfType<BattleManager>();
+        if (battle == null) return result;
+        var enemies = actor.status.origin != null && actor.status.origin.isEnemy ? battle.playerParty : battle.enemyParty;
+        foreach (var enemy in enemies)
+            if (enemy != primary && enemy?.status != null && enemy.status.currentHp > 0f) result.Add(enemy);
+        return result;
+    }
+
+    private static void SplashOthers(EffectEntry effect, BattleCharacter actor, List<BattleCharacter> targets, float amount, System.Action<DamageResult> onDamage, TheLastArk.Skills.SkillVfxPlayback visuals, string skillName)
+    {
+        foreach (var target in targets)
+        {
+            if (target == null || target.status.currentHp <= 0f) continue;
+            var result = target.ReceiveDamageDetailed(amount, actor, effect.damageType);
+            visuals?.Play(effect, actor, result.FinalTarget ?? target, skillName);
+            if (CurrentCast != null)
+            {
+                CurrentCast.HitTargets.Add(target);
+                CurrentCast.HealthDamageDealt += result.HealthDamage;
+                var receiver = result.FinalTarget != null ? result.FinalTarget : target;
+                if (effect.damageType == DamageType.Magical) TheLastArk.Skills.SkillCast.Add(CurrentCast.MagicHealthDamage, receiver, result.HealthDamage);
+                if (effect.damageType == DamageType.Physical) TheLastArk.Skills.SkillCast.Add(CurrentCast.PhysicalHealthDamage, receiver, result.HealthDamage);
+            }
+            onDamage?.Invoke(result);
         }
     }
 

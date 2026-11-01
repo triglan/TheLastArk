@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Text;
@@ -17,6 +17,8 @@ public class CharacterView : MonoBehaviour
     [SerializeField] private TextMeshProUGUI statusText;
     [SerializeField] private GameObject enemyTargetMarkerPrefab;
     private GameObject enemyTargetMarker;
+    private bool allyMarkerSpaceReserved;
+    private const float TargetBadgeSpace = 36f;
     private RectTransform defenseRoot;
     private TextMeshProUGUI armorText;
     private TextMeshProUGUI magicResistText;
@@ -35,10 +37,48 @@ public class CharacterView : MonoBehaviour
     private Image panicIcon;
     private PanicIconGraphic panicSymbol;
     private BattleHoverTooltip panicTooltip;
+    private Image primalManaIcon;
+    private TextMeshProUGUI primalManaText;
+
+    private bool UpdatePrimalManaIcon(CharacterStatus status)
+    {
+        bool active = status.UsesPrimalMana || status.UsesCapacitor;
+        if (!active && primalManaIcon == null) return false;
+        if (primalManaIcon == null)
+        {
+            var root = new GameObject("Primal Mana", typeof(RectTransform), typeof(Image), typeof(BattleHoverTooltip));
+            root.transform.SetParent(statusIconRoot, false);
+            primalManaIcon = root.GetComponent<Image>();
+            primalManaIcon.color = new Color(.04f, .19f, .27f, .98f);
+            primalManaIcon.rectTransform.sizeDelta = Vector2.one * 34f;
+            primalManaIcon.rectTransform.anchorMin = primalManaIcon.rectTransform.anchorMax = Vector2.one * .5f;
+            var label = new GameObject("Mana Count", typeof(RectTransform), typeof(TextMeshProUGUI));
+            label.transform.SetParent(root.transform, false);
+            primalManaText = label.GetComponent<TextMeshProUGUI>();
+            primalManaText.fontSize = 12f;
+            primalManaText.fontStyle = FontStyles.Bold;
+            primalManaText.alignment = TextAlignmentOptions.Center;
+            primalManaText.color = new Color(.45f, .87f, 1f);
+            primalManaText.raycastTarget = false;
+            primalManaText.rectTransform.anchorMin = Vector2.zero;
+            primalManaText.rectTransform.anchorMax = Vector2.one;
+            primalManaText.rectTransform.offsetMin = primalManaText.rectTransform.offsetMax = Vector2.zero;
+            TMPFontManager.ApplyFont(primalManaText);
+        }
+        primalManaIcon.gameObject.SetActive(active);
+        if (!active) return false;
+        primalManaText.color = status.UsesCapacitor ? new Color(1f, .83f, .35f) : new Color(.45f, .87f, 1f);
+        primalManaText.text = status.UsesCapacitor ? "축전\n" + status.CapacitorCharge : "마력\n" + status.PrimalMana;
+        primalManaIcon.GetComponent<BattleHoverTooltip>().SetContent(status.UsesCapacitor
+            ? $"축전 {status.CapacitorCharge} / {status.MaxCapacitor}\n자기 턴 시작 시 +{status.GetPassiveEntry(PassiveTrait.IronCapacitor)?.value:0}\n{(status.IsTraitAwakened ? "자신을 포함한 아군이" : "자신이")} 보호막으로 한 번에 5 이상 흡수하면 +1\n전투마다 초기화"
+            : $"원초 마력 {status.PrimalMana} / {status.PrimalManaCapacity}\n주사위 사용 후 효과 눈금만큼 마력 획득 · 전투 종료 후에도 유지\n20 이상: 마술의 땅 전체 공격 / 30 이상: 근원 사용 가능");
+        return true;
+    }
 
     private void Awake()
     {
         EnsureLocalDisplayImage();
+        EnsureAllyMarkerSpace();
         if (enemyTargetMarker != null) enemyTargetMarker.SetActive(false);
     }
 
@@ -56,6 +96,7 @@ public class CharacterView : MonoBehaviour
     public void UpdateVisual(CharacterStatus status)
     {
         EnsureLocalDisplayImage();
+        if (status.origin != null && !status.origin.isEnemy) EnsureAllyMarkerSpace();
 
         if (displayImage != null && status.origin != null)
         {
@@ -130,7 +171,9 @@ public class CharacterView : MonoBehaviour
     }
 
     private float EnhancementHeight => GetComponent<EnemyEnhancementUI>()?.LayoutHeight ?? 0f;
-    public float EnemyHUDHeight => 100f;
+    // Selection artwork may overlap the illustration; it must not enlarge the formation's HUD envelope.
+    private const float EnemyHeaderOffset = 56f;
+    public float EnemyHUDHeight => EnemyHeaderOffset + 44f;
     public float IllustrationBaseline => illustrationRect != null
         ? illustrationBasePosition.y - illustrationRect.rect.height * illustrationRect.pivot.y * illustrationBaseScale.y : -352f;
 
@@ -142,7 +185,7 @@ public class CharacterView : MonoBehaviour
         if (barRoot == null || barRoot == transform) return;
         barRoot.anchorMin = barRoot.anchorMax = new Vector2(0.5f, 0.5f);
         barRoot.localScale = Vector3.one;
-        barRoot.anchoredPosition = new Vector2(bounds.center.x, bounds.yMax + 56f);
+        barRoot.anchoredPosition = new Vector2(bounds.center.x, bounds.yMax + EnemyHeaderOffset);
         GetComponent<EnemyEnhancementUI>()?.SetPosition(new Vector2(bounds.center.x, bounds.yMin - 64f));
         var hpRect = barUI.hpSlider.GetComponent<RectTransform>();
         var mentalRect = barUI.mentalSlider.GetComponent<RectTransform>();
@@ -234,11 +277,14 @@ public class CharacterView : MonoBehaviour
             return priority != 0 ? priority : a.type.CompareTo(b.type);
         });
         bool panicking=UpdatePanicIcon(status);
-        int limit=panicking?VisibleStatusLimit-1:VisibleStatusLimit;
+        bool mana = UpdatePrimalManaIcon(status);
+        int reserved = (panicking ? 1 : 0) + (mana ? 1 : 0);
+        int limit=VisibleStatusLimit-reserved;
         bool overflow = summaries.Count > limit;
         int count = Mathf.Min(summaries.Count, limit) + (overflow ? 1 : 0);
-        int total=count+(panicking?1:0);
+        int total=count+reserved;
         if (panicking) panicIcon.rectTransform.anchoredPosition=new Vector2(-(total-1)*.5f*42f,0);
+        if (mana) primalManaIcon.rectTransform.anchoredPosition = new Vector2(((panicking ? 1 : 0) - (total - 1) * .5f) * 42f, 0);
         while (statusIcons.Count < count)
         {
             var root = new GameObject("Status Icon", typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(BattleHoverTooltip));
@@ -275,7 +321,7 @@ public class CharacterView : MonoBehaviour
             icon.gameObject.SetActive(i < count);
             if (i >= count) continue;
             icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = Vector2.one * 0.5f;
-            icon.rectTransform.anchoredPosition = new Vector2((i + (panicking?1:0) - (total - 1) * 0.5f) * 42f, 0f);
+            icon.rectTransform.anchoredPosition = new Vector2((i + reserved - (total - 1) * 0.5f) * 42f, 0f);
             bool more = overflow && i == limit;
             var effect = more ? null : status.GetStatus(summaries[i].type);
             icon.sprite = effect == null ? null : effect.displayIcon != null ? effect.displayIcon : IconLibrary.FindIcon(effect.effectType);
@@ -411,11 +457,45 @@ public class CharacterView : MonoBehaviour
 
     public void SetEnemyTargeted(bool targeted)
     {
+        if (targeted) EnsureAllyMarkerSpace();
         if (targeted && enemyTargetMarker == null)
             CreateDefaultEnemyTargetMarker();
 
         if (enemyTargetMarker != null)
+        {
+            if (!targeted) SetEnemyTargetHighlighted(false);
             enemyTargetMarker.SetActive(targeted);
+        }
+    }
+
+    public void SetEnemyTargetHighlighted(bool highlighted)
+    {
+        if (enemyTargetMarker != null)
+            enemyTargetMarker.transform.localScale = Vector3.one * (highlighted ? 1.15f : 1f);
+    }
+
+    private void EnsureAllyMarkerSpace()
+    {
+        if (allyMarkerSpaceReserved || barUI == null || barUI.hpSlider == null || barUI.mentalSlider == null
+            || GetComponent<EnemyBattleCharacter>() != null) return;
+        allyMarkerSpaceReserved = true;
+        ReserveBadgeSpace(barUI.hpSlider.GetComponent<RectTransform>());
+        ReserveBadgeSpace(barUI.mentalSlider.GetComponent<RectTransform>());
+    }
+
+    private static void ReserveBadgeSpace(RectTransform bar)
+    {
+        // Keep the right edge fixed, leaving a stable icon slot inside the existing HUD area.
+        float reserved = Mathf.Min(TargetBadgeSpace, Mathf.Max(0f, bar.rect.width - 100f));
+        bar.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, bar.rect.width - reserved);
+        bar.anchoredPosition += new Vector2(reserved * (1f - bar.pivot.x), 0f);
+        var border = bar.Find("Border") as RectTransform;
+        if (border != null)
+        {
+            border.anchorMin = new Vector2(0f, border.anchorMin.y);
+            border.anchorMax = new Vector2(1f, border.anchorMax.y);
+            border.sizeDelta = new Vector2(2f, border.sizeDelta.y);
+        }
     }
 
     [ContextMenu("Debug: Toggle Enemy Target Marker")]
@@ -426,26 +506,37 @@ public class CharacterView : MonoBehaviour
 
     private void CreateDefaultEnemyTargetMarker()
     {
-        Transform parent = transform.Find("TargetPoint");
-        if (parent == null) parent = transform;
+        // Enemy intent is a HUD warning, not a second player-selection arrow.
+        // Anchor it to the health bar so it cannot cover the portrait's face.
+        Transform parent = barUI != null && barUI.hpSlider != null
+            ? barUI.hpSlider.transform : transform;
 
         if (enemyTargetMarkerPrefab != null)
         {
             enemyTargetMarker = Instantiate(enemyTargetMarkerPrefab, parent, false);
-            enemyTargetMarker.SetActive(false);
-            return;
+        }
+        else
+        {
+            enemyTargetMarker = new GameObject("Enemy Target Marker", typeof(RectTransform), typeof(Image));
+            enemyTargetMarker.transform.SetParent(parent, false);
+            Image image = enemyTargetMarker.GetComponent<Image>();
+            image.sprite = Resources.Load<Sprite>("UI/BattleMarkers/EnemyThreat");
+            image.color = Color.white;
+            image.preserveAspect = true;
+            image.raycastTarget = true;
         }
 
-        enemyTargetMarker = new GameObject("Enemy Target Marker", typeof(RectTransform), typeof(Image));
-        enemyTargetMarker.transform.SetParent(parent, false);
-
         RectTransform rect = enemyTargetMarker.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(48f, 48f);
-        rect.localRotation = Quaternion.Euler(0f, 0f, 45f);
-
-        Image image = enemyTargetMarker.GetComponent<Image>();
-        image.color = new Color(1f, 0.1f, 0.1f, 0.9f);
-        image.raycastTarget = false;
+        if (rect != null)
+        {
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, .5f);
+            rect.pivot = new Vector2(1f, .5f);
+            rect.anchoredPosition = new Vector2(-4f, 0f);
+            rect.sizeDelta = new Vector2(32f, 32f);
+        }
+        var tooltip = enemyTargetMarker.GetComponent<BattleHoverTooltip>();
+        if (tooltip == null) tooltip = enemyTargetMarker.AddComponent<BattleHoverTooltip>();
+        tooltip.SetContent("적의 대상\n적이 다음 행동의 대상으로 지정한 아군입니다.\n적의 의도 아이콘에서 행동 내용을 확인할 수 있습니다.");
         enemyTargetMarker.SetActive(false);
     }
 

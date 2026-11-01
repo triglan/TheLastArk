@@ -167,6 +167,7 @@ public class EnemyAI : MonoBehaviour
                 durationType = source.durationType,
                 skillSlot = source.skillSlot,
                 customVfxName = source.customVfxName,
+                visualEffect = source.visualEffect?.Copy(),
                 statusIcon = source.statusIcon
             };
 
@@ -452,7 +453,7 @@ public class EnemyAI : MonoBehaviour
 
     private bool _hallucinating;
 
-    /// <summary>Pattern for this turn: rotation, or 강박's locked pattern.</summary>
+    /// <summary>Pattern for this turn: rotation, 강박's locked pattern, or 무기력's next non-attack pattern (-1 = no action).</summary>
     private int SelectPatternIndex(List<EnemyPatternData> patterns)
     {
         int index = Mathf.Abs(_patternIndex) % patterns.Count;
@@ -460,6 +461,15 @@ public class EnemyAI : MonoBehaviour
         if (panic == null || !panic.IsActive) return index;
         if (panic.Type == TheLastArk.Battle.PanicType.Compulsion && panic.LockedPatternIndex >= 0)
             return panic.LockedPatternIndex % patterns.Count;
+        if (panic.Type == TheLastArk.Battle.PanicType.Lethargy)
+        {
+            for (int i = 0; i < patterns.Count; i++)
+            {
+                int candidate = (index + i) % patterns.Count;
+                if (patterns[candidate] != null && !IsAttackPattern(patterns[candidate])) return candidate;
+            }
+            return -1;
+        }
         return index;
     }
 

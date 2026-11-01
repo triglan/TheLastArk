@@ -11,6 +11,31 @@ public class CharacterStatus : ISerializationCallbackReceiver
     // 전투 중 계속 바뀌는 현재 수치입니다.
     public float currentHp;
     public float currentMental;
+    // Run-persistent character resource, deliberately outside temporary battle statuses.
+    public const int MaxPrimalMana = 30;
+    [SerializeField] private int primalMana;
+    public int PrimalManaCapacity => MaxPrimalMana + Mathf.Max(0, Mathf.RoundToInt(GetPassiveEntry(PassiveTrait.PrimordialMana)?.secondaryValue ?? 0f));
+    public int PrimalMana => Mathf.Clamp(primalMana, 0, PrimalManaCapacity);
+    public bool UsesPrimalMana => origin?.passiveSkill?.passiveTrait == PassiveTrait.PrimordialMana;
+    [System.NonSerialized] private int capacitorCharge;
+    public bool UsesCapacitor => origin?.passiveSkill?.passiveTrait == PassiveTrait.IronCapacitor;
+    public int MaxCapacitor => Mathf.Max(0, GetPassiveEntry(PassiveTrait.IronCapacitor)?.charges ?? 0);
+    public int CapacitorCharge => Mathf.Clamp(capacitorCharge, 0, MaxCapacitor);
+    public void GainCapacitor(int amount) => capacitorCharge = Mathf.Clamp(CapacitorCharge + Mathf.Max(0, amount), 0, MaxCapacitor);
+    public int SpendCapacitor(int amount)
+    {
+        int spent = Mathf.Min(CapacitorCharge, Mathf.Max(0, amount));
+        capacitorCharge = CapacitorCharge - spent;
+        return spent;
+    }
+    public void ResetCapacitor() => capacitorCharge = 0;
+    public void GainPrimalMana(int amount) => primalMana = Mathf.Clamp(PrimalMana + Mathf.Max(0, amount), 0, PrimalManaCapacity);
+    public int SpendPrimalMana(int amount)
+    {
+        int spent = Mathf.Min(PrimalMana, Mathf.Max(0, amount));
+        primalMana = PrimalMana - spent;
+        return spent;
+    }
     [System.NonSerialized] public TheLastArk.Battle.PanicState panic = new TheLastArk.Battle.PanicState();
     public float bonusAttack; // 버프로 추가된 공격력입니다.
     private int arkLeaderHealth, arkLeaderMental, arkLeaderArmor, arkLeaderMagicResist;

@@ -185,6 +185,33 @@ public class VFXManager : MonoBehaviour
         return SpawnVFX(vfxName, position, Quaternion.identity, customScale, defaultLifetime);
     }
 
+    /// <summary>Direct prefab assignment from the character editor; no name registration is needed.</summary>
+    public GameObject PlayConfigured(TheLastArk.Skills.SkillVfxSettings settings, BattleCharacter recipient)
+    {
+        if (settings?.prefab == null || recipient == null) return null;
+        Vector3 position = TheLastArk.Skills.SkillVfxSettings.Anchor(recipient);
+        position += new Vector3(settings.offset.x, settings.offset.y, 0f);
+        position.z = -15f;
+        var instance = Instantiate(settings.prefab, position, Quaternion.Euler(settings.rotation));
+        instance.name = "SkillVFX " + settings.prefab.name + " → " + recipient.characterName;
+        instance.transform.localScale *= defaultVfxScale * Mathf.Max(.01f, settings.scale);
+        if (!settings.preservePrefabMaterials) FixShadersForURP(instance);
+        var materials = new List<Material>();
+        foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true))
+        {
+            renderer.sortingOrder = defaultSortingOrder;
+            renderer.sortingLayerName = "Default";
+            materials.AddRange(renderer.materials);
+        }
+        float duration = Mathf.Max(.1f, settings.lifetime);
+        foreach (var auto in instance.GetComponentsInChildren<AutoDestroyVFX>(true)) auto.lifeTime = duration;
+        var cleanup = instance.GetComponent<AutoDestroyVFX>() ?? instance.AddComponent<AutoDestroyVFX>();
+        cleanup.lifeTime = duration;
+        cleanup.OwnMaterials(materials);
+        foreach (var ps in instance.GetComponentsInChildren<ParticleSystem>(true)) ps.Play(true);
+        return instance;
+    }
+
     /// <summary>
     /// URP 렌더 파이프라인에서 파티클이 노란 네모(불투명 쿼드)로 나오는 문제를 방지하고 완벽한 알파 블렌딩을 적용합니다.
     /// </summary>
@@ -275,7 +302,7 @@ public class VFXManager : MonoBehaviour
         string vfxName = GetSmartVFXName(skillName, effectType, damageType);
         if (!string.IsNullOrEmpty(vfxName))
         {
-            SpawnVFX(vfxName, target.transform.position);
+            SpawnVFX(vfxName, TheLastArk.Skills.SkillVfxSettings.Anchor(target));
         }
     }
 

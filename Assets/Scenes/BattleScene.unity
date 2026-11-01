@@ -789,8 +789,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   arrowUI: {fileID: 340845232}
   target: {fileID: 0}
-  floatSpeed: 5
-  floatAmplitude: 10
+  floatSpeed: 3
+  floatAmplitude: 3
 --- !u!114 &324432409
 MonoBehaviour:
   m_ObjectHideFlags: 0

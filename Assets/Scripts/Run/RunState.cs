@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 /// <summary>
 /// 한 번의 런(플레이스루) 동안 유지되는 모든 상태를 담는 순수 C# 클래스.
@@ -19,6 +19,28 @@ public class RunState
 
     /// <summary>현재 파티의 런 타임 상태 (HP, 정신력 등)</summary>
     public List<CharacterStatus> partyStatuses = new List<CharacterStatus>();
+    public void RememberPrimalMana(CharacterStatus status)
+    {
+        if (status?.origin == null || !status.UsesPrimalMana) return;
+        var stored = partyStatuses.Find(s => s?.origin != null && s.origin.DataId == status.origin.DataId);
+        if (stored == status) return;
+        if (stored == null)
+        {
+            stored = new CharacterStatus(status.origin) { charLevel = status.charLevel, traitBloomOverride = status.traitBloomOverride };
+            partyStatuses.Add(stored);
+        }
+        stored.SpendPrimalMana(int.MaxValue);
+        stored.GainPrimalMana(status.PrimalMana);
+    }
+
+    public void RestorePrimalMana(CharacterStatus status)
+    {
+        if (status?.origin == null || !status.UsesPrimalMana) return;
+        var stored = partyStatuses.Find(s => s?.origin != null && s.origin.DataId == status.origin.DataId);
+        if (stored == status) return;
+        status.SpendPrimalMana(int.MaxValue);
+        status.GainPrimalMana(stored?.PrimalMana ?? 0);
+    }
     public TheLastArk.Data.EquipmentLoadouts equipmentLoadouts = new TheLastArk.Data.EquipmentLoadouts();
 
     /// <summary>파티 리더의 캐릭터 ID</summary>

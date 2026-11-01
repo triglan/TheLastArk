@@ -104,7 +104,9 @@ public partial class BattleManager : MonoBehaviour
     private bool _limitFirstSkillFreeThisTurn = false;
     private bool _limitRetainAllSkillsThisTurn = false;
 
-    public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerTurn && !DebugActionRunning
+    private bool _resolvingSkill;
+    public bool IsResolvingSkill => _resolvingSkill;
+    public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerTurn && !DebugActionRunning && !_resolvingSkill
         && (_executingPanicSkill || (!_resolvingPanicTurn && (_panicPresentation == null || !_panicPresentation.IsPresenting)));
     public bool UsesDice => TheLastArk.Managers.TrainManager.IsInitialized
         && TheLastArk.Managers.TrainManager.Instance.nexusCar != null
@@ -125,12 +127,19 @@ public partial class BattleManager : MonoBehaviour
 
     public string GetDiceSkillUnavailableReason(BattleCharacter actor, SkillInfo skill)
     {
+        if (_resolvingSkill) return "시전 중";
+        string manaReason = PrimordialManaRules.UnavailableReason(actor?.status, GetSkillLevel(skill, actor));
+        if (manaReason != null) return manaReason;
         string panicReason = GetPanicSkillUnavailableReason(actor, skill);
         if (panicReason != null) return panicReason;
         if (!UsesDice) return null;
         if (actor?.status == null || skill == null) return "사용 불가";
         if (actor.status.currentHp <= 0f) return "전투 불능";
         if (IsSkillUsedUp(actor, skill)) return DiceReasonUsed;
+        var splitLevel = GetSkillLevel(skill, actor);
+        if (splitLevel?.special == SkillSpecial.SplitDie && splitLevel.splitPoolLimit > 0
+            && _dicePool.Dice.Count - 1 + Mathf.Max(2, splitLevel.specialCount) > splitLevel.splitPoolLimit)
+            return $"분할 후 주사위 {splitLevel.splitPoolLimit}개 초과";
         if (actor.status.GetStatus(EffectType.Stun) != null) return "기절";
         if (actor.status.GetStatus(EffectType.Fatigue) != null && actor.status.lastUsedSkill == skill)
             return "피로";
@@ -246,10 +255,10 @@ public partial class BattleManager : MonoBehaviour
         return Mathf.FloorToInt(boost.damagePerTurn);
     }
 
-    private SkillLevelData GetSkillLevel(SkillInfo skill, BattleCharacter actor)
+    public SkillLevelData GetSkillLevel(SkillInfo skill, BattleCharacter actor)
     {
         if (skill?.levels == null || skill.levels.Length == 0 || actor?.status == null) return null;
-        return skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
+        return PrimordialManaRules.Resolve(SkillStageRules.Resolve(skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)], UsesOf(actor, skill)), actor.status);
     }
 
     private int UsesOf(BattleCharacter actor, SkillInfo skill) => _diceSkillUses.TryGetValue((actor, skill), out int uses) ? uses : 0;
@@ -258,6 +267,26 @@ public partial class BattleManager : MonoBehaviour
         => Mathf.Max(Mathf.Max(1, GetSkillLevel(skill, actor)?.usesPerTurn ?? 1), EndlessCleaveUses(actor, skill));
     private bool IsSkillUsedUp(BattleCharacter actor, SkillInfo skill) => UsesOf(actor, skill) >= GetSkillUsesPerTurn(actor, skill);
     private void MarkSkillUsed(BattleCharacter actor, SkillInfo skill) => _diceSkillUses[(actor, skill)] = UsesOf(actor, skill) + 1;
+
+    public int SkillRestoreCost(BattleCharacter actor, SkillInfo skill) => GetSkillLevel(skill, actor)?.primalManaRestoreCost ?? 0;
+    public bool IsRestorableSkillUsed(BattleCharacter actor, SkillInfo skill)
+        => actor?.status != null && skill != null && SkillRestoreCost(actor, skill) > 0 && IsSkillUsedUp(actor, skill);
+    public bool CanRestoreSkill(BattleCharacter actor, SkillInfo skill)
+        => UsesDice && IsPlayerTurn && IsRestorableSkillUsed(actor, skill) && actor.status.currentHp > 0f
+            && actor.status.PrimalMana >= SkillRestoreCost(actor, skill)
+            && actor.status.GetStatus(EffectType.Stun) == null && GetPanicSkillUnavailableReason(actor, skill) == null
+            && !actor.status.activeStatusEffects.Exists(e => e.effectType == EffectType.Blockade && e.IsActive
+                && (e.skillSlot < 0 || e.skillSlot == actor.status.dynamicActiveSkill.IndexOf(skill)));
+    public bool TryRestoreSkill(BattleCharacter actor, SkillInfo skill)
+    {
+        if (!CanRestoreSkill(actor, skill)) return false;
+        actor.status.SpendPrimalMana(SkillRestoreCost(actor, skill));
+        _diceSkillUses.Remove((actor, skill));
+        actor.view?.UpdateVisual(actor.status);
+        RefreshSkillSlots(); RefreshDiceUI();
+        return true;
+    }
+    private readonly Dictionary<(BattleCharacter, SkillInfo), int> _lastChargeDie = new Dictionary<(BattleCharacter, SkillInfo), int>();
 
     /// <summary>
     /// Dice and shield inputs for one actual fire: per die the input value (냉기) and effect value
@@ -291,6 +320,9 @@ public partial class BattleManager : MonoBehaviour
     }
 
     /// <summary>Self / all-target skills need no picked target.</summary>
+    private static bool HasSkillFocus(SkillLevelData level)
+        => level?.effects != null && level.effects.Exists(e => e != null && e.type == EffectType.Focus);
+
     private BattleCharacter AutoTargetFor(SkillInfo skill, BattleCharacter actor)
     {
         SkillLevelData level = GetSkillLevel(skill, actor);
@@ -409,8 +441,7 @@ public partial class BattleManager : MonoBehaviour
         {
             if (IsChargeReady(actor, skill))
             {
-                // Kept ready because it could not fire on completion: retry without spending the die.
-                TryFireReadyCharge(actor, skill);
+                Notify("충전 완료 — 대상을 지정하고 스킬을 눌러 발동하세요.", Color.cyan);
                 return;
             }
             if (_pendingDiceSkill != skill || _pendingDiceActor != actor)
@@ -421,15 +452,6 @@ public partial class BattleManager : MonoBehaviour
             _selectedDiceIds.Add(dieId);
             if (_selectedDiceIds.Count >= Mathf.Max(1, dropRule.diceCount))
             {
-                // The completing insert fires at once, so like a normal skill it needs a valid target first.
-                if (WouldCompleteCharge(actor, skill, dropRule)
-                    && ResolveDiceSkillTarget(skill, actor, out string targetReason, out Color reasonColor) == null)
-                {
-                    _selectedDiceIds.Remove(dieId);
-                    Notify(targetReason, reasonColor);
-                    RefreshDiceUI();
-                    return;
-                }
                 TryInsertChargeDice(actor, skill);
                 _pendingDiceSkill = null;
                 _pendingDiceActor = null;
@@ -439,7 +461,7 @@ public partial class BattleManager : MonoBehaviour
         }
 
         if (skill.levels == null || skill.levels.Length == 0) return;
-        SkillLevelData level = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
+        SkillLevelData level = GetSkillLevel(skill, actor);
         if (level != null && level.special == SkillSpecial.SplitDie)
         {
             EnsureDiceUI();
@@ -447,9 +469,18 @@ public partial class BattleManager : MonoBehaviour
                 (values, modifierIndex) => TrySplitDie(actor, skill, dieId, values, modifierIndex));
             return;
         }
-        if (ResolveDiceSkillTarget(skill, actor, out string reason, out Color color) == null)
+        BattleCharacter target = AutoTargetFor(skill, actor) ?? (targetHandler.target != null
+            ? targetHandler.target.GetComponent<BattleCharacter>() : null);
+        if (target == null)
         {
-            Notify(reason, color);
+            Notify("먼저 대상을 지정하세요.", Color.yellow);
+            return;
+        }
+        if (level == null || (level.excludeSelf && target == actor) || !(level.targetType == TargetType.Self
+            ? target == actor
+            : TargetResolver.IsValid(target, level.targetType, playerParty, enemyParty, actor, HasSkillFocus(level))))
+        {
+            Notify("이 스킬에 맞는 대상이 아닙니다.", Color.red);
             return;
         }
 
@@ -528,7 +559,7 @@ public partial class BattleManager : MonoBehaviour
     }
 
     /// <summary>Inserts the selected dice into a charge skill. Consumes dice only on a valid insert;
-    /// overflow above the target is discarded. Charging alone is not a use; reaching the target fires at once.</summary>
+    /// overflow above the target is discarded. Charging alone is not a use.</summary>
     private bool TryInsertChargeDice(BattleCharacter actor, SkillInfo skill)
     {
         DiceInputRule rule = GetDiceRule(skill, actor);
@@ -541,7 +572,13 @@ public partial class BattleManager : MonoBehaviour
         List<ActionDie> inserted = SelectedDice();
         if (!_dicePool.TrySpend(_selectedDiceIds)) return false;
         // Sum-type charge uses effect values (on-use bonuses consumed per die); count-type counts dice only.
-        int contribution = rule.chargeByDiceCount ? values.Count : SumEffectValues(actor, inserted);
+        var chargeCast = new SkillCast();
+        foreach (ActionDie die in inserted)
+            chargeCast.EffectValues.Add(GetDieEffectValue(actor, die, ConsumeDiceBoost(actor), actor == _arcadiaMaxActor));
+        int contribution = rule.chargeByDiceCount ? values.Count : chargeCast.DiceSum;
+        if (chargeCast.EffectValues.Count > 0) _lastChargeDie[(actor, skill)] = chargeCast.EffectValues[chargeCast.EffectValues.Count - 1];
+        PrimordialManaRules.AfterSkill(actor.status, chargeCast);
+        actor.view?.UpdateVisual(actor.status);
         var northValues = new List<int>();
         foreach (ActionDie die in inserted)
             if (die.Kind == DieKind.North) northValues.Add(GetDieEffectValue(actor, die, 0));
@@ -551,10 +588,9 @@ public partial class BattleManager : MonoBehaviour
         _selectedDiceIds.Clear();
         RefreshDiceUI();
         RefreshSkillSlots();
-        if (nextCharge < rule.chargeTarget)
-            Notify($"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
-        else if (!TryFireReadyCharge(actor, skill) && IsChargeReady(actor, skill))
-            Notify($"{skill.skillName} 준비 완료 — 대상을 지정하고 스킬을 누르면 발동합니다", Color.cyan);
+        Notify(nextCharge >= rule.chargeTarget
+            ? $"{skill.skillName} 준비 완료 — 대상을 지정해 발동하세요"
+            : $"{skill.skillName} 충전 {nextCharge}/{rule.chargeTarget}", Color.cyan);
         TryAutoEndDiceTurn();
         return true;
     }
@@ -702,11 +738,11 @@ public partial class BattleManager : MonoBehaviour
         RefreshSkillSlots();
     }
 
-    private DiceInputRule GetDiceRule(SkillInfo skill, BattleCharacter actor)
+    public DiceInputRule GetDiceRule(SkillInfo skill, BattleCharacter actor)
     {
         if (skill?.levels == null || skill.levels.Length == 0) return new DiceInputRule();
         int index = Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1);
-        return skill.levels[index]?.diceInput ?? new DiceInputRule();
+        return SkillStageRules.DiceRule(skill.levels[index], actor.status);
     }
 
     private bool TryGetSelectedDice(BattleCharacter actor, DiceInputRule rule, out List<int> values)
@@ -746,7 +782,7 @@ public partial class BattleManager : MonoBehaviour
         return bonus != 0 ? $"{_pendingDiceSkill.skillName} · 사용 시 {bonus:+0;-0}" : null;
     }
 
-    private void RefreshSkillSlots()
+    public void RefreshSkillSlots()
     {
         FindObjectOfType<BattleSkillManager>()?.LinkSkillsToUI();
     }
@@ -758,10 +794,14 @@ public partial class BattleManager : MonoBehaviour
         if (rule.IsCharge)
         {
             if (!IsChargeReady(actor, skill)) return false;
-            // Firing consumes no dice; afterwards the skill can't be charged or fired again this turn.
+            // Each charged fire counts toward its authored per-turn limit.
             _pendingCast = BuildCast(actor, skill, new List<ActionDie>());
             _diceCharge.Remove((actor, skill));
-            _diceSkillUses[(actor, skill)] = SkillExhausted;
+            if (GetSkillLevel(skill, actor).chargeUsesLastDie && _lastChargeDie.TryGetValue((actor, skill), out int lastDie))
+                _pendingCast.EffectValues.Add(lastDie);
+            _pendingCast.ManaAwarded = true;
+            _lastChargeDie.Remove((actor, skill));
+            MarkSkillUsed(actor, skill);
             _selectedDiceIds.Clear();
             RefreshDiceUI();
             RefreshSkillSlots();
@@ -1252,12 +1292,18 @@ public partial class BattleManager : MonoBehaviour
             return;
         }
         int skillIdx = actor.status.SkillLevelIndex;
-        SkillLevelData levelData = skill.levels[Mathf.Clamp(skillIdx, 0, skill.levels.Length - 1)];
+        SkillLevelData levelData = GetSkillLevel(skill, actor);
+        string manaReason = PrimordialManaRules.UnavailableReason(actor.status, levelData);
+        if (manaReason != null)
+        {
+            Notify(manaReason, Color.red);
+            return;
+        }
 
         bool isValidTarget = levelData.targetType == TargetType.Self
             ? primaryTarget == actor
             : !(levelData.excludeSelf && primaryTarget == actor)
-                && TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
+                && TargetResolver.IsValid(primaryTarget, levelData.targetType, playerParty, enemyParty, actor, HasSkillFocus(levelData));
         if (!isValidTarget)
         {
             string message = TargetResolver.IsTauntAffected(levelData.targetType)
@@ -1407,20 +1453,58 @@ public partial class BattleManager : MonoBehaviour
 
         CountActualSkillUse(actor);
 
+        var execution = ResolveCommittedSkill(actor, skill, levelData, primaryTarget);
+        if (Application.isPlaying) StartCoroutine(execution);
+        else
+        {
+            // EditMode combat tests use the same sequence, with no wall-clock waiting.
+            try { while (execution.MoveNext()) { } }
+            finally { (execution as System.IDisposable)?.Dispose(); }
+        }
+    }
+
+    private IEnumerator ResolveCommittedSkill(BattleCharacter actor, SkillInfo skill, SkillLevelData levelData, BattleCharacter primaryTarget)
+    {
+        _resolvingSkill = true;
+        UpdateTurnEndButtonState();
+        RefreshSkillSlots();
+        try
+        {
+            var effects = ResolveCommittedSkillEffects(actor, skill, levelData, primaryTarget);
+            try { while (effects.MoveNext()) yield return effects.Current; }
+            finally { (effects as System.IDisposable)?.Dispose(); }
+        }
+        finally
+        {
+            _pendingCast = null;
+            _resolvingSkill = false;
+            UpdateTurnEndButtonState();
+            RefreshSkillSlots();
+            if (UsesDice) RefreshDiceUI();
+        }
+        if (TryEndBattleIfPartyWiped()) yield break;
+        if (UsesDice) TryAutoEndDiceTurn();
+        else if (currentAP <= 0 && !_resolvingPanicTurn) EndPlayerTurn();
+    }
+
+    private IEnumerator ResolveCommittedSkillEffects(BattleCharacter actor, SkillInfo skill, SkillLevelData levelData, BattleCharacter primaryTarget)
+    {
         {
             // Order: 혼란 (at fire) → 도발 → 보호 (per hit in the damage path).
             // 환각: random final target among all living combatants (self included); 혼란 / 도발 skipped, 보호 still applies.
             bool hallucinating = IsHallucinatingAttack(actor, levelData);
             if (hallucinating) primaryTarget = HallucinationTarget(actor) ?? primaryTarget;
             else primaryTarget = ApplyConfusion(actor, primaryTarget, levelData.targetType);
-            BattleCharacter resolvedPrimary = hallucinating ? primaryTarget : TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor);
-            List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor, hallucinating);
+            bool ignoreTaunt = hallucinating || HasSkillFocus(levelData);
+            BattleCharacter resolvedPrimary = ignoreTaunt ? primaryTarget : TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor);
+            List<BattleCharacter> targets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor, ignoreTaunt);
             SkillCast cast = _pendingCast ?? new SkillCast();
-            cast.IgnoreTaunt = hallucinating;
+            cast.IgnoreTaunt = ignoreTaunt;
             cast.DamageBonus += TwinStarBonus(actor, levelData, resolvedPrimary);
-            EffectEngine.CurrentCast = cast;
-            try { EffectEngine.ProcessSkill(actor, targets, levelData, resolvedPrimary, skill.skillName); }
-            finally { EffectEngine.CurrentCast = null; }
+            var sequence = EffectEngine.ProcessSkillSequence(actor, targets, levelData, resolvedPrimary, cast, skill.skillName);
+            try { while (sequence.MoveNext()) yield return sequence.Current; }
+            finally { (sequence as System.IDisposable)?.Dispose(); }
+            if (actor == null || actor.status == null) yield break;
             ResolveEquipmentAfterSkill(actor, levelData, cast);
             ResolveRelicsAfterSkill(actor, skill, levelData, cast);
             AfterActualSkillFire(actor, skill, levelData, cast);
@@ -1429,10 +1513,17 @@ public partial class BattleManager : MonoBehaviour
             if (_arcanaState.isTowerDoubleCastActive)
             {
                 _arcanaState.isTowerDoubleCastActive = false;
-                List<BattleCharacter> doubleTargets = TargetResolver.Resolve(primaryTarget, levelData.targetType, playerParty, enemyParty, actor);
-                EffectEngine.CurrentCast = cast;
-                try { EffectEngine.ProcessSkill(actor, doubleTargets, levelData, TargetResolver.ResolvePrimary(primaryTarget, levelData.targetType, enemyParty, actor), skill.skillName); }
-                finally { EffectEngine.CurrentCast = null; }
+                // Resource-dependent skills choose their mode again for this separate execution.
+                SkillLevelData doubleLevel = levelData;
+                BattleCharacter doublePrimary = doubleLevel.targetType == TargetType.Self ? actor : primaryTarget;
+                List<BattleCharacter> doubleTargets = TargetResolver.Resolve(doublePrimary, doubleLevel.targetType, playerParty, enemyParty, actor);
+                // Separate a Tower repeat too, so the two pairs cannot collapse into one visual burst.
+                if (doubleLevel.primalManaRepeatThreshold > 0 && doubleLevel.primalManaRepeatDelay > 0f)
+                    yield return new WaitForSeconds(doubleLevel.primalManaRepeatDelay);
+                var doubleSequence = EffectEngine.ProcessSkillSequence(actor, doubleTargets, doubleLevel,
+                    TargetResolver.ResolvePrimary(doublePrimary, doubleLevel.targetType, enemyParty, actor), cast, skill.skillName);
+                try { while (doubleSequence.MoveNext()) yield return doubleSequence.Current; }
+                finally { (doubleSequence as System.IDisposable)?.Dispose(); }
                 Notify("[탑] 첫 스킬이 2번 연속 발동되었습니다!", Color.red);
             }
 
@@ -1480,16 +1571,8 @@ public partial class BattleManager : MonoBehaviour
         }
 
         _selection.Clear();
-        // Dice mode keeps a living enemy target selected so the player can keep acting on it.
+        // Dice mode keeps a living target selected so the player can keep acting on it.
         if (targetHandler != null && !(UsesDice && IsKeptTargetAlive())) targetHandler.Deselect(false);
-        if (TryEndBattleIfPartyWiped()) return;
-        RefreshSkillSlots();
-
-        if (UsesDice)
-        {
-            TryAutoEndDiceTurn();
-        }
-        else if (currentAP <= 0 && !_resolvingPanicTurn) EndPlayerTurn();
     }
 
     /// <summary>Player-facing message; skipped outside Play Mode (edit-mode tests).</summary>
@@ -1636,6 +1719,7 @@ public partial class BattleManager : MonoBehaviour
 
     public void EndPlayerTurn()
     {
+        if (_resolvingSkill) return;
         if (_lastTurnEndClickFrame == Time.frameCount) return;
         _lastTurnEndClickFrame = Time.frameCount;
 
@@ -1787,6 +1871,7 @@ public partial class BattleManager : MonoBehaviour
     private void OnEnterPlayerTurn()
     {
         RemoveOwnerPhaseEffects(playerParty);
+        CapacitorRules.OnTurnStart(playerParty);
         ResetSynergyTurnState();
         ResetRelicTurnState();
         ResetEquipmentTurnState();
@@ -2477,6 +2562,7 @@ public partial class BattleManager : MonoBehaviour
     private IEnumerator RunEnemyTurn()
     {
         RemoveOwnerPhaseEffects(enemyParty);
+        CapacitorRules.OnTurnStart(enemyParty);
         _vengeanceCounts.Clear();
         ClearEnemyTargetMarkers();
         Debug.Log($"[Battle] {_turnCount}턴: 적 턴 시작. 생존 적 수 확인 중...");
@@ -2601,12 +2687,18 @@ public partial class BattleManager : MonoBehaviour
     private void OnEnterBattleEnd()
     {
         _diceCharge.Clear();
+        _lastChargeDie.Clear();
         _parasiticStacks = 0;
         _carriedDice.Clear();
         _blueTowerSkills.Clear();
         // Battle statuses (permanent ones included) never carry into the next battle.
         foreach (BattleCharacter ally in playerParty)
+        {
+            if (Application.isPlaying && ally?.status != null)
+                RunManager.Instance.State.RememberPrimalMana(ally.status);
             ally?.status?.RemoveAllStatusEffects();
+            ally?.status?.ResetCapacitor();
+        }
         ClearBattlePanic();
         CancelPendingSelection();
         ClearEnemyTargetMarkers();
@@ -2792,6 +2884,7 @@ public partial class BattleManager : MonoBehaviour
 
     private bool TryEndBattleIfPartyWiped()
     {
+        if (_resolvingSkill) return false;
         if (DebugHoldsBattleOpen) return false;
         if (IsPartyWiped(playerParty))
         {
@@ -2821,7 +2914,7 @@ public partial class BattleManager : MonoBehaviour
         foreach (BattleCharacter character in enemyParty)
         {
             if (character != null && character.status.currentHp <= 0)
-                Debug.Log($"[Battle] {character.characterName} is down.");
+                character.GetComponent<EnemyBattleCharacter>()?.ClaimDefeatReward();
         }
     }
 }

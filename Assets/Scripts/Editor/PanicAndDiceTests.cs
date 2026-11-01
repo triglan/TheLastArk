@@ -161,7 +161,7 @@ public class PanicAndDiceTests
         _battle.playerParty.Remove(actor);
         Assert.IsFalse(_battle.DebugRollPanic(actor));
         _battle.playerParty.Add(actor);
-        foreach (var phase in new[] { BattlePhase.EnemyTurn, BattlePhase.BattleEnd })
+        foreach (var phase in new[] { BattlePhase.EnemyTurn, BattlePhase.StatusEffect })
         {
             typeof(BattleManager).GetField("_currentPhase", Private).SetValue(_battle, phase);
             Assert.IsFalse(_battle.DebugApplyPanic(actor, PanicType.Lethargy));
@@ -170,6 +170,20 @@ public class PanicAndDiceTests
         typeof(BattleManager).GetField("_currentPhase", Private).SetValue(_battle, BattlePhase.PlayerTurn);
         Assert.AreEqual(100, actor.status.currentMental);
         Assert.IsFalse(actor.status.panic.IsActive);
+    }
+
+    [Test] public void DebugPanicWorksAfterBattleEndAndReattachesPresentationListener()
+    {
+        var actor=Actor();
+        typeof(BattleManager).GetMethod("ClearBattlePanic",Private).Invoke(_battle,new object[]{false});
+        typeof(BattleManager).GetField("_currentPhase",Private).SetValue(_battle,BattlePhase.BattleEnd);
+        Assert.IsTrue(_battle.DebugCanPreviewPanic);
+        Assert.IsTrue(_battle.DebugApplyPanic(actor,PanicType.Hallucination));
+        Assert.AreEqual(PanicType.Hallucination,actor.status.panic.Type);
+        Assert.IsFalse(_battle.IsPlayerTurn,"Debug preview must not reopen combat or award a second victory");
+        Assert.IsTrue(_battle.DebugClearPanic(actor));Assert.AreEqual(100,actor.status.currentMental);
+        typeof(BattleManager).GetField("_resolvingSkill",Private).SetValue(_battle,true);
+        Assert.IsFalse(_battle.DebugApplyPanic(actor,PanicType.Depression));
     }
 
     [Test] public void HeldThreeHighlightsMaxFourButFiveAndSpentDiceDoNot()

@@ -9,6 +9,8 @@ public partial class BattleManager
     public bool DebugHoldsBattleOpen { get; private set; }
     public bool DebugActionRunning { get; private set; }
     public bool DebugPanicPresenting => _panicPresentation != null && _panicPresentation.IsPresenting;
+    public bool DebugCanPreviewPanic => (_currentPhase == BattlePhase.PlayerTurn || _currentPhase == BattlePhase.BattleEnd)
+        && !_resolvingSkill && !_resolvingPanicTurn && !DebugActionRunning && !DebugPanicPresenting;
 
     public bool DebugApplyPanic(BattleCharacter ally, PanicType type)
     {
@@ -24,7 +26,7 @@ public partial class BattleManager
 
     public bool DebugClearPanic(BattleCharacter ally) => DebugSetPanicState(ally, PanicType.None);
 
-    private bool CanDebugPanic(BattleCharacter ally) => IsPlayerTurn && ally != null
+    private bool CanDebugPanic(BattleCharacter ally) => DebugCanPreviewPanic && ally != null
         && playerParty != null && playerParty.Contains(ally) && ally.gameObject.activeInHierarchy
         && ally.status?.origin != null && !ally.status.origin.isEnemy && ally.status.currentHp > 0f;
 
@@ -33,6 +35,15 @@ public partial class BattleManager
         if (!CanDebugPanic(ally)) return false;
         CancelPendingSelection();
         targetHandler?.Deselect(false);
+        // Battle-end cleanup detaches panic listeners. Debug preview needs its own safe reattachment.
+        if (Application.isPlaying && _panicPresentation == null)
+            _panicPresentation = gameObject.GetComponent<PanicPresentationUI>() ?? gameObject.AddComponent<PanicPresentationUI>();
+        if (!_panicActors.Contains(ally))
+        {
+            ally.PanicChanged += OnPanicChanged;
+            _panicActors.Add(ally);
+        }
+        if (_currentPhase == BattlePhase.BattleEnd) CancelInvoke(nameof(LoadMapScene));
         if (!ally.DebugSetPanic(type)) return false;
         RefreshSkillSlots();
         RefreshDiceUI();

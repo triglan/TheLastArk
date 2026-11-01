@@ -6,7 +6,7 @@ namespace TheLastArk.UI
     [RequireComponent(typeof(CanvasRenderer))]
     public class BattleHudGlyph : UnityEngine.UI.MaskableGraphic
     {
-        public enum Symbol { Energy, EndTurn, Map }
+        public enum Symbol { Energy, EndTurn, Map, EnemyTarget, SelectedTarget }
         public Symbol symbol;
 
         protected override void OnPopulateMesh(UnityEngine.UI.VertexHelper mesh)
@@ -29,6 +29,19 @@ namespace TheLastArk.UI
                 Triangle(mesh,new Vector2(.95f,.57f),new Vector2(.70f,.55f),new Vector2(.85f,.30f));
                 Triangle(mesh,new Vector2(.43f,.34f),new Vector2(.43f,.66f),new Vector2(.66f,.5f));
             }
+            else if (symbol == Symbol.EnemyTarget)
+            {
+                DrawDisc(mesh, .50f, new Color(.05f,.025f,.035f,1f));
+                DrawDisc(mesh, .44f, new Color(.96f,.28f,.29f,1f));
+                DrawDisc(mesh, .34f, new Color(.24f,.025f,.045f,1f));
+                Quad(mesh, new Vector2(.41f,.43f), new Vector2(.59f,.43f), new Vector2(.59f,.77f), new Vector2(.41f,.77f));
+                Quad(mesh, new Vector2(.41f,.23f), new Vector2(.59f,.23f), new Vector2(.59f,.36f), new Vector2(.41f,.36f));
+            }
+            else if (symbol == Symbol.SelectedTarget)
+            {
+                Triangle(mesh, new Vector2(.03f,.88f), new Vector2(.97f,.88f), new Vector2(.5f,.06f), new Color(.035f,.045f,.06f,1f));
+                Triangle(mesh, new Vector2(.17f,.79f), new Vector2(.83f,.79f), new Vector2(.5f,.20f));
+            }
             else
             {
                 Quad(mesh,new Vector2(.08f,.18f),new Vector2(.34f,.08f),new Vector2(.34f,.78f),new Vector2(.08f,.9f));
@@ -45,6 +58,21 @@ namespace TheLastArk.UI
         private void Triangle(UnityEngine.UI.VertexHelper mesh,Vector2 a,Vector2 b,Vector2 c)
         {
             int i=mesh.currentVertCount; Vertex(mesh,a); Vertex(mesh,b); Vertex(mesh,c); mesh.AddTriangle(i,i+1,i+2);
+        }
+        private void Triangle(UnityEngine.UI.VertexHelper mesh,Vector2 a,Vector2 b,Vector2 c,Color tint)
+        {
+            Rect r=rectTransform.rect;
+            int i=mesh.currentVertCount;
+            mesh.AddVert(new Vector3(r.xMin+a.x*r.width,r.yMin+a.y*r.height,0f),tint,Vector2.zero);
+            mesh.AddVert(new Vector3(r.xMin+b.x*r.width,r.yMin+b.y*r.height,0f),tint,Vector2.zero);
+            mesh.AddVert(new Vector3(r.xMin+c.x*r.width,r.yMin+c.y*r.height,0f),tint,Vector2.zero);
+            mesh.AddTriangle(i,i+1,i+2);
+        }
+        private void DrawDisc(UnityEngine.UI.VertexHelper mesh,float radius,Color tint)
+        {
+            const int segments=32;
+            for(int i=0;i<segments;i++)
+                Triangle(mesh,new Vector2(.5f,.5f),Ring(i*Mathf.PI*2/segments,radius),Ring((i+1)*Mathf.PI*2/segments,radius),tint);
         }
         private void Quad(UnityEngine.UI.VertexHelper mesh,Vector2 a,Vector2 b,Vector2 c,Vector2 d)
         {

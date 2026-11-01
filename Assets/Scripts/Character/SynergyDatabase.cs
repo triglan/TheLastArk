@@ -210,7 +210,7 @@ namespace TheLastArk.Character
                 }
             );
             infoDict[SynergyType.Mage] = new SynergyInfo(
-                SynergyType.Mage, "마법사", "마법사", false,
+                SynergyType.Mage, "마술사", "마술사", false,
                 "아군이 적에게 거는 수치형 디버프 증가.",
                 new List<SynergyTierInfo>
                 {

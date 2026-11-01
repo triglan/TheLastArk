@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // CharacterData.cs 에 이미 있는 EffectType에 아래 항목을 추가하세요.
@@ -73,7 +73,7 @@ public class ActiveStatusEffect
 
     public string GetDurationText()
     {
-        if (effectType == EffectType.Evasion) return $"{remainingCharges}회 · 다음 자기 턴까지";
+        if (effectType == EffectType.Evasion) return $"{(secondaryValue == 1f ? "모든 피해" : secondaryValue == 2f ? "물리 피해" : "체력 피해")} {remainingCharges}회 · 다음 자기 턴까지";
         switch (durationType)
         {
             case StatusDurationType.Permanent: return "영구";

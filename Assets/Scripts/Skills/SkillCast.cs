@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace TheLastArk.Skills
 {
@@ -42,6 +42,11 @@ namespace TheLastArk.Skills
         public bool HadCrit;
         /// <summary>Extra damage % (as a fraction) for every damage type (e.g. 쌍성의 검).</summary>
         public float DamageBonus;
+        /// <summary>Mana spent by this execution, captured before any effects or passive gain.</summary>
+        public int SpentPrimalMana;
+        public int SpentCapacitor;
+        // A repeated execution and a charged fire do not spend their dice again.
+        public bool ManaAwarded;
 
         public static void Add(Dictionary<BattleCharacter, float> map, BattleCharacter key, float value)
         {

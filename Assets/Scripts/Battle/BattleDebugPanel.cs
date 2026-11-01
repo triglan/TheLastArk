@@ -10,7 +10,7 @@ using TheLastArk.UI;
 namespace TheLastArk.Battle
 {
     /// <summary>Runtime-only tooling: reuses scene slots and never edits CharacterData assets.</summary>
-    public sealed class BattleDebugPanel : MonoBehaviour
+    public sealed partial class BattleDebugPanel : MonoBehaviour
     {
         public const string CanvasObjectName = "BattleDebugCanvas";
         private const int PageSize = 5;
@@ -213,9 +213,7 @@ namespace TheLastArk.Battle
         public void TogglePanicTests()
         {
             bool show = !panicContent.gameObject.activeSelf;
-            panicContent.gameObject.SetActive(show);
-            enemyContent.gameObject.SetActive(!show);
-            panicToggle.GetComponentInChildren<TextMeshProUGUI>().text = show ? "< 적 관리" : "패닉 테스트 >";
+            ShowDebugPage(show ? 1 : 0);
             Tell(show ? "발동 시 정신력 0 · 기존 패닉을 교체하고 연출을 재생합니다." : "1회 실행은 턴/상태이상 시간을 진행하지 않습니다.");
             RefreshView();
         }
@@ -224,7 +222,7 @@ namespace TheLastArk.Battle
         {
             var ally = SelectedAlly;
             bool applied = random ? manager.DebugRollPanic(ally) : manager.DebugApplyPanic(ally, selectedPanic);
-            Tell(applied ? $"{ally.characterName} · {PanicState.Name(ally.status.panic.Type)} 발동!" : "플레이어 턴에 살아 있는 아군을 선택하세요.");
+            Tell(applied ? $"{ally.characterName} · {PanicState.Name(ally.status.panic.Type)} 발동!" : "플레이어 턴 또는 전투 종료 후, 살아 있는 아군을 선택하세요. 연출·행동 중에는 잠깁니다.");
             if (applied) debugCanvas.sortingOrder = 450;
             RefreshView();
         }
@@ -232,7 +230,7 @@ namespace TheLastArk.Battle
         private void ClearSelectedPanic()
         {
             bool cleared = manager.DebugClearPanic(SelectedAlly);
-            Tell(cleared ? "선택 아군의 패닉 해제 · 정신력 최대 회복 (디버그 전용)" : "플레이어 턴에 살아 있는 아군을 선택하세요.");
+            Tell(cleared ? "선택 아군의 패닉 해제 · 정신력 최대 회복 (디버그 전용)" : "플레이어 턴 또는 전투 종료 후, 살아 있는 아군을 선택하세요. 연출·행동 중에는 잠깁니다.");
             RefreshView();
         }
 
@@ -249,8 +247,9 @@ namespace TheLastArk.Battle
             }
             var actor = SelectedAlly;
             bool valid = actor?.status != null && actor.gameObject.activeInHierarchy && actor.status.currentHp > 0f;
-            applyPanicButton.interactable = randomPanicButton.interactable = canEdit && valid;
-            clearPanicButton.interactable = canEdit && valid && actor.status.panic.IsActive;
+            bool canPreview = manager.DebugCanPreviewPanic && valid;
+            applyPanicButton.interactable = randomPanicButton.interactable = canPreview;
+            clearPanicButton.interactable = canPreview && actor.status.panic.IsActive;
             for (int i = 0; i < panicTypeButtons.Count; i++)
                 panicTypeButtons[i].targetGraphic.color = (int)selectedPanic == i + 1 ? Accent : ButtonColor;
             panicDescriptionText.text = PanicState.Name(selectedPanic) + "  /  " + PanicState.Description(selectedPanic);
@@ -300,9 +299,10 @@ namespace TheLastArk.Battle
         {
             if (stateText == null) return;
             bool canEdit = CanEdit();
-            stateText.text = manager.DebugPanicPresenting ? "패닉 연출 중 · 잠시 기다려 주세요" : manager.DebugActionRunning ? "패턴 실행 중 · 잠시 기다려 주세요" : canEdit ? "플레이어 턴 · 조작 가능" : "턴 진행 / 전투 종료 · 조작 잠금";
+            stateText.text = manager.DebugPanicPresenting ? "패닉 연출 중 · 잠시 기다려 주세요" : manager.DebugActionRunning ? "패턴 실행 중 · 잠시 기다려 주세요" : canEdit ? "플레이어 턴 · 조작 가능" : manager.DebugCanPreviewPanic ? "전투 종료 · 패닉 미리보기 가능" : "턴 진행 중 · 잠시 기다려 주세요";
             foreach (var button in commands) button.interactable = canEdit;
             RefreshPanicView(canEdit);
+            RefreshSkillView();
             practiceButton.GetComponentInChildren<TextMeshProUGUI>().text = manager.DebugHoldsBattleOpen ? "연습 모드: ON  ·  전멸해도 계속" : "연습 모드: OFF  ·  일반 승패 판정";
             for (int i = 0; i < slotButtons.Count; i++)
             {
@@ -358,8 +358,10 @@ namespace TheLastArk.Battle
             launcherText = launcher.GetComponentInChildren<TextMeshProUGUI>();
             panel = Rect("DebugPanel", canvasRoot, 16, 190, 610, 850);
             panel.gameObject.AddComponent<UnityEngine.UI.Image>().color = Surface;
-            Label(panel, "BATTLE LAB  /  전투 디버그", 18, 12, 326, 32, 23);
-            panicToggle = Button("PanicTests", panel, "패닉 테스트 >", 352, 12, 156, 32, TogglePanicTests, false);
+            Label(panel, "전투 디버그", 18, 12, 190, 32, 23);
+            Button("EnemyTests", panel, "적 관리", 220, 12, 88, 32, () => ShowDebugPage(0), false);
+            panicToggle = Button("PanicTests", panel, "패닉", 316, 12, 88, 32, () => ShowDebugPage(1), false);
+            Button("SkillTests", panel, "스킬", 412, 12, 88, 32, () => ShowDebugPage(2), false);
             Button("CloseDebug", panel, "닫기", 520, 12, 72, 32, TogglePanel, false);
             stateText = Label(panel, "", 18, 48, 570, 24, 18);
             practiceButton = Button("PracticeMode", panel, "", 18, 78, 574, 36, () => { manager.DebugSetPracticeMode(!manager.DebugHoldsBattleOpen); RefreshView(); });
@@ -398,6 +400,7 @@ namespace TheLastArk.Battle
             Button("KillAll", enemyContent, "전체 처치", 212, 736, 186, 36, KillAll);
             Button("RestoreParty", enemyContent, "아군 완전 회복", 406, 736, 186, 36, RestoreParty);
             BuildPanicView();
+            BuildSkillView();
             messageText = Label(panel, "1회 실행은 턴/상태이상 시간을 진행하지 않습니다.", 18, 781, 574, 28, 16);
             Label(panel, "패널을 닫아도 연습 모드 유지 · 패턴 피해/보상은 실제 적용", 18, 813, 574, 25, 16);
         }

@@ -103,7 +103,7 @@ namespace TheLastArk.UI
 
             BattleManager manager = FindObjectOfType<BattleManager>();
             titleText.text = manager != null && manager.UsesDice
-                ? $"[{skill.skillName}]  <color=#FFD700>({currentLevelData?.diceInput?.Describe() ?? "제한 없음"})</color>"
+                ? $"[{skill.skillName}]  <color=#FFD700>({TheLastArk.Skills.SkillStageRules.DiceRule(currentLevelData, status).Describe()})</color>"
                 : $"[{skill.skillName}]  <color=#FFD700>({cost} AP)</color>";
             string levelTitle = status != null ? status.LevelTitle : "0강";
             int charLevel = status != null ? status.charLevel : 0;
@@ -111,6 +111,27 @@ namespace TheLastArk.UI
             RefreshActorInfoHeight();
 
             StringBuilder descSb = new StringBuilder();
+            if (status != null && status.UsesCapacitor)
+            {
+                descSb.AppendLine($"<color=#FFD459>축전 {status.CapacitorCharge} / {status.MaxCapacitor}</color>");
+                int spend = TheLastArk.Skills.CapacitorRules.SpendAmount(status, currentLevelData);
+                if (spend > 0) descSb.AppendLine($"<color=#FFD459>현재 발동 시 축전 {spend} 소모</color>");
+            }
+            if (status != null && status.UsesPrimalMana)
+            {
+                descSb.AppendLine($"<color=#72DFFF>원초 마력 {status.PrimalMana} / {status.PrimalManaCapacity}</color>");
+                if (currentLevelData?.special == SkillSpecial.MagicLand)
+                    descSb.AppendLine(TheLastArk.Skills.PrimordialManaRules.UsesBothLandEffects(currentLevelData, status)
+                        ? "<color=#72DFFF>현재: 마력 +5 → 보호막 → 마력 5 소모 → 전체 공격</color>"
+                        : status.PrimalMana >= TheLastArk.Skills.PrimordialManaRules.LandThreshold
+                        ? "<color=#72DFFF>현재: 마력 5 소모 · 전체 공격</color>" : "<color=#72DFFF>현재: 마력 5 획득 · 자신에게 보호막</color>");
+                if (currentLevelData != null && currentLevelData.primalManaRepeatThreshold > 0)
+                    descSb.AppendLine(status.PrimalMana >= currentLevelData.primalManaRepeatThreshold
+                        ? $"<color=#72DFFF>현재: 마력 {currentLevelData.primalManaRepeatCost} 소모 · 1회 추가 시전</color>"
+                        : "<color=#72DFFF>현재: 단일 시전</color>");
+                if (currentLevelData != null && currentLevelData.primalManaRestoreCost > 0)
+                    descSb.AppendLine($"<color=#72DFFF>사용한 슬롯 클릭 · 복구 비용: 마력 {currentLevelData.primalManaRestoreCost}</color>");
+            }
             float atk = status != null ? status.FinalAttack : 10f;
             float spellPower = status != null ? status.FinalSpellPower : 0f;
 
@@ -240,24 +261,30 @@ namespace TheLastArk.UI
         private static void AppendDiceTable(StringBuilder sb, SkillLevelData level, CharacterStatus status)
         {
             if (level?.effects == null) return;
+            level = TheLastArk.Skills.PrimordialManaRules.Resolve(level, status);
             if (level.usesPerTurn > 1) sb.AppendLine($"<color=#FFD43B>턴당 {level.usesPerTurn}회 사용 가능</color>");
             foreach (var effect in level.effects)
             {
                 if (effect == null) continue;
+                if (effect.minSpentCapacitor > TheLastArk.Skills.CapacitorRules.SpendAmount(status, level) || effect.minCurrentCapacitor > (status?.CapacitorCharge ?? 0)) continue;
                 bool scales = effect.multiplierPerDie != 0f || effect.fixedPerDie != 0f || effect.valuePerDieDivisor > 0
                     || effect.chancePerDie != 0f || effect.minDie > 0;
                 if (!scales) continue;
-                var line = new StringBuilder($"<size=90%>{ActiveStatusEffect.GetDisplayName(effect.type)} 눈금별: ");
+                bool repeat = effect.type == EffectType.Damage && status != null && level.primalManaRepeatThreshold > 0
+                    && status.PrimalMana >= level.primalManaRepeatThreshold;
+                string label = effect.type == EffectType.Damage ? (repeat ? "피해(첫 발사/추가 발사)" : "피해") : ActiveStatusEffect.GetDisplayName(effect.type);
+                var line = new StringBuilder($"<size=90%>{label} 눈금별: ");
                 for (int d = 0; d <= PreviewMaxDie; d++)
                 {
                     if (d > 0) line.Append("  ");
-                    line.Append(d).Append('→').Append(PreviewAt(effect, status, d));
+                    line.Append(d).Append('→').Append(PreviewAt(effect, status, d, null, level));
+                    if (repeat) line.Append('/').Append(PreviewAt(effect, status, d, status.PrimalMana - level.primalManaRepeatCost));
                 }
                 sb.AppendLine(line.Append("</size>").ToString());
             }
         }
 
-        private static string PreviewAt(EffectEntry effect, CharacterStatus status, int d)
+        private static string PreviewAt(EffectEntry effect, CharacterStatus status, int d, int? primalMana = null, SkillLevelData level = null)
         {
             if (effect.minDie > 0 && d < effect.minDie) return "-";
             float chance = Mathf.Min(100f, effect.chance + effect.chancePerDie * d);
@@ -269,14 +296,23 @@ namespace TheLastArk.UI
                 case EffectType.Shield:
                     float mult = EffectEngine.ScaledMultiplier(effect, d);
                     float fixedPart = EffectEngine.ScaledFixed(effect, d);
+                    fixedPart += (primalMana ?? status?.PrimalMana ?? 0) * effect.primalManaScaling;
+                    int spent = TheLastArk.Skills.CapacitorRules.SpendAmount(status, level);
+                    fixedPart += (status?.FinalSpellPower ?? 0f) * effect.additionalSpellPowerMultiplier
+                        + (status?.CapacitorCharge ?? 0) * effect.capacitorScaling + spent * effect.spentCapacitorScaling;
                     string stat = effect.statSource == EffectStatSource.SelfShield ? "S"
                         : effect.statSource == EffectStatSource.AllyShieldTotal ? "T" : null;
                     if (stat != null) return $"{stat}×{mult * 100:0}%" + chanceText;
                     float baseStat = status == null ? 0f
                         : effect.statSource == EffectStatSource.SpellPower || effect.statSource == EffectStatSource.Auto && effect.damageType == DamageType.Magical
                             ? status.FinalSpellPower : status.FinalAttack;
-                    return TheLastArk.Battle.ValueModifier.Floor(baseStat * mult + fixedPart) + chanceText;
+                    if (effect.statSource == EffectStatSource.CurrentSelfShield) baseStat = status?.GetStatusValue(EffectType.Shield) ?? 0f;
+                    float result = baseStat * mult + fixedPart;
+                    if (effect.type == EffectType.Damage) result *= 1f + spent * effect.damageBonusPercentPerSpentCapacitor * .01f;
+                    return TheLastArk.Battle.ValueModifier.Floor(result) + chanceText;
                 default:
+                    if (effect.type == EffectType.Evasion)
+                        return Mathf.Max(0, Mathf.FloorToInt(EffectEngine.ScaledStatusValue(effect.charges, effect, d))) + "회";
                     float value = EffectEngine.ScaledStatusValue(effect.value, effect, d);
                     return (value > 0f ? value.ToString("0") : "적용") + chanceText;
             }
@@ -292,7 +328,12 @@ namespace TheLastArk.UI
             string restriction = battle != null ? battle.GetDiceSkillUnavailableReason(actor, skill) : null;
             if (actorInfoText != null && battle != null && battle.UsesDice && actor?.status != null && skill.levels != null && skill.levels.Length > 0)
             {
-                var rule = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)]?.diceInput;
+                var rule = battle.GetDiceRule(skill, actor);
+                var authored = skill.levels[Mathf.Clamp(actor.status.SkillLevelIndex, 0, skill.levels.Length - 1)];
+                if (authored.special == SkillSpecial.PreparedShot || authored.special == SkillSpecial.ElectromagneticField)
+                    actorInfoText.text += battle.GetSkillUsesThisTurn(actor, skill) == 0
+                        ? "\n<color=#FFD459>다음 시전: 준비 단계 · 자신에게 적용</color>"
+                        : battle.GetSkillUsesThisTurn(actor, skill) == 1 ? "\n<color=#FFD459>다음 시전: 공격 단계</color>" : "\n이번 턴 두 단계 사용 완료";
                 if (rule != null && rule.IsCharge)
                     actorInfoText.text += battle.IsChargeReady(actor, skill)
                         ? "\n<color=#8CF2FF>준비 완료 · 대상 지정 후 스킬을 눌러 발동 (주사위 소모 없음)</color>"

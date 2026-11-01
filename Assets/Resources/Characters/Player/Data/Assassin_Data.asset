@@ -15,11 +15,15 @@ MonoBehaviour:
   characterId: 01
   characterName: "\uCE74\uC5D0\uB370"
   jobName: Assassin
+  jobDisplayName: 
   synergies: 0b00000007000000
   isEnemy: 0
   regionId: temp
   standingSprite: {fileID: 21300000, guid: 30a7840d587ceda488665554078723cc, type: 3}
   portraitSprite: {fileID: 21300000, guid: 052f0728c973c924faab176aa060ff23, type: 3}
+  useStandingPortrait: 1
+  portraitFocus: {x: 0.53, y: 0.87}
+  portraitZoom: 3.89
   closedEyesSprite: {fileID: 0}
   panicIllustrations:
   - {fileID: 21300000, guid: 2b3e9a029b0b4644a86a9b5b77603dc2, type: 3}
@@ -35,7 +39,7 @@ MonoBehaviour:
   maxMental: 30
   baseAttack: 7
   spellPower: 0
-  armor: 3
+  armor: 1
   magicResist: 3
   critRate: 40
   levelStatMultipliers:
@@ -61,11 +65,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 1
       excludeSelf: 0
       consumeSelfShield: 0
       special: 0
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -81,6 +112,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -100,6 +138,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
     - description: 
       overrideCost: -1
       diceInput:
@@ -111,11 +164,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 1
       excludeSelf: 0
       consumeSelfShield: 0
       special: 0
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -131,6 +211,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -150,6 +237,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
     - description: 
       overrideCost: -1
       diceInput:
@@ -161,11 +263,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 1
       excludeSelf: 0
       consumeSelfShield: 0
       special: 0
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -181,6 +310,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -200,6 +336,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
   activeSkills:
   - skillName: "\uB2E8\uAC80 \uCC0C\uB974\uAE30"
     skillIcon: {fileID: 21300000, guid: 9ba3b10b25e90ff44880c50d07903000, type: 3}
@@ -217,11 +368,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 2
       excludeSelf: 0
       consumeSelfShield: 0
       special: 0
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -237,6 +415,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0.1
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -256,6 +441,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
       - type: 4
         damageType: 0
         multiplier: 0
@@ -270,6 +470,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -289,6 +496,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
     - description: 
       overrideCost: -1
       diceInput:
@@ -300,11 +522,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 3
       excludeSelf: 0
       consumeSelfShield: 0
       special: 0
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -320,6 +569,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0.1
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -339,6 +595,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
       - type: 0
         damageType: 0
         multiplier: 0.4
@@ -353,6 +624,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -372,6 +650,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
       - type: 4
         damageType: 0
         multiplier: 0
@@ -386,6 +679,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -405,6 +705,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
     - description: 
       overrideCost: -1
       diceInput:
@@ -416,11 +731,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 4
       excludeSelf: 0
       consumeSelfShield: 0
       special: 0
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -436,6 +778,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0.1
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -455,6 +804,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
       - type: 0
         damageType: 0
         multiplier: 0.4
@@ -469,6 +833,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -488,6 +859,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
       - type: 4
         damageType: 0
         multiplier: 0
@@ -502,6 +888,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -521,12 +914,34 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
   - skillName: "\uC5F0\uC6B4\xB7\uC548\uAC1C"
     skillIcon: {fileID: 21300000, guid: dc7e094419eea6d46b62a5a2cd65f204, type: 3}
     baseCost: 3
     passiveTrait: 0
     levels:
-    - description: 
+    - description: "\uC8FC\uC0AC\uC704 1\uAC1C\uB97C 2\uAC1C\uB85C \uBD84\uD560.
+        \uD569\uACC4\uB294 \uC6D0\uB798 \uC8FC\uC0AC\uC704 \uB208\uAE08\uC744 \uC720\uC9C0\uD558\uBA70,
+        \uAC01 \uACB0\uACFC\uB294 0 \uC774\uC0C1\uC73C\uB85C \uC9C1\uC811 \uC9C0\uC815.\n\uAE30\uC874
+        \uBCF4\uC815\uC740 \uC120\uD0DD\uD55C \uACB0\uACFC 1\uAC1C\uC5D0\uB9CC \uC720\uC9C0.\n\uBD84\uD560
+        \uD6C4 \uBCF4\uAD00\uD568\uC758 \uC8FC\uC0AC\uC704\uAC00 10\uAC1C\uB97C \uCD08\uACFC\uD558\uBA74
+        \uC8FC\uC0AC\uC704\xB7\uC0AC\uC6A9 \uD69F\uC218\uB97C \uC18C\uBAA8\uD558\uC9C0
+        \uC54A\uACE0 \uC0AC\uC6A9 \uBD88\uAC00. \uACF5\uC6A9 \uBCF4\uAD00\uD568 \uC790\uCCB4\uB294
+        \uBB34\uC81C\uD55C."
       overrideCost: -1
       diceInput:
         diceCount: 1
@@ -537,13 +952,47 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 10
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 1
       excludeSelf: 0
       consumeSelfShield: 0
       special: 1
       specialCount: 2
+      splitPoolLimit: 10
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects: []
-    - description: 
+    - description: "\uC8FC\uC0AC\uC704 1\uAC1C\uB97C 3\uAC1C\uB85C \uBD84\uD560.
+        \uD569\uACC4\uB294 \uC6D0\uB798 \uC8FC\uC0AC\uC704 \uB208\uAE08\uC744 \uC720\uC9C0\uD558\uBA70,
+        \uAC01 \uACB0\uACFC\uB294 0 \uC774\uC0C1\uC73C\uB85C \uC9C1\uC811 \uC9C0\uC815.\n\uAE30\uC874
+        \uBCF4\uC815\uC740 \uC120\uD0DD\uD55C \uACB0\uACFC 1\uAC1C\uC5D0\uB9CC \uC720\uC9C0.\n\uBD84\uD560
+        \uD6C4 \uBCF4\uAD00\uD568\uC758 \uC8FC\uC0AC\uC704\uAC00 10\uAC1C\uB97C \uCD08\uACFC\uD558\uBA74
+        \uC8FC\uC0AC\uC704\xB7\uC0AC\uC6A9 \uD69F\uC218\uB97C \uC18C\uBAA8\uD558\uC9C0
+        \uC54A\uACE0 \uC0AC\uC6A9 \uBD88\uAC00. \uACF5\uC6A9 \uBCF4\uAD00\uD568 \uC790\uCCB4\uB294
+        \uBB34\uC81C\uD55C."
       overrideCost: -1
       diceInput:
         diceCount: 1
@@ -554,13 +1003,47 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 10
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 1
       excludeSelf: 0
       consumeSelfShield: 0
       special: 1
       specialCount: 3
+      splitPoolLimit: 10
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects: []
-    - description: 
+    - description: "\uC8FC\uC0AC\uC704 1\uAC1C\uB97C 4\uAC1C\uB85C \uBD84\uD560.
+        \uD569\uACC4\uB294 \uC6D0\uB798 \uC8FC\uC0AC\uC704 \uB208\uAE08\uC744 \uC720\uC9C0\uD558\uBA70,
+        \uAC01 \uACB0\uACFC\uB294 0 \uC774\uC0C1\uC73C\uB85C \uC9C1\uC811 \uC9C0\uC815.\n\uAE30\uC874
+        \uBCF4\uC815\uC740 \uC120\uD0DD\uD55C \uACB0\uACFC 1\uAC1C\uC5D0\uB9CC \uC720\uC9C0.\n\uBD84\uD560
+        \uD6C4 \uBCF4\uAD00\uD568\uC758 \uC8FC\uC0AC\uC704\uAC00 10\uAC1C\uB97C \uCD08\uACFC\uD558\uBA74
+        \uC8FC\uC0AC\uC704\xB7\uC0AC\uC6A9 \uD69F\uC218\uB97C \uC18C\uBAA8\uD558\uC9C0
+        \uC54A\uACE0 \uC0AC\uC6A9 \uBD88\uAC00. \uACF5\uC6A9 \uBCF4\uAD00\uD568 \uC790\uCCB4\uB294
+        \uBB34\uC81C\uD55C."
       overrideCost: -1
       diceInput:
         diceCount: 1
@@ -571,11 +1054,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 10
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 1
       excludeSelf: 0
       consumeSelfShield: 0
       special: 1
       specialCount: 4
+      splitPoolLimit: 10
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects: []
   - skillName: "\uC808\uAC1C"
     skillIcon: {fileID: 21300000, guid: f57ba593ee873ba41966247d4d63338c, type: 3}
@@ -593,11 +1103,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 1
       excludeSelf: 0
       consumeSelfShield: 0
       special: 0
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -613,6 +1150,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0.2
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -632,6 +1176,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
       - type: 4
         damageType: 0
         multiplier: 0
@@ -646,6 +1205,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -665,6 +1231,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
     - description: 
       overrideCost: -1
       diceInput:
@@ -676,11 +1257,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 1
       excludeSelf: 0
       consumeSelfShield: 0
       special: 0
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -696,6 +1304,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0.2
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -715,6 +1330,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
       - type: 4
         damageType: 0
         multiplier: 0
@@ -729,6 +1359,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -748,6 +1385,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
     - description: 
       overrideCost: -1
       diceInput:
@@ -759,11 +1411,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 1
       excludeSelf: 0
       consumeSelfShield: 0
       special: 0
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -779,6 +1458,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0.2
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -798,6 +1484,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
       - type: 4
         damageType: 0
         multiplier: 0
@@ -812,6 +1513,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -831,6 +1539,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
   - skillName: "\uC554\uC2B5\xB7\uAD6C\uB984"
     skillIcon: {fileID: 21300000, guid: e1953deb9f7194649a76dacaa7b3bf3c, type: 3}
     baseCost: 3
@@ -847,11 +1570,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 2
       excludeSelf: 0
       consumeSelfShield: 0
       special: 2
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -867,6 +1617,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0.1
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -886,6 +1643,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
     - description: 
       overrideCost: -1
       diceInput:
@@ -897,11 +1669,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 2
       excludeSelf: 0
       consumeSelfShield: 0
       special: 2
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -917,6 +1716,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0.1
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -936,6 +1742,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
     - description: 
       overrideCost: -1
       diceInput:
@@ -947,11 +1768,38 @@ MonoBehaviour:
         chargeByDiceCount: 0
       targetType: 0
       customVfxName: 
+      visualEffect:
+        prefab: {fileID: 0}
+        placement: 0
+        scale: 1
+        lifetime: 2
+        offset: {x: 0, y: 0}
+        rotation: {x: 0, y: 0, z: 0}
       usesPerTurn: 2
       excludeSelf: 0
       consumeSelfShield: 0
       special: 2
       specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
       effects:
       - type: 0
         damageType: 0
@@ -967,6 +1815,13 @@ MonoBehaviour:
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
+        visualEffect:
+          prefab: {fileID: 0}
+          placement: 0
+          scale: 1
+          lifetime: 2
+          offset: {x: 0, y: 0}
+          rotation: {x: 0, y: 0, z: 0}
         multiplierPerDie: 0.1
         fixedPerDie: 0
         valuePerDieDivisor: 0
@@ -986,6 +1841,21 @@ MonoBehaviour:
         armorIgnorePercent: 0
         splashUsesActualDamage: 0
         splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
   enemyRoleDescription: 
   damageBonusPerCycle: 0
   bleedBonusPerCycle: 0

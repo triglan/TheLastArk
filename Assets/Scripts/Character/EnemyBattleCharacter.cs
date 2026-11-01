@@ -123,10 +123,19 @@ public class EnemyBattleCharacter : MonoBehaviour
 
     public void ClaimDefeatReward()
     {
-        if (_defeatRewardClaimed || _hasFled || enemyData == null || battleCharacter?.status == null
-            || battleCharacter.status.currentHp > 0f) return;
+        if (_hasFled || battleCharacter?.status == null || battleCharacter.status.currentHp > 0f) return;
 
+        if (!_defeatRewardClaimed) GrantDefeatReward();
+        GetComponent<TheLastArk.UI.EnemyIntentUI>()?.Hide();
+        // Retain the slot and runtime data for adjacency, rewards and debug respawn.
+        // Disabling the root also hides HP/status/target UI and blocks pointer input.
+        if (gameObject.activeSelf) gameObject.SetActive(false);
+    }
+
+    private void GrantDefeatReward()
+    {
         _defeatRewardClaimed = true;
+        if (enemyData == null) return;
         int reward = Mathf.Max(0, enemyData.defeatGoldBonus);
         if (enemyData.returnStolenGoldOnDefeat && !string.IsNullOrWhiteSpace(enemyData.stolenGoldVariableId))
         {

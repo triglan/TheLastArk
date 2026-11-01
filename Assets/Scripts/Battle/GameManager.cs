@@ -130,6 +130,7 @@ public class GameManager : MonoBehaviour
                 if (data != null)
                 {
                     pChar.Init(data, isLeader);
+                    RunManager.Instance.State.RestorePrimalMana(pChar.status);
                     TheLastArk.Managers.ResourceManager.Instance.EquipmentLoadouts.ApplyTo(pChar.status);
                     RunManager.Instance.State.ApplyArkLeaderBonuses(pChar.status);
                     pChar.status.currentHp = pChar.status.FinalMaxHp;

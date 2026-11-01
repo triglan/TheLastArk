@@ -1,0 +1,1562 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
+  m_Name: Archmage_Data
+  m_EditorClassIdentifier: 
+  characterId: 05
+  characterName: "\uBA40\uB9B0"
+  jobName: Archmage
+  jobDisplayName: Archmage
+  synergies: 030000000d000000
+  isEnemy: 0
+  regionId: temp
+  standingSprite: {fileID: 21300000, guid: 72d0cdeaa10619b4dba59fe7900531b1, type: 3}
+  portraitSprite: {fileID: 21300000, guid: af29191b649e32f4badd13b2f6b5bb11, type: 3}
+  useStandingPortrait: 1
+  portraitFocus: {x: 0.5, y: 0.761}
+  portraitZoom: 4.17
+  closedEyesSprite: {fileID: 0}
+  panicIllustrations:
+  - {fileID: 21300000, guid: 43fcffa539d49c444ae1e10719c3cda7, type: 3}
+  - {fileID: 21300000, guid: 71a4521219a0a674ab736c648225ab8f, type: 3}
+  - {fileID: 21300000, guid: 20d0946ca784b9d458b7c588a576ad86, type: 3}
+  - {fileID: 21300000, guid: b30b86e920877cd45b1d12e05f64ff13, type: 3}
+  enemyFormationType: 0
+  enemyIllustrationScale: 1
+  enemyIllustrationHeight: 180
+  enemyIllustrationOffset: {x: 0, y: 0}
+  enemyIllustrationKeepFeet: 1
+  maxHp: 25
+  maxMental: 40
+  baseAttack: 0
+  spellPower: 7
+  armor: 1
+  magicResist: 3
+  critRate: 30
+  levelStatMultipliers:
+  - 0
+  - 0.2
+  - 0.5
+  - 1
+  - 2
+  passiveSkill:
+    skillName: "\uD0DC\uCD08\uC758 \uB9C8\uB825"
+    skillIcon: {fileID: 21300000, guid: 7d679987671f17c498586b4f8dba8931, type: 3}
+    baseCost: 0
+    passiveTrait: 6
+    levels:
+    - description: "\uC8FC\uC0AC\uC704\uB97C \uC0AC\uC6A9\uD560 \uB54C, \uC2A4\uD0AC
+        \uD6A8\uACFC \uCC98\uB9AC \uD6C4 \uD6A8\uACFC \uB208\uAE08\uB9CC\uD07C \uC6D0\uCD08
+        \uB9C8\uB825 \uD68D\uB4DD.\n\uCD5C\uB300 30. \uCDA9\uC804 \uD22C\uC785\uC5D0\uB3C4
+        \uBC1C\uB3D9\uD558\uBA70 \uC804\uD22C \uC885\uB8CC \uD6C4 \uC720\uC9C0.\n\uAC1C\uD654:
+        \uC8FC\uC0AC\uC704\uB2F9 \uD68D\uB4DD\uB7C9 +1, \uCD5C\uB300\uCE58 +20."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+    - description: "\uC8FC\uC0AC\uC704\uB97C \uC0AC\uC6A9\uD560 \uB54C, \uC2A4\uD0AC
+        \uD6A8\uACFC \uCC98\uB9AC \uD6C4 \uD6A8\uACFC \uB208\uAE08 +1\uB9CC\uD07C
+        \uC6D0\uCD08 \uB9C8\uB825 \uD68D\uB4DD.\n\uCD5C\uB300 50. \uCDA9\uC804 \uD22C\uC785\uC5D0\uB3C4
+        \uBC1C\uB3D9\uD558\uBA70 \uC804\uD22C \uC885\uB8CC \uD6C4 \uC720\uC9C0."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 1
+        secondaryValue: 20
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+    - description: "\uC8FC\uC0AC\uC704\uB97C \uC0AC\uC6A9\uD560 \uB54C, \uC2A4\uD0AC
+        \uD6A8\uACFC \uCC98\uB9AC \uD6C4 \uD6A8\uACFC \uB208\uAE08 +1\uB9CC\uD07C
+        \uC6D0\uCD08 \uB9C8\uB825 \uD68D\uB4DD.\n\uCD5C\uB300 50. \uCDA9\uC804 \uD22C\uC785\uC5D0\uB3C4
+        \uBC1C\uB3D9\uD558\uBA70 \uC804\uD22C \uC885\uB8CC \uD6C4 \uC720\uC9C0."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 1
+        secondaryValue: 20
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+  activeSkills:
+  - skillName: "\uB9C8\uB825\uD0C4"
+    skillIcon: {fileID: 21300000, guid: f2a41202e712ed04e8c43d24e638d3fb, type: 3}
+    baseCost: 0
+    passiveTrait: 0
+    levels:
+    - description: "\uC801 1\uBA85\uC5D0\uAC8C \uC8FC\uBB38\uB825 40% + \uB208\uAE08
+        + \uD604\uC7AC \uC6D0\uCD08 \uB9C8\uB825 \xF7 2 \uB9C8\uBC95 \uD53C\uD574.\n\uC0AC\uC6A9\uD55C
+        \uC2AC\uB86F\uC744 \uD074\uB9AD\uD558\uBA74 \uB9C8\uB825 7\uC744 \uC18C\uBAA8\uD558\uC5EC
+        \uBCF5\uAD6C.\n\uBCF5\uAD6C\uB294 \uC8FC\uC0AC\uC704\uB97C \uC4F0\uC9C0 \uC54A\uC73C\uBA70
+        \uC7AC\uC2DC\uC804\uC5D0\uB294 \uC0C8 \uC8FC\uC0AC\uC704\uAC00 \uD544\uC694.
+        \uB9C8\uB825\uC774 \uCDA9\uBD84\uD558\uBA74 \uBC18\uBCF5 \uBCF5\uAD6C \uAC00\uB2A5."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 7
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 0
+        damageType: 1
+        multiplier: 0.4
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0.5
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+    - description: "\uC801 1\uBA85\uC5D0\uAC8C \uC8FC\uBB38\uB825 70% + \uB208\uAE08
+        + \uD604\uC7AC \uC6D0\uCD08 \uB9C8\uB825 \xF7 2 \uB9C8\uBC95 \uD53C\uD574.\n\uC0AC\uC6A9\uD55C
+        \uC2AC\uB86F\uC744 \uD074\uB9AD\uD558\uBA74 \uB9C8\uB825 7\uC744 \uC18C\uBAA8\uD558\uC5EC
+        \uBCF5\uAD6C.\n\uBCF5\uAD6C\uB294 \uC8FC\uC0AC\uC704\uB97C \uC4F0\uC9C0 \uC54A\uC73C\uBA70
+        \uC7AC\uC2DC\uC804\uC5D0\uB294 \uC0C8 \uC8FC\uC0AC\uC704\uAC00 \uD544\uC694.
+        \uB9C8\uB825\uC774 \uCDA9\uBD84\uD558\uBA74 \uBC18\uBCF5 \uBCF5\uAD6C \uAC00\uB2A5."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 7
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 0
+        damageType: 1
+        multiplier: 0.7
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0.5
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+    - description: "\uC801 1\uBA85\uC5D0\uAC8C \uC8FC\uBB38\uB825 70% + \uB208\uAE08
+        + \uD604\uC7AC \uC6D0\uCD08 \uB9C8\uB825 \xF7 2 \uB9C8\uBC95 \uD53C\uD574.\n\uC0AC\uC6A9\uD55C
+        \uC2AC\uB86F\uC744 \uD074\uB9AD\uD558\uBA74 \uB9C8\uB825 4\uC744 \uC18C\uBAA8\uD558\uC5EC
+        \uBCF5\uAD6C.\n\uBCF5\uAD6C\uB294 \uC8FC\uC0AC\uC704\uB97C \uC4F0\uC9C0 \uC54A\uC73C\uBA70
+        \uC7AC\uC2DC\uC804\uC5D0\uB294 \uC0C8 \uC8FC\uC0AC\uC704\uAC00 \uD544\uC694.
+        \uB9C8\uB825\uC774 \uCDA9\uBD84\uD558\uBA74 \uBC18\uBCF5 \uBCF5\uAD6C \uAC00\uB2A5."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 4
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 0
+        damageType: 1
+        multiplier: 0.7
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0.5
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+  - skillName: "\uB9C8\uB098 \uC9D1\uACB0"
+    skillIcon: {fileID: 21300000, guid: dced654ae88157940beaade04414557a, type: 3}
+    baseCost: 0
+    passiveTrait: 0
+    levels:
+    - description: "\uB208\uAE08\uB9CC\uD07C \uC6D0\uCD08 \uB9C8\uB825\uACFC 1\uD134
+        \uBCF4\uD638\uB9C9 \uD68D\uB4DD."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 1
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 7
+        damageType: 0
+        multiplier: 0
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+    - description: "\uB208\uAE08\uB9CC\uD07C \uC6D0\uCD08 \uB9C8\uB825\uACFC 1\uD134
+        \uBCF4\uD638\uB9C9 \uD68D\uB4DD.\n\uC6D0\uCD08 \uB9C8\uB825 2 \uCD94\uAC00
+        \uD68D\uB4DD."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 2
+      primalManaGainFromDie: 1
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 7
+        damageType: 0
+        multiplier: 0
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+    - description: "\uB208\uAE08\uB9CC\uD07C \uC6D0\uCD08 \uB9C8\uB825\uACFC 1\uD134
+        \uBCF4\uD638\uB9C9 \uD68D\uB4DD.\n\uC6D0\uCD08 \uB9C8\uB825 2 \uCD94\uAC00
+        \uD68D\uB4DD.\n\uB208\uAE08 2 \uC774\uD558: \uC6D0\uCD08 \uB9C8\uB825 2 \uCD94\uAC00
+        \uD68D\uB4DD."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 2
+      primalManaGainFromDie: 1
+      primalManaLowDieBonus: 2
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 7
+        damageType: 0
+        multiplier: 0
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+  - skillName: "\uB9C8\uC220\uC758 \uB545"
+    skillIcon: {fileID: 21300000, guid: a45bfaba82f787d4ba4108991a2c4c30, type: 3}
+    baseCost: 0
+    passiveTrait: 0
+    levels:
+    - description: "\uB9C8\uB825 20 \uBBF8\uB9CC: \uB9C8\uB825 5 \uD68D\uB4DD \uD6C4
+        \uC8FC\uBB38\uB825 40% + \uD604\uC7AC \uB9C8\uB825\uB9CC\uD07C 1\uD134 \uBCF4\uD638\uB9C9.\n\uB9C8\uB825
+        20 \uC774\uC0C1: \uB9C8\uB825 5 \uC18C\uBAA8, \uBAA8\uB4E0 \uC801\uC5D0\uAC8C
+        \uC8FC\uBB38\uB825 70% + \uB208\uAE08 \uB9C8\uBC95 \uD53C\uD574."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 3
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 7
+        damageType: 0
+        multiplier: 0.4
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 2
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 1
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+      - type: 0
+        damageType: 1
+        multiplier: 0.7
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+    - description: "\uB9C8\uB825 20 \uBBF8\uB9CC: \uB9C8\uB825 5 \uD68D\uB4DD \uD6C4
+        \uC8FC\uBB38\uB825 60% + \uD604\uC7AC \uB9C8\uB825\uB9CC\uD07C 1\uD134 \uBCF4\uD638\uB9C9.\n\uB9C8\uB825
+        20 \uC774\uC0C1: \uB9C8\uB825 5 \uC18C\uBAA8, \uBAA8\uB4E0 \uC801\uC5D0\uAC8C
+        \uC8FC\uBB38\uB825 100% + \uB208\uAE08 \uB9C8\uBC95 \uD53C\uD574."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 3
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 7
+        damageType: 0
+        multiplier: 0.6
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 2
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 1
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+      - type: 0
+        damageType: 1
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+    - description: "\uB9C8\uB825 20 \uBBF8\uB9CC: \uB9C8\uB825 5 \uD68D\uB4DD \uD6C4
+        \uC8FC\uBB38\uB825 60% + \uD604\uC7AC \uB9C8\uB825\uB9CC\uD07C 1\uD134 \uBCF4\uD638\uB9C9.\n\uB9C8\uB825
+        20 \uC774\uC0C1: \uB9C8\uB825 5 \uC18C\uBAA8, \uBAA8\uB4E0 \uC801\uC5D0\uAC8C
+        \uC8FC\uBB38\uB825 100% + \uB208\uAE08 \uB9C8\uBC95 \uD53C\uD574.\n\uC0AC\uC6A9
+        \uC9C1\uC804 \uB9C8\uB825 30 \uC774\uC0C1: \uB9C8\uB825 +5 \u2192 \uBCF4\uD638\uB9C9
+        \u2192 \uB9C8\uB825 5 \uC18C\uBAA8 \u2192 \uC804\uCCB4 \uACF5\uACA9."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 3
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 0
+      primalManaCost: 0
+      consumeAllPrimalMana: 0
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 30
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 7
+        damageType: 0
+        multiplier: 0.6
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 2
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 1
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+      - type: 0
+        damageType: 1
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 0
+        loneTargetDamageBonusPercent: 0
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 0
+  - skillName: "\uADFC\uC6D0"
+    skillIcon: {fileID: 21300000, guid: 6e5c302953b52c4418e21eb48d6aae21, type: 3}
+    baseCost: 0
+    passiveTrait: 0
+    levels:
+    - description: "\uB208\uAE08 6 \xB7 \uC6D0\uCD08 \uB9C8\uB825 30 \uC774\uC0C1
+        \uD544\uC694.\n\uBAA8\uB4E0 \uB9C8\uB825 \uC18C\uBAA8: \uC801 1\uBA85\uC5D0\uAC8C
+        \uC8FC\uBB38\uB825 140% + \uC18C\uBAA8 \uB9C8\uB825 \xF7 2 \uB9C8\uBC95 \uD53C\uD574.\n\uB2E4\uB978
+        \uBAA8\uB4E0 \uC801\uC5D0\uAC8C \uC808\uBC18\uC758 \uD53C\uD574. \uB2E4\uB978
+        \uC801\uC774 \uC5C6\uB2E4\uBA74 \uC8FC \uB300\uC0C1 \uD53C\uD574 +50%."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 1
+        value: 6
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 30
+      primalManaCost: 0
+      consumeAllPrimalMana: 1
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 0
+        damageType: 1
+        multiplier: 1.4
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0.5
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 50
+        loneTargetDamageBonusPercent: 50
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 1
+    - description: "\uB208\uAE08 1 \uB610\uB294 6 \xB7 \uC6D0\uCD08 \uB9C8\uB825
+        30 \uC774\uC0C1 \uD544\uC694.\n\uBAA8\uB4E0 \uB9C8\uB825 \uC18C\uBAA8: \uC801
+        1\uBA85\uC5D0\uAC8C \uC8FC\uBB38\uB825 140% + \uC18C\uBAA8 \uB9C8\uB825 \xF7
+        2 \uB9C8\uBC95 \uD53C\uD574.\n\uB2E4\uB978 \uBAA8\uB4E0 \uC801\uC5D0\uAC8C
+        \uC808\uBC18\uC758 \uD53C\uD574. \uB2E4\uB978 \uC801\uC774 \uC5C6\uB2E4\uBA74
+        \uC8FC \uB300\uC0C1 \uD53C\uD574 +50%."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 7
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 30
+      primalManaCost: 0
+      consumeAllPrimalMana: 1
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 0
+        damageType: 1
+        multiplier: 1.4
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0.5
+        spentPrimalManaBonusThreshold: 0
+        spentPrimalManaDamageBonusPercent: 0
+        splashOtherEnemiesPercent: 50
+        loneTargetDamageBonusPercent: 50
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 1
+    - description: "\uB208\uAE08 1 \uB610\uB294 6 \xB7 \uC6D0\uCD08 \uB9C8\uB825
+        30 \uC774\uC0C1 \uD544\uC694.\n\uBAA8\uB4E0 \uB9C8\uB825 \uC18C\uBAA8: \uC801
+        1\uBA85\uC5D0\uAC8C \uC8FC\uBB38\uB825 140% + \uC18C\uBAA8 \uB9C8\uB825 \xF7
+        2 \uB9C8\uBC95 \uD53C\uD574.\n\uB2E4\uB978 \uBAA8\uB4E0 \uC801\uC5D0\uAC8C
+        \uC808\uBC18\uC758 \uD53C\uD574. \uB2E4\uB978 \uC801\uC774 \uC5C6\uB2E4\uBA74
+        \uC8FC \uB300\uC0C1 \uD53C\uD574 +50%.\n\uB9C8\uB825 50 \uC18C\uBAA8 \uC2DC
+        \uCD5C\uC885 \uD53C\uD574 +100%."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 7
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      splitPoolLimit: 0
+      primalManaRestoreCost: 0
+      chargeReducedByCapacitor: 0
+      chargeUsesLastDie: 0
+      primalManaRequired: 30
+      primalManaCost: 0
+      consumeAllPrimalMana: 1
+      primalManaGain: 0
+      primalManaGainFromDie: 0
+      primalManaLowDieBonus: 0
+      primalManaGainBeforeEffects: 0
+      primalManaRepeatThreshold: 0
+      primalManaRepeatCost: 0
+      primalManaRepeatDelay: 0.3
+      primalManaDualEffectThreshold: 0
+      capacitorGain: 0
+      capacitorSpendThreshold: 0
+      capacitorMaxSpend: 0
+      consumeAllCapacitor: 0
+      capacitorRefundPercent: 0
+      effects:
+      - type: 0
+        damageType: 1
+        multiplier: 1.4
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+        primalManaScaling: 0
+        spentPrimalManaScaling: 0.5
+        spentPrimalManaBonusThreshold: 50
+        spentPrimalManaDamageBonusPercent: 100
+        splashOtherEnemiesPercent: 50
+        loneTargetDamageBonusPercent: 50
+        additionalSpellPowerMultiplier: 0
+        capacitorScaling: 0
+        spentCapacitorScaling: 0
+        damageBonusPercentPerSpentCapacitor: 0
+        minSpentCapacitor: 0
+        minCurrentCapacitor: 0
+        belowQuarterHealthDamageBonusPercent: 0
+        noAdjacentFinalDamageBonusPercent: 0
+        spentManaBonusIsFinalDamage: 1
+  enemyRoleDescription: 
+  damageBonusPerCycle: 0
+  bleedBonusPerCycle: 0
+  enemyPatterns: []
+  enemyRuntimeVariables: []
+  enemyEnhancementIcon: {fileID: 0}
+  defeatGoldBonus: 0
+  returnStolenGoldOnDefeat: 0
+  stolenGoldVariableId: 

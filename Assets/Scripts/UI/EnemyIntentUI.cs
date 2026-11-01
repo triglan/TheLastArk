@@ -11,6 +11,7 @@ namespace TheLastArk.UI
         private RectTransform panelRect;
         private Image background;
         private BattleHoverTooltip tooltip;
+        private EnemyIntentTargetHighlight targetHighlight;
         private readonly Image[] icons = new Image[3];
         private readonly TextMeshProUGUI[] values = new TextMeshProUGUI[3];
         public RectTransform Panel => panelRect;
@@ -46,6 +47,7 @@ namespace TheLastArk.UI
                 values[i].rectTransform.sizeDelta = new Vector2(cellWidth - (icons[i].sprite != null ? 25f : 4f), 28f);
             }
             tooltip.SetContent(intent.PatternName + "\n" + BuildDetail(intent));
+            targetHighlight.Bind(intent.Targets);
             panelRect.gameObject.SetActive(true);
             GetComponent<CharacterView>()?.RefreshEnemyHUDLayout();
         }
@@ -67,6 +69,7 @@ namespace TheLastArk.UI
             panelRect.anchorMin = panelRect.anchorMax = new Vector2(0.5f, 0.5f);
             background = root.GetComponent<Image>();
             tooltip = root.GetComponent<BattleHoverTooltip>();
+            targetHighlight = root.AddComponent<EnemyIntentTargetHighlight>();
             for (int i = 0; i < icons.Length; i++)
             {
                 var cell = new GameObject("Intent Cell", typeof(RectTransform)); cell.transform.SetParent(root.transform, false);

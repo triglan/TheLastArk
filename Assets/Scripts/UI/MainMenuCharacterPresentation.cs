@@ -10,7 +10,18 @@ namespace TheLastArk.UI
         [Header("Character selection icons")]
         [SerializeField] private Sprite[] crewStatIcons = new Sprite[6];
         [SerializeField] private Sprite crewCostCircle;
-        private static readonly Color CrewInk = new Color(.025f, .045f, .065f, .985f);
+        [System.Serializable]
+        private sealed class CrewBackgroundFrame
+        {
+            public CharacterData character;
+            public Sprite illustration;
+            [Tooltip("배경 그림에서 얼굴 중심. 왼쪽 아래 (0,0), 오른쪽 위 (1,1).")]
+            public Vector2 faceFocus = new Vector2(.5f, .75f);
+            [Range(1f, 1.5f)] public float zoom = 1f;
+        }
+        [Header("Character selection background framing")]
+        [SerializeField] private List<CrewBackgroundFrame> crewBackgroundFrames = new List<CrewBackgroundFrame>();
+        private static readonly Color CrewInk = new Color(.025f, .045f, .065f, .91f);
         private static readonly Color CrewWhite = new Color(.96f, .98f, 1f, 1f);
         private static readonly Color CrewMuted = new Color(.72f, .80f, .85f, 1f);
         private static readonly Color CrewGold = new Color(.91f, .75f, .43f, 1f);
@@ -92,23 +103,16 @@ namespace TheLastArk.UI
             Transform detail = root.Find("CharacterDetailPanel");
             if (roster == null || detail == null) return;
 
-            var shade = CrewPanel(root, "CrewContentShade", new Color(.015f,.025f,.04f,.82f), .04f,.135f,.96f,.755f);
-            int rosterIndex = roster.GetSiblingIndex();
-            shade.transform.SetSiblingIndex(rosterIndex - (shade.transform.GetSiblingIndex() < rosterIndex ? 1 : 0));
+            var shade = root.Find("CrewContentShade");
+            if (shade != null) shade.gameObject.SetActive(false);
+            StyleCrewTrain(root);
 
-            CrewRect(roster, .04f, .135f, .335f, .755f);
+            CrewRect(roster, .62f, .39f, .96f, .765f);
             CrewSurface(roster, CrewInk);
-            CrewPanel(roster, "HeaderRule", new Color(.5f,.65f,.72f,.22f), .04f,.849f,.96f,.851f);
-            CrewLabel(roster, "GridHeader", "승무원 선택", 27, CrewWhite, .05f,.91f,.74f,.98f).fontStyle = FontStyles.Bold;
-            CrewLabel(roster, "RosterCaption", "이번 여정을 이끌 리더를 선택하세요", 18, CrewMuted, .05f,.859f,.95f,.914f);
-            var rosterIndexLabel = roster.Find("RosterIndex");
-            if (rosterIndexLabel != null) rosterIndexLabel.gameObject.SetActive(false);
-            CrewRect(characterListContainer, .045f,.04f,.955f,.825f);
-            var grid = characterListContainer.GetComponent<UnityEngine.UI.GridLayoutGroup>();
-            if (grid != null) grid.enabled = true;
-            var portraitGrid = characterListContainer.GetComponent<CrewPortraitGridLayout>();
-            if (portraitGrid == null) portraitGrid = characterListContainer.gameObject.AddComponent<CrewPortraitGridLayout>();
-            portraitGrid.ApplyLayout();
+            CrewPanel(roster, "HeaderRule", new Color(.5f,.65f,.72f,.22f), .055f,.875f,.945f,.879f);
+            CrewLabel(roster, "GridHeader", "승무원 선택", 25, CrewWhite, .055f,.895f,.47f,.99f).fontStyle = FontStyles.Bold;
+            CrewLabel(roster, "RosterCaption", "리더 1명 선택", 15, CrewMuted, .47f,.895f,.73f,.99f,TextAlignmentOptions.MidlineRight);
+            var portraitGrid = ConfigureCrewRoster(roster);
 
             var crew = new List<CharacterData>();
             foreach (var data in Resources.LoadAll<CharacterData>("Characters"))
@@ -119,79 +123,172 @@ namespace TheLastArk.UI
                 var card = characterListContainer.Find("Card_" + data.DataId);
                 StyleCrewCard(card, data, data == selectedCharacterData);
             }
+            if (selectedCharacterData != null)
+                portraitGrid.EnsureVisible(characterListContainer.Find("Card_" + selectedCharacterData.DataId) as RectTransform);
 
-            // Full-height hero illustration in the center; a compact dossier to its right.
-            CrewRect(detail, .352f,.135f,.96f,.755f);
+            // The dedicated background is the hero image; the dossier occupies only the right edge.
+            CrewRect(detail, .62f,.13f,.96f,.39f);
             CrewSurface(detail, Color.clear);
-            var dossier = CrewPanel(detail, "DossierSurface", CrewInk, .54f,0,1,1);
+            var dossier = CrewPanel(detail, "DossierSurface", CrewInk, 0,0,1,1);
             dossier.transform.SetAsFirstSibling();
-            var portrait = detail.Find("DetailPortrait");
-            CrewRect(portrait, 0,.015f,.52f,.965f);
-            CrewSurface(portrait, Color.clear);
-            if (detailPortraitImageComponent != null)
-            {
-                CrewRect(detailPortraitImageComponent.transform, -.04f,.015f,1.04f,1.035f);
-                detailPortraitImageComponent.color = detailPortraitImageComponent.sprite != null ? Color.white : Color.clear;
-            }
-            var emptyHero = CrewLabel(detail,"HeroPlaceholder","초상화 준비 중",21,CrewMuted,.04f,.38f,.50f,.58f,TextAlignmentOptions.Center);
-            emptyHero.gameObject.SetActive(detailPortraitImageComponent == null || detailPortraitImageComponent.sprite == null);
-            var heroCaption = detail.Find("HeroCaption");
-            if (heroCaption != null) heroCaption.gameObject.SetActive(false);
-            CrewPanel(detail, "HeroRule", new Color(.91f,.75f,.43f,.5f), .035f,.055f,.50f,.057f);
-            CrewLabel(detail, "HeroName", selectedCharacterData != null ? selectedCharacterData.DisplayName : "", 19,
-                CrewWhite, .035f,0,.5f,.05f, TextAlignmentOptions.Center);
+            foreach (string name in new[] { "DetailPortrait", "HeroPlaceholder", "HeroCaption", "HeroRule", "HeroName" })
+            { var old = detail.Find(name); if (old != null) old.gameObject.SetActive(false); }
+            if (detailPortraitImageComponent != null) detailPortraitImageComponent.gameObject.SetActive(false);
 
             var info = detail.Find("InfoContainer");
-            CrewRect(info, .575f,.36f,.965f,.965f);
-            CrewLabel(info, "DossierCaption", "선택한 리더", 16, CrewMuted, 0,.94f,1,1);
-            if (detailNameTextComponent != null)
-            {
-                CrewRect(detailNameTextComponent.transform, 0,.755f,1,.95f);
-                detailNameTextComponent.fontSize = 37;
-                detailNameTextComponent.enableAutoSizing = true;
-                detailNameTextComponent.fontSizeMin = 25;
-                detailNameTextComponent.fontSizeMax = 37;
-                detailNameTextComponent.color = CrewWhite;
-                detailNameTextComponent.alignment = TextAlignmentOptions.MidlineLeft;
-            }
-            if (detailJobTextComponent != null)
-            {
-                CrewRect(detailJobTextComponent.transform, 0,.675f,1,.78f);
-                detailJobTextComponent.text = selectedCharacterData != null ? selectedCharacterData.jobName : "";
-                detailJobTextComponent.fontSize = 18;
-                detailJobTextComponent.color = CrewCyan;
-                detailJobTextComponent.alignment = TextAlignmentOptions.MidlineLeft;
-            }
+            CrewRect(info, .055f,.60f,.945f,.98f);
+            foreach (string oldName in new[] { "DossierCaption", "InfoRule", "StatsHeading" })
+            { var old = info.Find(oldName); if (old != null) old.gameObject.SetActive(false); }
             if (detailStatsTextComponent != null) detailStatsTextComponent.gameObject.SetActive(false);
-            CrewPanel(info, "InfoRule", new Color(.5f,.65f,.72f,.22f),0,.635f,1,.638f);
-            CrewLabel(info, "StatsHeading", "기본 능력치", 18, CrewMuted, 0,.545f,1,.635f);
+            StyleCrewIdentity(detail, info);
             StyleCrewStats(info);
-
-            Transform syn = detail.Find("SynergiesPanel");
-            CrewRect(syn, .575f,.235f,.965f,.355f);
-            var oldHeading = syn.Find("SynergiesHeader");
-            if (oldHeading != null) oldHeading.gameObject.SetActive(false);
-            CrewLabel(syn, "SectionLabel", "보유 시너지", 18, CrewMuted,0,.61f,1,1);
-            CrewRect(detailSynergiesContainer, 0,.02f,1,.58f);
-            if (detailSynergiesContainer != null)
-            {
-                foreach (Transform badge in detailSynergiesContainer)
-                {
-                    // Destroy() is deferred in play mode; ignore slots removed this frame.
-                    if (!badge.gameObject.activeSelf) continue;
-                    var rect = badge as RectTransform;
-                    if (rect != null) rect.sizeDelta = new Vector2(125,30);
-                    var bg = badge.GetComponent<UnityEngine.UI.Image>();
-                    if (bg != null) bg.color = new Color(.10f,.19f,.23f,.96f);
-                    var edge = badge.GetComponent<UnityEngine.UI.Outline>();
-                    if (edge != null) { edge.effectColor = new Color(.38f,.60f,.66f,.4f); edge.effectDistance = new Vector2(1,-1); }
-                    var text = badge.GetComponentInChildren<TextMeshProUGUI>();
-                    if (text != null) { text.fontSize = 14; text.color = CrewCyan; }
-                }
-            }
             StyleCrewSkills(detail);
             StyleCrewActions(root);
+            StyleCrewBackground(root);
+            if (!Application.isPlaying) ApplyTrainCustomizationState(false);
             RefreshArkFeatureVisibility();
+        }
+
+        private CrewPortraitGridLayout ConfigureCrewRoster(Transform roster)
+        {
+            var viewport = CrewChild(roster, "RosterViewport").GetComponent<RectTransform>();
+            CrewRect(viewport, .055f,.025f,.945f,.85f);
+            if (viewport.GetComponent<UnityEngine.UI.RectMask2D>() == null) viewport.gameObject.AddComponent<UnityEngine.UI.RectMask2D>();
+            var hit = viewport.GetComponent<UnityEngine.UI.Image>();
+            if (hit == null) hit = viewport.gameObject.AddComponent<UnityEngine.UI.Image>();
+            hit.color = Color.clear; hit.raycastTarget = true;
+            if (characterListContainer.parent != viewport) characterListContainer.SetParent(viewport, false);
+            var scroll = viewport.GetComponent<UnityEngine.UI.ScrollRect>();
+            if (scroll == null) scroll = viewport.gameObject.AddComponent<UnityEngine.UI.ScrollRect>();
+            scroll.viewport = viewport; scroll.content = characterListContainer as RectTransform;
+            scroll.horizontal = true; scroll.vertical = false;
+            scroll.movementType = UnityEngine.UI.ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 35; scroll.inertia = true;
+            // Navigation uses complete eight-card pages, so dragging cannot leave half a row visible.
+            scroll.enabled = false;
+            var grid = characterListContainer.GetComponent<UnityEngine.UI.GridLayoutGroup>();
+            if (grid != null) grid.enabled = true;
+            var fitter = characterListContainer.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+            if (fitter != null) fitter.enabled = false;
+            var portraitGrid = characterListContainer.GetComponent<CrewPortraitGridLayout>();
+            if (portraitGrid == null) portraitGrid = characterListContainer.gameObject.AddComponent<CrewPortraitGridLayout>();
+            var previous = CrewRosterArrow(roster, "PreviousCrew", "‹", .755f, .815f);
+            var next = CrewRosterArrow(roster, "NextCrew", "›", .89f, .95f);
+            var pageLabel = CrewLabel(roster, "RosterIndex", "", 14, CrewMuted, .815f,.895f,.89f,.99f,TextAlignmentOptions.Center);
+            pageLabel.gameObject.SetActive(true);
+            portraitGrid.Configure(viewport, scroll, previous, next, pageLabel);
+            return portraitGrid;
+        }
+
+        private UnityEngine.UI.Button CrewRosterArrow(Transform roster, string name, string label, float x0, float x1)
+        {
+            var image = CrewPanel(roster, name, new Color(.10f,.17f,.20f,1), x0,.895f,x1,.99f);
+            image.raycastTarget = true;
+            var button = image.GetComponent<UnityEngine.UI.Button>();
+            if (button == null) button = image.gameObject.AddComponent<UnityEngine.UI.Button>();
+            button.targetGraphic = image;
+            CrewLabel(image.transform,"Text",label,30,CrewWhite,0,0,1,1,TextAlignmentOptions.Center);
+            return button;
+        }
+
+        private CrewBackgroundFrame FindCrewBackgroundFrame(CharacterData data)
+        {
+            return crewBackgroundFrames.Find(frame => frame != null && frame.character == data);
+        }
+
+        private void StyleCrewBackground(Transform root)
+        {
+            var layer = root.Find("CharacterBackgroundLayer");
+            if (layer == null) return;
+            // Reserve real space for the train and footer instead of drawing them over a face.
+            CrewRect(layer, 0,.10f,.65f,.795f);
+            if (layer.GetComponent<UnityEngine.UI.RectMask2D>() == null)
+                layer.gameObject.AddComponent<UnityEngine.UI.RectMask2D>();
+            layer.GetComponent<UnityEngine.UI.RectMask2D>().softness = new Vector2Int(120,50);
+            var backdropObject = CrewChild(root, "CrewBlurredBackdrop");
+            CrewRect(backdropObject.transform, 0,0,1,1);
+            backdropObject.transform.SetAsFirstSibling();
+            var backdrop = backdropObject.GetComponent<CrewSelectionBackdrop>();
+            if (backdrop == null) backdrop = backdropObject.AddComponent<CrewSelectionBackdrop>();
+            backdrop.SetIllustration(characterBackgroundImageComponent != null ? characterBackgroundImageComponent.sprite : null);
+            var vignette = layer.Find("VignetteOverlay")?.GetComponent<UnityEngine.UI.Image>();
+            if (vignette != null) { vignette.color = new Color(.025f,.04f,.06f,.14f); vignette.raycastTarget = false; }
+            if (characterAliveEffect != null)
+            {
+                // Keep the illustration alive without pushing a high-placed face beyond the frame.
+                characterAliveEffect.parallaxStrength = new Vector2(16,6);
+                characterAliveEffect.floatAmplitude = 2;
+                characterAliveEffect.swayAmplitude = 3;
+                characterAliveEffect.breatheScaleAmount = .006f;
+                characterAliveEffect.tiltAngle = .08f;
+                var frame = FindCrewBackgroundFrame(selectedCharacterData);
+                characterAliveEffect.SetFraming(frame != null ? frame.faceFocus : new Vector2(.5f,.75f), frame != null ? frame.zoom : 1f);
+            }
+        }
+
+        private void StyleCrewTrain(Transform root)
+        {
+            var header = root.Find("TrainCustomizationHeader");
+            if (header == null) return;
+            header.gameObject.SetActive(true);
+            CrewRect(header,.04f,.785f,.96f,.985f);
+            CrewSurface(header,CrewInk);
+            var title = header.Find("TitleText")?.GetComponent<TextMeshProUGUI>();
+            CrewRect(title != null ? title.transform : null,.015f,.82f,.60f,.98f);
+            if (title != null) { title.text = "방주 열차"; title.fontSize = 22; title.color = CrewWhite; }
+            var hint = header.Find("TrainHint");
+            CrewRect(hint,.61f,.82f,.985f,.98f);
+            CrewRect(header.Find("TrackLine"),.015f,.035f,.985f,.045f);
+            var train = header.Find("TrainImage");
+            CrewRect(train,.015f,.02f,.985f,.82f);
+            if (train != null) foreach (Transform slot in train)
+            {
+                var trainArt = slot.GetComponent<UnityEngine.UI.Image>();
+                if (trainArt != null) trainArt.preserveAspect = true;
+                if (!slot.name.StartsWith("CarSlot_")) continue;
+                var name = slot.Find("Text")?.GetComponent<TextMeshProUGUI>();
+                var status = slot.Find("CarStatus")?.GetComponent<TextMeshProUGUI>();
+                if (name != null)
+                {
+                    CrewRect(name.transform,.025f,.25f,.975f,.47f);
+                    name.fontSize = 20; name.enableAutoSizing = true; name.fontSizeMin = 15; name.fontSizeMax = 20;
+                }
+                if (status != null)
+                {
+                    CrewRect(status.transform,.025f,.08f,.975f,.24f);
+                    status.fontSize = 15; status.enableAutoSizing = true; status.fontSizeMin = 12; status.fontSizeMax = 15;
+                }
+            }
+        }
+
+        public void ApplyTrainCustomizationState(bool unlocked)
+        {
+            if (characterSelectionPanel == null) return;
+            var header = characterSelectionPanel.transform.Find("TrainCustomizationHeader");
+            if (header == null) return;
+            header.gameObject.SetActive(true);
+            var hint = header.Find("TrainHint")?.GetComponent<TextMeshProUGUI>();
+            if (hint != null)
+            {
+                hint.text = unlocked ? "각 칸을 선택하여 커스텀" : "기차 커스텀 · 방주에서 해금";
+                hint.fontSize = 16; hint.color = unlocked ? CrewCyan : CrewMuted;
+            }
+            var train = header.Find("TrainImage");
+            if (train == null) return;
+            Sprite lockSprite = Resources.Load<Sprite>("Icons/lock");
+            foreach (Transform slot in train)
+            {
+                // Only existing customizable slots are locked; the locomotive keeps its original art/color.
+                if (!slot.name.StartsWith("CarSlot_") || slot.GetComponent<UnityEngine.UI.Button>() == null) continue;
+                var state = slot.GetComponent<CrewTrainSlotLock>();
+                if (state == null) state = slot.gameObject.AddComponent<CrewTrainSlotLock>();
+                state.Apply(unlocked, lockSprite);
+                var hover = slot.GetComponent<UIHoverTrigger>();
+                if (hover == null) hover = slot.gameObject.AddComponent<UIHoverTrigger>();
+                hover.title = "기차 커스텀"; hover.category = unlocked ? "해금 완료" : "잠김";
+                hover.description = unlocked ? "이 칸을 선택해 커스텀합니다." : "방주에서 기차 커스텀을 해금하면 사용할 수 있습니다.";
+                hover.onHoverEnter = ShowHoverTooltip; hover.onHoverExit = HideHoverTooltip;
+            }
         }
 
         private void StyleCrewCard(Transform card, CharacterData data, bool selected)
@@ -222,19 +319,19 @@ namespace TheLastArk.UI
                 button.colors = colors;
             }
             var portrait = card.Find("Portrait");
-            CrewRect(portrait,0,0,1,1);
+            CrewRect(portrait,0,.16f,1,1);
             var portraitImage = portrait.GetComponent<UnityEngine.UI.Image>();
             portraitImage.sprite = data.PortraitSprite;
             portraitImage.color = portraitImage.sprite != null ? Color.white : Color.clear;
-            portraitImage.preserveAspect = false;
+            portraitImage.preserveAspect = true;
             var missing = CrewLabel(card,"PortraitPlaceholder","준비 중",18,CrewMuted,.08f,.25f,.92f,.9f,TextAlignmentOptions.Center);
             missing.enableWordWrapping = true;
             missing.gameObject.SetActive(portraitImage.sprite == null);
-            CrewPanel(card,"NameShade",new Color(.015f,.025f,.04f,.94f),0,0,1,.23f).transform.SetAsLastSibling();
-            var name=CrewLabel(card,"NameText",data.DisplayName,18,selected?CrewGold:CrewWhite,.035f,.015f,.965f,.225f,TextAlignmentOptions.Center);
+            CrewPanel(card,"NameShade",new Color(.015f,.025f,.04f,.94f),0,0,1,.16f).transform.SetAsLastSibling();
+            var name=CrewLabel(card,"NameText",data.DisplayName,16,selected?CrewGold:CrewWhite,.035f,.005f,.965f,.155f,TextAlignmentOptions.Center);
             name.transform.SetAsLastSibling();
-            name.enableWordWrapping = true;
-            name.fontSizeMin=13;
+            name.enableWordWrapping = false;
+            name.fontSizeMin=11;
             CrewPanel(card,"SelectionBar",selected?CrewGold:new Color(.34f,.49f,.55f,.3f),0,0,1,.023f).transform.SetAsLastSibling();
             var number=card.Find("CrewNumber"); if(number!=null)number.gameObject.SetActive(false);
             var marker=CrewLabel(card,"SelectedMarker","선택",13,CrewGold,.63f,.79f,.96f,.98f,TextAlignmentOptions.MidlineRight);
@@ -242,6 +339,72 @@ namespace TheLastArk.UI
             var markerBg=CrewPanel(card,"SelectedMarkerBg",new Color(.025f,.04f,.06f,.95f),.61f,.79f,1,1);
             markerBg.gameObject.SetActive(selected);
             marker.transform.SetAsLastSibling();
+        }
+
+        private void StyleCrewIdentity(Transform detail, Transform info)
+        {
+            var syn = detail.Find("SynergiesPanel");
+            if (syn == null || detailSynergiesContainer == null) return;
+            foreach (string oldName in new[] { "SynergiesHeader", "SectionLabel" })
+            { var old = syn.Find(oldName); if (old != null) old.gameObject.SetActive(false); }
+            int count = selectedCharacterData != null && selectedCharacterData.synergies != null ? selectedCharacterData.synergies.Count : 0;
+            float infoWidth = Mathf.Max(1, ((RectTransform)info).rect.width);
+            const float side = 40, gap = 7;
+            float badgeWidth = count * side + Mathf.Max(0,count-1)*gap;
+            float badgeFraction = Mathf.Min(.4f, badgeWidth/infoWidth);
+            CrewRect(syn,.945f-.89f*badgeFraction,.79f,.945f,.98f);
+            CrewRect(detailSynergiesContainer,0,0,1,1);
+            var layout = detailSynergiesContainer.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+            if (layout != null) { layout.spacing=gap; layout.childAlignment=TextAnchor.MiddleRight; }
+            var customIcons = Resources.LoadAll<TheLastArk.Data.SynergyData>("Synergies");
+            foreach (Transform badge in detailSynergiesContainer)
+            {
+                if (!badge.gameObject.activeSelf) continue;
+                ((RectTransform)badge).sizeDelta=Vector2.one*side;
+                var element=badge.GetComponent<UnityEngine.UI.LayoutElement>();
+                if(element!=null){element.minWidth=element.preferredWidth=side;element.minHeight=element.preferredHeight=side;}
+                var bg=badge.GetComponent<UnityEngine.UI.Image>();
+                if(bg!=null) bg.color=new Color(.10f,.19f,.23f,.9f);
+                var edge=badge.GetComponent<UnityEngine.UI.Outline>();
+                if(edge!=null){edge.effectColor=new Color(.49f,.77f,.81f,.45f);edge.effectDistance=new Vector2(1,-1);}
+                var oldText=badge.Find("Text");if(oldText!=null)oldText.gameObject.SetActive(false);
+                TheLastArk.Data.SynergyType type;
+                if(!System.Enum.TryParse(badge.name.Substring("Synergy_".Length),out type))continue;
+                var iconObject=CrewChild(badge,"SynergyIcon");CrewRect(iconObject.transform,.12f,.12f,.88f,.88f);
+                if(iconObject.GetComponent<CanvasRenderer>()==null)iconObject.AddComponent<CanvasRenderer>();
+                var iconData=System.Array.Find(customIcons,entry=>entry.synergyType==type&&entry.icon!=null);
+                if(iconData!=null)
+                {
+                    var image=iconObject.GetComponent<UnityEngine.UI.Image>();if(image==null)image=iconObject.AddComponent<UnityEngine.UI.Image>();
+                    image.sprite=iconData.icon;image.preserveAspect=true;image.raycastTarget=false;
+                }
+                else
+                {
+                    var glyph=iconObject.GetComponent<CrewSynergyGlyph>();if(glyph==null)glyph=iconObject.AddComponent<CrewSynergyGlyph>();
+                    glyph.color=CrewCyan;glyph.raycastTarget=false;glyph.SetSynergy(type);
+                }
+            }
+            float available=infoWidth-badgeWidth-16;
+            float jobWidth=Mathf.Min(120,available*.36f);
+            if(detailJobTextComponent!=null)
+            {
+                detailJobTextComponent.text=selectedCharacterData!=null?selectedCharacterData.JobDisplayName:"";
+                detailJobTextComponent.fontSize=17;detailJobTextComponent.enableAutoSizing=true;
+                detailJobTextComponent.fontSizeMin=12;detailJobTextComponent.fontSizeMax=17;
+                detailJobTextComponent.color=new Color(.85f,.91f,.96f,.44f);
+                detailJobTextComponent.enableWordWrapping=false;detailJobTextComponent.alignment=TextAlignmentOptions.MidlineLeft;
+            }
+            float nameWidth=available-jobWidth-10;
+            if(detailNameTextComponent!=null)
+            {
+                detailNameTextComponent.fontSize=28;detailNameTextComponent.enableAutoSizing=false;
+                nameWidth=Mathf.Min(nameWidth,detailNameTextComponent.GetPreferredValues(detailNameTextComponent.text).x+4);
+                detailNameTextComponent.enableAutoSizing=true;detailNameTextComponent.fontSizeMin=20;detailNameTextComponent.fontSizeMax=28;
+                detailNameTextComponent.enableWordWrapping=false;detailNameTextComponent.color=CrewWhite;
+                detailNameTextComponent.alignment=TextAlignmentOptions.MidlineLeft;
+                CrewRect(detailNameTextComponent.transform,0,.50f,nameWidth/infoWidth,1);
+            }
+            if(detailJobTextComponent!=null)CrewRect(detailJobTextComponent.transform,(nameWidth+10)/infoWidth,.50f,available/infoWidth,1);
         }
 
         private void StyleCrewStats(Transform info)
@@ -252,16 +415,15 @@ namespace TheLastArk.UI
             float[] values = { d.maxHp,d.maxMental,d.baseAttack,d.spellPower,d.armor,d.magicResist };
             for (int i=0;i<6;i++)
             {
-                float x=(i%2)*.515f;
-                float y=.36f-(i/2)*.18f;
-                var tile=CrewPanel(info,"Stat"+i,new Color(.075f,.12f,.16f,1),x,y,x+.485f,y+.16f);
+                float x=i/6f;
+                var tile=CrewPanel(info,"Stat"+i,new Color(.075f,.12f,.16f,.55f),x,0,x+1f/6f-.008f,.38f);
                 var oldLabel=tile.transform.Find("Label"); if(oldLabel!=null)oldLabel.gameObject.SetActive(false);
                 // Source icons have transparent padding; a generous image box keeps the glyph legible.
                 var icon=CrewPanel(tile.transform,"Icon",Color.white,.00f,-.27f,.56f,1.27f);
                 icon.sprite=crewStatIcons!=null && i<crewStatIcons.Length?crewStatIcons[i]:null;
                 icon.preserveAspect=true;
                 if(icon.sprite==null) icon.color=Color.clear;
-                CrewLabel(tile.transform,"Value",values[i].ToString("0.##"),30,CrewWhite,.52f,.05f,.9f,.95f,TextAlignmentOptions.MidlineRight);
+                CrewLabel(tile.transform,"Value",values[i].ToString("0.##"),24,CrewWhite,.52f,.05f,.9f,.95f,TextAlignmentOptions.MidlineRight);
                 tile.raycastTarget=true;
                 var hover=tile.GetComponent<UIHoverTrigger>(); if(hover==null)hover=tile.gameObject.AddComponent<UIHoverTrigger>();
                 hover.title=names[i]; hover.category="기본 능력치"; hover.description=names[i]+"  "+values[i].ToString("0.##");
@@ -272,9 +434,9 @@ namespace TheLastArk.UI
         private void StyleCrewSkills(Transform detail)
         {
             if (detailSkillsContainer == null) return;
-            CrewLabel(detail,"SkillsHeading","전투 스킬",18,CrewMuted,.575f,.175f,.80f,.225f);
+            CrewLabel(detail,"SkillsHeading","전투 스킬",16,CrewMuted,.055f,.51f,.945f,.58f);
             var skillsHint=detail.Find("SkillsHint"); if(skillsHint!=null)skillsHint.gameObject.SetActive(false);
-            CrewRect(detailSkillsContainer,.575f,.037f,.965f,.16f);
+            CrewRect(detailSkillsContainer,.055f,.07f,.945f,.49f);
             var passive=detailSkillsContainer.Find("PassiveRow");
             var active=detailSkillsContainer.Find("ActiveRow");
             CrewRect(passive,0,0,.18f,1);
@@ -296,8 +458,11 @@ namespace TheLastArk.UI
                     var edge=slot.GetComponent<UnityEngine.UI.Outline>();
                     if(edge!=null) edge.enabled=false;
                     var square=slot.GetComponent<UnityEngine.UI.AspectRatioFitter>();
-                    if(square==null)square=slot.gameObject.AddComponent<UnityEngine.UI.AspectRatioFitter>();
-                    square.aspectMode=UnityEngine.UI.AspectRatioFitter.AspectMode.WidthControlsHeight; square.aspectRatio=1;
+                    if(square!=null) square.enabled=false;
+                    var slotRect=(RectTransform)slot;
+                    float side=Mathf.Min(((RectTransform)row).rect.height*.9f, ((RectTransform)row).rect.width*width-8f);
+                    slotRect.anchorMin=slotRect.anchorMax=new Vector2((i+.5f)*width,.5f);
+                    slotRect.pivot=new Vector2(.5f,.5f); slotRect.sizeDelta=Vector2.one*Mathf.Max(1,side); slotRect.anchoredPosition=Vector2.zero;
                     var icon=slot.Find("Icon");
                     CrewRect(icon,0,0,1,1);
                     if(icon!=null)icon.GetComponent<UnityEngine.UI.Image>().preserveAspect=false;
@@ -317,18 +482,22 @@ namespace TheLastArk.UI
                         if(number!=null){number.color=Color.white;number.fontSize=20;number.alignment=TextAlignmentOptions.Center;}
                         cost.SetAsLastSibling();
                     }
-                    if(row==passive)CrewLabel(slot,"PassiveLabel","패시브",12,CrewMuted,0,-.32f,1,-.02f,TextAlignmentOptions.Center);
+                    if(row==passive)CrewLabel(slot,"PassiveLabel","패시브",12,CrewMuted,0,-.2f,1,-.015f,TextAlignmentOptions.Center);
                 }
             }
         }
 
         private void StyleCrewActions(Transform root)
         {
-            StyleCrewAction(root.Find("BackButton"),"메인 화면",new Color(.055f,.10f,.14f,.96f),CrewWhite,.04f,.035f,.19f,.102f);
-            StyleCrewAction(root.Find("RelicGachaButton"),"방주 유물 소환",new Color(.10f,.16f,.20f,.98f),CrewWhite,.545f,.035f,.73f,.102f);
-            StyleCrewAction(root.Find("ConfirmStartButton"),"여정 시작  ›",CrewGold,new Color(.07f,.09f,.105f,1),.745f,.035f,.96f,.102f);
+            var footer = CrewPanel(root,"CrewFooterSurface",CrewInk,0,0,1,.105f);
+            var back = root.Find("BackButton");
+            if (back != null) footer.transform.SetSiblingIndex(back.GetSiblingIndex()
+                - (footer.transform.GetSiblingIndex() < back.GetSiblingIndex() ? 1 : 0));
+            StyleCrewAction(root.Find("BackButton"),"‹  메인 화면",Color.clear,CrewWhite,.04f,.022f,.19f,.084f);
+            StyleCrewAction(root.Find("RelicGachaButton"),"방주 유물 소환",new Color(.10f,.16f,.20f,.98f),CrewWhite,.40f,.022f,.585f,.084f);
+            StyleCrewAction(root.Find("ConfirmStartButton"),"여정 시작  ›",CrewGold,new Color(.07f,.09f,.105f,1),.62f,.022f,.96f,.084f);
             var relic=root.Find("DrawnRelicSlot");
-            CrewRect(relic,.493f,.035f,.535f,.102f);
+            CrewRect(relic,.343f,.022f,.385f,.084f);
             CrewSurface(relic,new Color(.055f,.10f,.14f,.96f));
             if(relic!=null)
             {
@@ -342,7 +511,7 @@ namespace TheLastArk.UI
                     relicPreviewImageComponent.transform.SetAsLastSibling();
                 }
             }
-            CrewLabel(root,"DepartureCaption","출발 준비",19,CrewGold,.365f,.035f,.48f,.102f);
+            var caption=root.Find("DepartureCaption");if(caption!=null)caption.gameObject.SetActive(false);
             var departureHint=root.Find("DepartureHint");if(departureHint!=null)departureHint.gameObject.SetActive(false);
         }
 

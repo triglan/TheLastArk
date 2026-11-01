@@ -7,6 +7,9 @@ public class StatusEffectTests
 {
     private readonly List<Object> _owned = new List<Object>();
     private BattleManager _battle;
+    private object _priorResources;
+    private static System.Reflection.FieldInfo ResourceSingleton => typeof(TheLastArk.Managers.ResourceManager)
+        .GetField("instance", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
 
     private T Own<T>(T value) where T : Object { _owned.Add(value); return value; }
 
@@ -14,6 +17,10 @@ public class StatusEffectTests
     public void Setup()
     {
         AttackContext.ResetAll();
+        // Healing/status calculations read relics. Keep this fixture independent of prior tests and Play Mode.
+        _priorResources = ResourceSingleton.GetValue(null);
+        var resources = Own(new GameObject("StatusTestResources")).AddComponent<TheLastArk.Managers.ResourceManager>();
+        ResourceSingleton.SetValue(null, resources);
         _battle = Own(new GameObject("StatusTestBattle")).AddComponent<BattleManager>();
         _battle.playerParty = new List<BattleCharacter>();
         _battle.enemyParty = new List<BattleCharacter>();
@@ -25,6 +32,7 @@ public class StatusEffectTests
         AttackContext.ResetAll();
         for (int i = _owned.Count - 1; i >= 0; i--) if (_owned[i] != null) Object.DestroyImmediate(_owned[i]);
         _owned.Clear();
+        ResourceSingleton.SetValue(null, _priorResources);
     }
 
     private BattleCharacter Unit(bool enemy, float hp = 100f, float attack = 10f, float armor = 0f)

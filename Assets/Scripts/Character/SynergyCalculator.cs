@@ -52,7 +52,7 @@ namespace TheLastArk.Character
             }
 
             // 시너지 증표 및 전설 유물 시너지 가산 반영 (가상 인원)
-            if (ResourceManager.Instance != null && ResourceManager.Instance.Relics != null)
+            if (ResourceManager.IsInitialized && ResourceManager.Instance.Relics != null)
             {
                 var badges = new Dictionary<SynergyType, int>();
                 foreach (var relic in ResourceManager.Instance.Relics)

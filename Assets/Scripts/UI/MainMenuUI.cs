@@ -309,7 +309,7 @@ namespace TheLastArk.UI
                 Transform gridPanel = csTrans.Find("CharacterGridPanel");
                 if (gridPanel != null)
                 {
-                    Transform gridArea = gridPanel.Find("GridArea");
+                    Transform gridArea = gridPanel.Find("RosterViewport/GridArea") ?? gridPanel.Find("GridArea");
                     if (gridArea != null) characterListContainer = gridArea;
                 }
                 if (characterListContainer == null)
@@ -1897,18 +1897,9 @@ namespace TheLastArk.UI
         {
             if (characterListContainer == null) return;
 
-            // 5개 열(FixedColumnCount = 5) 강제 적용
-            GridLayoutGroup gridLayout = characterListContainer.GetComponent<GridLayoutGroup>();
-            if (gridLayout != null)
-            {
-                gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-                gridLayout.constraintCount = 5;
-                gridLayout.cellSize = new Vector2(152, 185);
-                gridLayout.spacing = new Vector2(14, 14);
-            }
-
-            CharacterData[] allCharacters = Resources.LoadAll<CharacterData>("Characters");
-            if (allCharacters == null || allCharacters.Length == 0)
+            var allCharacters = CrewSelectionPreferences.OrderedRoster(
+                Resources.LoadAll<CharacterData>("Characters"), PlayerPrefs.GetInt("Setting.Language", 0));
+            if (allCharacters.Count == 0)
             {
                 Debug.LogWarning("[MainMenuUI] No CharacterData found in Resources/Characters!");
                 return;
@@ -1928,19 +1919,19 @@ namespace TheLastArk.UI
                 child.gameObject.SetActive(false);
                 SafeDestroy(child.gameObject);
             }
-            CharacterData firstValidChar = null;
+            int rosterIndex = 0;
             foreach (var charData in allCharacters)
             {
                 if (charData == null || charData.isEnemy) continue;
-                if (firstValidChar == null) firstValidChar = charData;
                 Transform existingCard = characterListContainer.Find($"Card_{charData.DataId}");
                 if (existingCard == null)
                 {
                     CreateCharacterCard(charData);
-                    continue;
+                    existingCard = characterListContainer.Find($"Card_{charData.DataId}");
                 }
                 if (existingCard != null)
                 {
+                    existingCard.SetSiblingIndex(rosterIndex++);
                     Button btn = existingCard.GetComponent<Button>();
                     if (btn != null)
                     {
@@ -1955,7 +1946,9 @@ namespace TheLastArk.UI
                 }
             }
 
-            if (firstValidChar != null) SelectCharacter(firstValidChar);
+            var initial = CrewSelectionPreferences.InitialLeader(allCharacters,
+                PlayerPrefs.GetString(CrewSelectionPreferences.LastLeaderKey, ""));
+            if (initial != null) SelectCharacter(initial);
         }
 
         private void CreateCharacterCard(CharacterData data)
@@ -2021,6 +2014,7 @@ namespace TheLastArk.UI
         private void OnCharacterCardClicked(CharacterData data)
         {
             SelectCharacter(data);
+            CrewSelectionPreferences.Remember(data);
         }
 
         private void SelectCharacter(CharacterData data)
@@ -2062,7 +2056,7 @@ namespace TheLastArk.UI
 
             if (detailJobTextComponent != null)
             {
-                string role = string.IsNullOrEmpty(data.jobName) ? "방주 승무원" : data.jobName;
+                string role = data.JobDisplayName;
                 detailJobTextComponent.text = $"<color=#7FFFD4>{role}</color>";
             }
 
@@ -2229,7 +2223,6 @@ namespace TheLastArk.UI
         {
             var info = SynergyDatabase.GetInfo(synergyType);
             string displayName = info != null ? info.displayName : synergyType.ToString();
-            string emoji = info != null ? info.iconEmoji : "⚡";
 
             GameObject badgeObj = new GameObject($"Synergy_{synergyType}");
             badgeObj.transform.SetParent(parent, false);
@@ -2270,7 +2263,7 @@ namespace TheLastArk.UI
 
             // Hover Trigger
             UIHoverTrigger trigger = badgeObj.AddComponent<UIHoverTrigger>();
-            trigger.title = $"{emoji} {displayName}";
+            trigger.title = displayName;
             trigger.category = info != null && info.isFaction ? "[세력 시너지]" : "[직업 시너지]";
             trigger.description = info != null ? $"<b>{info.summaryDescription}</b>\n\n{FormatSynergyTiers(info)}" : "시너지 설명입니다.";
             trigger.onHoverEnter = ShowHoverTooltip;
@@ -2369,7 +2362,9 @@ namespace TheLastArk.UI
                 if (!isPassive && skill.levels != null && skill.levels.Length > 0 && !string.IsNullOrEmpty(skill.levels[0]?.description))
                 {
                     var rule=skill.levels[0].diceInput;
-                    tagTmp.text=rule.IsCharge?rule.chargeTarget.ToString():rule.condition==TheLastArk.Skills.DiceCondition.Even?"짝":rule.condition==TheLastArk.Skills.DiceCondition.AtLeast?rule.value+"+":"·";
+                    tagTmp.text=rule.IsCharge?rule.chargeTarget.ToString():rule.condition==TheLastArk.Skills.DiceCondition.Even?"짝":rule.condition==TheLastArk.Skills.DiceCondition.AtLeast?rule.value+"+"
+                        :rule.condition==TheLastArk.Skills.DiceCondition.Exact?rule.value.ToString()
+                        :rule.condition==TheLastArk.Skills.DiceCondition.Either?rule.value+"/"+rule.maxValue:"·";
                 }
                 tagTmp.fontSize = 13;
                 tagTmp.fontStyle = FontStyles.Bold;
@@ -2414,7 +2409,9 @@ namespace TheLastArk.UI
         public void UpdateCharacterBackground(CharacterData data)
         {
             if (data == null) return;
-            Sprite bgSprite = CharacterBackgroundLoader.LoadCharacterBackground(data);
+            var frame = FindCrewBackgroundFrame(data);
+            Sprite bgSprite = frame != null && frame.illustration != null
+                ? frame.illustration : CharacterBackgroundLoader.LoadCharacterBackground(data);
 
             if (characterAliveEffect == null && characterSelectionPanel != null)
             {
@@ -2437,6 +2434,7 @@ namespace TheLastArk.UI
             if (characterAliveEffect != null)
             {
                 characterAliveEffect.SetIllustration(bgSprite);
+                characterAliveEffect.SetFraming(frame != null ? frame.faceFocus : new Vector2(.5f,.75f), frame != null ? frame.zoom : 1f);
             }
             else if (characterBackgroundImageComponent != null)
             {
@@ -2457,6 +2455,7 @@ namespace TheLastArk.UI
 
             if (RunManager.Instance != null)
             {
+                CrewSelectionPreferences.Remember(selectedCharacterData);
                 RunManager.Instance.StartNewRun();
                 RunManager.Instance.AddPartyMember(selectedCharacterData);
 

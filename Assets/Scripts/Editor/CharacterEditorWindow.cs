@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using System.IO;
@@ -38,6 +38,7 @@ public class CharacterEditorWindow : EditorWindow
     private List<EffectEntry> effectPaletteTarget;
     private double nextSaveTime;
     private EnemyEncounterEditorWindow embeddedEncounterEditor;
+    private SkillVfxPreview vfxPreview;
 
     private readonly List<GameEventData> cachedEventList = new List<GameEventData>();
     private GameEventData selectedEventData;
@@ -106,6 +107,8 @@ public class CharacterEditorWindow : EditorWindow
 
     private void OnDisable()
     {
+        vfxPreview?.Dispose();
+        vfxPreview = null;
         EditorApplication.update -= FlushPendingSaveIfReady;
         FlushPendingSaveNow();
 
@@ -572,6 +575,7 @@ public class CharacterEditorWindow : EditorWindow
             }
 
             selectedData.regionId = EditorGUILayout.TextField("Region", selectedData.regionId);
+            selectedData.jobDisplayName = EditorGUILayout.TextField("표시 직업명", selectedData.jobDisplayName);
 
             EditorGUILayout.EndVertical();
             return;
@@ -958,28 +962,92 @@ public class CharacterEditorWindow : EditorWindow
             EditorGUILayout.LabelField($"{i + 1}단계", EditorStyles.miniBoldLabel);
             EditorGUILayout.LabelField("스킬 설명", EditorStyles.miniLabel);
             level.description = EditorGUILayout.TextArea(level.description ?? "", GUILayout.MinHeight(38));
+            if (!isPassive)
+            {
+                DrawSkillVfx(ref level.visualEffect, "스킬 이펙트 프리팹");
+                if (level.visualEffect?.IsConfigured == true && GUILayout.Button("이 이펙트 설정을 모든 강화 단계에 복사"))
+                    foreach (var other in skill.levels) if (other != null) other.visualEffect = level.visualEffect.Copy();
+            }
             if (isPassive && skill.passiveTrait == PassiveTrait.MarksmanEye)
             {
                 if (level.effects.Count == 0) level.effects.Add(new EffectEntry());
                 level.effects[0].value = EditorGUILayout.FloatField("치명타 확률 증가 (%p)", level.effects[0].value);
                 level.effects[0].secondaryValue = EditorGUILayout.FloatField("치명타 피해 증가 (%p)", level.effects[0].secondaryValue);
             }
+            if (isPassive && skill.passiveTrait == PassiveTrait.PrimordialMana)
+            {
+                if (level.effects.Count == 0) level.effects.Add(new EffectEntry());
+                level.effects[0].value = Mathf.Max(0, EditorGUILayout.IntField("주사위당 마력 추가 획득", Mathf.RoundToInt(level.effects[0].value)));
+                level.effects[0].secondaryValue = Mathf.Max(0, EditorGUILayout.IntField("마력 최대치 추가 (기본 30)", Mathf.RoundToInt(level.effects[0].secondaryValue)));
+                EditorGUILayout.HelpBox("보정된 주사위 눈금 + 추가 수치. 효과 처리 후 획득하며 충전 투입에도 적용. 전투가 끝나도 유지됩니다.", MessageType.Info);
+            }
+            if (isPassive && skill.passiveTrait == PassiveTrait.IronCapacitor)
+            {
+                if (level.effects.Count == 0) level.effects.Add(new EffectEntry());
+                var passive = level.effects[0];
+                passive.value = Mathf.Max(0, EditorGUILayout.IntField("자기 턴 시작 축전", Mathf.RoundToInt(passive.value)));
+                passive.charges = Mathf.Max(1, EditorGUILayout.IntField("축전 최대치", passive.charges));
+                passive.secondaryValue = Mathf.Max(1, EditorGUILayout.FloatField("획득에 필요한 1회 보호막 흡수량", passive.secondaryValue));
+                EditorGUILayout.HelpBox("기본은 자신의 보호막, 개화하면 다른 아군의 보호막도 피격 1회당 축전 +1. 전투마다 초기화됩니다.", MessageType.Info);
+            }
             if (!isPassive)
             {
                 level.overrideCost = EditorGUILayout.IntField("비용 변경 (기존 AP)", level.overrideCost);
+                level.usesPerTurn = Mathf.Max(1, EditorGUILayout.IntField("턴당 사용 횟수", level.usesPerTurn));
+                level.special = (SkillSpecial)EditorGUILayout.EnumPopup("특수 규칙", level.special);
+                if (level.special == SkillSpecial.SplitDie) level.splitPoolLimit = Mathf.Max(0, EditorGUILayout.IntField("분할 후 보관함 제한", level.splitPoolLimit));
+                level.chargeReducedByCapacitor = EditorGUILayout.Toggle("필요 충전에서 축전 차감", level.chargeReducedByCapacitor);
+                level.chargeUsesLastDie = EditorGUILayout.Toggle("마지막 충전 눈금을 발동에 사용", level.chargeUsesLastDie);
                 if (level.diceInput == null) level.diceInput = new DiceInputRule();
                 DiceInputRule dice = level.diceInput;
                 EditorGUILayout.LabelField("주사위 투입", EditorStyles.miniBoldLabel);
                 dice.diceCount = EditorGUILayout.IntSlider("필요한 주사위", dice.diceCount, 1, 10);
                 dice.condition = (DiceCondition)EditorGUILayout.EnumPopup("눈금 조건", dice.condition);
-                if (dice.condition == DiceCondition.Exact || dice.condition == DiceCondition.AtLeast || dice.condition == DiceCondition.AtMost)
+                if (dice.condition == DiceCondition.Exact || dice.condition == DiceCondition.AtLeast || dice.condition == DiceCondition.AtMost
+                    || dice.condition == DiceCondition.Either || dice.condition == DiceCondition.Range)
                     dice.value = EditorGUILayout.IntField("기준 눈금", dice.value);
+                if (dice.condition == DiceCondition.Either || dice.condition == DiceCondition.Range)
+                    dice.maxValue = EditorGUILayout.IntField(dice.condition == DiceCondition.Either ? "또는 눈금" : "최대 눈금", dice.maxValue);
                 dice.chargeTarget = Mathf.Max(0, EditorGUILayout.IntField("충전 목표 (0=일반)", dice.chargeTarget));
                 if (dice.chargeTarget > 0)
                     dice.chargeByDiceCount = EditorGUILayout.Toggle("눈금 대신 개수 충전", dice.chargeByDiceCount);
             }
             level.targetType = (TargetType)EditorGUILayout.EnumPopup("대상", level.targetType);
-            if (!isPassive || skill.passiveTrait != PassiveTrait.MarksmanEye) DrawEffectList(level.effects);
+            if (!isPassive && selectedData?.passiveSkill?.passiveTrait == PassiveTrait.PrimordialMana)
+            {
+                level.special = (SkillSpecial)EditorGUILayout.EnumPopup("특수 규칙", level.special);
+                if (level.special == SkillSpecial.MagicLand)
+                {
+                    level.primalManaDualEffectThreshold = Mathf.Max(0, EditorGUILayout.IntField("동시 발동 마력 (0=없음)", level.primalManaDualEffectThreshold));
+                    EditorGUILayout.HelpBox("마력 20 미만: +5 후 보호막 / 20 이상: 5 소모 후 전체 공격. 동시 발동 시 +5 → 보호막 → 5 소모 → 공격 순서입니다.", MessageType.Info);
+                }
+                else
+                {
+                    level.primalManaRestoreCost = Mathf.Max(0, EditorGUILayout.IntField("슬롯 복구 마력 (0=없음)", level.primalManaRestoreCost));
+                    level.primalManaRequired = Mathf.Max(0, EditorGUILayout.IntField("필요 원초 마력", level.primalManaRequired));
+                    level.consumeAllPrimalMana = EditorGUILayout.Toggle("원초 마력 전부 소모", level.consumeAllPrimalMana);
+                    if (!level.consumeAllPrimalMana) level.primalManaCost = Mathf.Max(0, EditorGUILayout.IntField("원초 마력 소모", level.primalManaCost));
+                    level.primalManaGain = Mathf.Max(0, EditorGUILayout.IntField("원초 마력 추가 획득", level.primalManaGain));
+                    level.primalManaGainFromDie = EditorGUILayout.Toggle("눈금만큼 마력 획득", level.primalManaGainFromDie);
+                    level.primalManaLowDieBonus = Mathf.Max(0, EditorGUILayout.IntField("눈금 2 이하 추가 획득", level.primalManaLowDieBonus));
+                    level.primalManaRepeatThreshold = Mathf.Max(0, EditorGUILayout.IntField("추가 시전 조건 (0=없음)", level.primalManaRepeatThreshold));
+                    if (level.primalManaRepeatThreshold > 0)
+                    {
+                        level.primalManaRepeatCost = Mathf.Max(0, EditorGUILayout.IntField("추가 시전 마력 소모", level.primalManaRepeatCost));
+                        level.primalManaRepeatDelay = Mathf.Max(0f, EditorGUILayout.FloatField("추가 발사 간격 (초)", level.primalManaRepeatDelay));
+                    }
+                }
+            }
+            if (!isPassive && selectedData?.passiveSkill?.passiveTrait == PassiveTrait.IronCapacitor)
+            {
+                level.excludeSelf = EditorGUILayout.Toggle("자신을 대상으로 선택 불가", level.excludeSelf);
+                level.capacitorGain = Mathf.Max(0, EditorGUILayout.IntField("발동 전 축전 획득", level.capacitorGain));
+                level.capacitorSpendThreshold = Mathf.Max(0, EditorGUILayout.IntField("추가 효과 축전 조건", level.capacitorSpendThreshold));
+                level.consumeAllCapacitor = EditorGUILayout.Toggle("축전 전부 소모", level.consumeAllCapacitor);
+                if (!level.consumeAllCapacitor) level.capacitorMaxSpend = Mathf.Max(0, EditorGUILayout.IntField("축전 최대 소모", level.capacitorMaxSpend));
+                level.capacitorRefundPercent = EditorGUILayout.IntSlider("소모 후 축전 반환 (%)", level.capacitorRefundPercent, 0, 100);
+            }
+            if (!isPassive || (skill.passiveTrait != PassiveTrait.MarksmanEye && skill.passiveTrait != PassiveTrait.PrimordialMana && skill.passiveTrait != PassiveTrait.IronCapacitor)) DrawEffectList(level.effects);
             level.targetType = ForceSingleTauntTarget(level.targetType, level.effects);
             EditorGUILayout.EndVertical();
         }
@@ -1271,6 +1339,7 @@ public class CharacterEditorWindow : EditorWindow
             durationType = effect.durationType,
             skillSlot = effect.skillSlot,
             customVfxName = effect.customVfxName,
+            visualEffect = effect.visualEffect?.Copy(),
             statusIcon = effect.statusIcon
         };
     }
@@ -1559,9 +1628,64 @@ public class CharacterEditorWindow : EditorWindow
             bool remove = GUILayout.Button("X", GUILayout.Width(20));
             EditorGUILayout.EndHorizontal();
             if (remove) { effects.RemoveAt(i); break; }
+            DrawSkillVfx(ref effect.visualEffect, "이 효과만 다른 프리팹 (선택)");
             if (selectedData != null && selectedData.passiveSkill?.passiveTrait == PassiveTrait.MarksmanEye)
                 DrawMarksmanEffectFields(effect);
+            if (selectedData?.passiveSkill?.passiveTrait == PassiveTrait.PrimordialMana)
+                DrawPrimalManaEffectFields(effect);
+            if (selectedData?.passiveSkill?.passiveTrait == PassiveTrait.IronCapacitor)
+            {
+                effect.targetScope = (EffectTargetScope)EditorGUILayout.EnumPopup("효과 대상", effect.targetScope);
+                effect.statSource = (EffectStatSource)EditorGUILayout.EnumPopup("계수 기준 능력치", effect.statSource);
+                effect.fixedPerDie = EditorGUILayout.FloatField("눈금 계수", effect.fixedPerDie);
+                effect.additionalSpellPowerMultiplier = EditorGUILayout.FloatField("추가 주문력 계수", effect.additionalSpellPowerMultiplier);
+                effect.capacitorScaling = EditorGUILayout.FloatField("현재 축전 계수", effect.capacitorScaling);
+                effect.spentCapacitorScaling = EditorGUILayout.FloatField("소모한 축전 계수", effect.spentCapacitorScaling);
+                effect.minSpentCapacitor = Mathf.Max(0, EditorGUILayout.IntField("필요 축전 소모량", effect.minSpentCapacitor));
+                effect.minCurrentCapacitor = Mathf.Max(0, EditorGUILayout.IntField("필요 축전 보유량", effect.minCurrentCapacitor));
+                if (effect.type == EffectType.Damage)
+                    effect.damageBonusPercentPerSpentCapacitor = EditorGUILayout.FloatField("축전 1당 추가 피해 (%)", effect.damageBonusPercentPerSpentCapacitor);
+            }
         }
+    }
+
+    private void DrawSkillVfx(ref TheLastArk.Skills.SkillVfxSettings settings, string label)
+    {
+        if (settings == null) settings = new TheLastArk.Skills.SkillVfxSettings();
+        settings.prefab = (GameObject)EditorGUILayout.ObjectField(label, settings.prefab, typeof(GameObject), false);
+        if (settings.prefab == null) return;
+        EditorGUI.indentLevel++;
+        settings.placement = (TheLastArk.Skills.SkillVfxPlacement)EditorGUILayout.Popup("재생 위치", (int)settings.placement,
+            new[] { "효과를 받는 대상 (적/아군 자동)", "시전자 자신" });
+        settings.scale = Mathf.Max(.01f, EditorGUILayout.FloatField("크기 배율", settings.scale));
+        settings.offset = EditorGUILayout.Vector2Field("위치 보정", settings.offset);
+        settings.rotation = EditorGUILayout.Vector3Field("회전", settings.rotation);
+        settings.lifetime = Mathf.Max(.1f, EditorGUILayout.FloatField("재생 시간 (초)", settings.lifetime));
+        settings.preservePrefabMaterials = EditorGUILayout.Toggle("원본 재질 유지 (URP 프리팹)", settings.preservePrefabMaterials);
+        bool assetChanged = GUI.changed;
+        if (GUILayout.Button("▶ 이 이펙트 미리보기"))
+        {
+            if (vfxPreview == null) vfxPreview = new SkillVfxPreview(Repaint);
+            vfxPreview.Load(settings);
+        }
+        if (vfxPreview != null && vfxPreview.Settings == settings) vfxPreview.Draw();
+        GUI.changed = assetChanged;
+        EditorGUILayout.HelpBox("대상은 스킬/효과의 대상 설정을 따릅니다. 전체 공격은 각 적, 보호막·회복은 해당 아군에게 재생됩니다. 비우면 기존 자동 이펙트를 사용합니다.", MessageType.None);
+        EditorGUI.indentLevel--;
+    }
+
+    private static void DrawPrimalManaEffectFields(EffectEntry effect)
+    {
+        effect.statSource = (EffectStatSource)EditorGUILayout.EnumPopup("계수 기준 능력치", effect.statSource);
+        effect.fixedPerDie = EditorGUILayout.FloatField("눈금 계수", effect.fixedPerDie);
+        effect.primalManaScaling = EditorGUILayout.FloatField("현재 원초 마력 계수", effect.primalManaScaling);
+        effect.spentPrimalManaScaling = EditorGUILayout.FloatField("소모한 원초 마력 계수", effect.spentPrimalManaScaling);
+        if (effect.type != EffectType.Damage) return;
+        effect.splashOtherEnemiesPercent = EditorGUILayout.FloatField("다른 모든 적 피해 (%)", effect.splashOtherEnemiesPercent);
+        effect.loneTargetDamageBonusPercent = EditorGUILayout.FloatField("적이 하나일 때 추가 피해 (%)", effect.loneTargetDamageBonusPercent);
+        effect.spentPrimalManaBonusThreshold = Mathf.Max(0, EditorGUILayout.IntField("강화에 필요한 마력 소모량", effect.spentPrimalManaBonusThreshold));
+        effect.spentManaBonusIsFinalDamage = EditorGUILayout.Toggle("마력 소모 보너스는 최종 피해에 적용", effect.spentManaBonusIsFinalDamage);
+        effect.spentPrimalManaDamageBonusPercent = EditorGUILayout.FloatField("마력 소모 조건 추가 피해 (%)", effect.spentPrimalManaDamageBonusPercent);
     }
 
     private static void DrawMarksmanEffectFields(EffectEntry effect)
@@ -1571,6 +1695,8 @@ public class CharacterEditorWindow : EditorWindow
             effect.fixedPerDie = EditorGUILayout.FloatField("눈금당 추가 피해", effect.fixedPerDie);
             effect.targetMissingHealthPercent = EditorGUILayout.FloatField("잃은 체력 계수 (%)", effect.targetMissingHealthPercent);
             effect.fullHealthDamageBonusPercent = EditorGUILayout.FloatField("최대 체력 대상 추가 피해 (%)", effect.fullHealthDamageBonusPercent);
+            effect.belowQuarterHealthDamageBonusPercent = EditorGUILayout.FloatField("25% 미만 대상 추가 피해 (%)", effect.belowQuarterHealthDamageBonusPercent);
+            effect.noAdjacentFinalDamageBonusPercent = EditorGUILayout.FloatField("양옆에 적이 없을 때 최종 피해 (%)", effect.noAdjacentFinalDamageBonusPercent);
             effect.belowHalfHealthDamageBonusPercent = EditorGUILayout.FloatField("절반 미만 대상 추가 피해 (%)", effect.belowHalfHealthDamageBonusPercent);
             effect.armorIgnorePercent = EditorGUILayout.FloatField("관통 (%)", effect.armorIgnorePercent);
             effect.splashAdjacentPercent = EditorGUILayout.FloatField("양옆 피해 (%)", effect.splashAdjacentPercent);
@@ -1581,7 +1707,7 @@ public class CharacterEditorWindow : EditorWindow
         {
             effect.charges = Mathf.Max(0, EditorGUILayout.IntField("기본 회피 횟수", effect.charges));
             effect.valuePerDieDivisor = Mathf.Max(1, EditorGUILayout.IntField("눈금 몇마다 회피 1회", effect.valuePerDieDivisor));
-            effect.secondaryValue = EditorGUILayout.Toggle("정신 피해도 회피", effect.secondaryValue > 0f) ? 1f : 0f;
+            effect.secondaryValue = EditorGUILayout.Popup("회피 범위", Mathf.Clamp(Mathf.RoundToInt(effect.secondaryValue), 0, 2), new[] { "체력 피해", "모든 피해 (정신 포함)", "물리 피해" });
         }
     }
 
@@ -1985,7 +2111,7 @@ public class CharacterEditorWindow : EditorWindow
         if (data.magicResist < 0f) result.errors.Add("마법 저항력은 0 이상이어야 합니다.");
         if (!data.isEnemy)
         {
-            if (data.baseAttack <= 0f) result.errors.Add("기본 공격력은 0보다 커야 합니다.");
+            if (data.baseAttack < 0f) result.errors.Add("기본 공격력은 0 이상이어야 합니다.");
             if (data.spellPower < 0f) result.errors.Add("주문력은 0 이상이어야 합니다.");
             if (!CharacterData.IsValidCharacterId(data.characterId)) result.errors.Add("Player ID must be 00-99.");
             else if (IsPlayerIdInUse(data.characterId, data)) result.errors.Add($"Duplicate player ID: {data.characterId}");

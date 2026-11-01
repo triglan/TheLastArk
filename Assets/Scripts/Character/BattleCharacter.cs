@@ -282,7 +282,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     /// <summary>Defense → protect reduction → floor → shield → HP. Responses are deferred to the attack's end.</summary>
     private DamageResult ApplyHit(float amount, BattleCharacter attacker, DamageType damageType, float protectReduction, AttackContext context, bool viaProtectOrTaunt = false)
     {
-        if (TryEvade(false))
+        if (TryEvade(false, damageType))
         {
             var avoided = new DamageResult(amount, 0f, 0f, 0f, 0f, this, false);
             DamageResolved?.Invoke(avoided);
@@ -308,7 +308,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             damageModifier.AddDecrease(0.5f);
         // 수호자: team reduction, plus extra while protecting / taunting (applied before shields).
         if (context != null) TheLastArk.Character.SynergyEffects.AddGuardianReductions(status, viaProtectOrTaunt, damageModifier);
-        float resolvedDamage = damageModifier.Apply(damageAfterDefense);
+        float resolvedDamage = damageModifier.AddMultiplier(context?.FinalDamageMultiplier ?? 1f).Apply(damageAfterDefense);
         // 마법장 갑주: the battle's first direct-attack HP damage hit is negated (after defense, before shields).
         if (context != null && attacker != null && resolvedDamage > 0f && !magicShellUsed && status.HasEquipment("AegisArmor"))
         {
@@ -384,6 +384,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             appliedHealthDamage,
             this,
             status.currentHp <= 0f);
+        TheLastArk.Skills.CapacitorRules.OnShieldAbsorbed(this, shieldDamage);
         DamageResolved?.Invoke(result);
         return result;
     }
@@ -475,14 +476,15 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         return appliedDamage;
     }
 
-    private bool TryEvade(bool mentalDamage)
+    private bool TryEvade(bool mentalDamage, DamageType damageType = DamageType.True)
     {
         if (status == null) return false;
         for (int i=0; i<status.activeStatusEffects.Count; i++)
         {
             var effect=status.activeStatusEffects[i];
             if (effect == null || effect.effectType != EffectType.Evasion || !effect.IsActive
-                || effect.remainingCharges <= 0 || mentalDamage && effect.secondaryValue <= 0f) continue;
+                || effect.remainingCharges <= 0 || mentalDamage && effect.secondaryValue != 1f
+                || !mentalDamage && effect.secondaryValue == 2f && damageType != DamageType.Physical) continue;
             if (--effect.remainingCharges <= 0) status.activeStatusEffects.RemoveAt(i);
             view?.UpdateVisual(status);
             return true;

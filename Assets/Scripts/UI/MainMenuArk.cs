@@ -34,7 +34,7 @@ namespace TheLastArk.UI
             {
                 var root=characterSelectionPanel.transform;
                 var slot=root.Find("DrawnRelicSlot");if(slot!=null)slot.gameObject.SetActive(relic);
-                var header=root.Find("TrainCustomizationHeader");if(header!=null)header.gameObject.SetActive(train);
+                ApplyTrainCustomizationState(train);
             }
             if(!relic)
             {

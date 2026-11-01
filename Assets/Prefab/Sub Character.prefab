@@ -94,7 +94,7 @@ MonoBehaviour:
   isStandingIllust: 0
   displayImage: {fileID: 8851057763134397003}
   barUI: {fileID: 8129343114138609329}
-  enemyTargetMarkerPrefab: {fileID: 780000000000000001, guid: ad4d23a8c43d4e3caef9e4f39bc0d271, type: 3}
+  enemyTargetMarkerPrefab: {fileID: 0}
 --- !u!114 &8129343114138609329
 MonoBehaviour:
   m_ObjectHideFlags: 0

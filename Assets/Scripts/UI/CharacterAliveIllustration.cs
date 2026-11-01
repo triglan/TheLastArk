@@ -251,6 +251,54 @@ namespace TheLastArk.UI
         private Vector2 baseAnchoredPosition = Vector2.zero;
         private Vector3 baseScale = new Vector3(1.08f, 1.08f, 1f);
         private Vector2 currentParallaxOffset = Vector2.zero;
+        [SerializeField, HideInInspector] private bool useFraming;
+        [SerializeField, HideInInspector] private Vector2 faceFocus = new Vector2(.5f, .75f);
+        [SerializeField, HideInInspector] private float framingZoom = 1f;
+        private bool updatingFraming;
+
+        public void SetFraming(Vector2 focus, float zoom)
+        {
+            useFraming = true;
+            faceFocus = new Vector2(Mathf.Clamp01(focus.x), Mathf.Clamp01(focus.y));
+            framingZoom = Mathf.Clamp(zoom, 1f, 1.5f);
+            UpdateFraming();
+        }
+
+        private void OnRectTransformDimensionsChange()
+        {
+            if (useFraming) UpdateFraming();
+        }
+
+        private void UpdateFraming()
+        {
+            if (updatingFraming || !useFraming) return;
+            if (rectTransform == null) rectTransform = GetComponent<RectTransform>();
+            if (targetImage == null) targetImage = GetComponent<Image>();
+            var parent = transform.parent as RectTransform;
+            if (parent == null || targetImage == null || targetImage.sprite == null) return;
+            Vector2 view = parent.rect.size;
+            if (view.x <= 0 || view.y <= 0) return;
+            updatingFraming = true;
+            Vector2 spriteSize = targetImage.sprite.rect.size;
+            // Overscan covers the most distant parallax, sway, rotation and breathing positions.
+            float rotationMargin = Mathf.Max(view.x,view.y)*.5f*Mathf.Tan(Mathf.Abs(tiltAngle)*Mathf.Deg2Rad)*1.3f + 2;
+            Vector2 margin = new Vector2(Mathf.Abs(parallaxStrength.x)*.5f + Mathf.Abs(swayAmplitude) + rotationMargin,
+                Mathf.Abs(parallaxStrength.y)*.5f + Mathf.Abs(floatAmplitude) + rotationMargin);
+            float scale = Mathf.Max((view.x + margin.x*2)/spriteSize.x, (view.y + margin.y*2)/spriteSize.y);
+            scale *= framingZoom / (1f - Mathf.Abs(breatheScaleAmount));
+            Vector2 size = spriteSize * scale;
+            Vector2 desired = new Vector2(0, view.y*.17f) - Vector2.Scale(faceFocus - Vector2.one*.5f, size);
+            Vector2 limit = Vector2.Max(Vector2.zero, (size*(1f-Mathf.Abs(breatheScaleAmount))-view)*.5f-margin);
+            baseAnchoredPosition = new Vector2(Mathf.Clamp(desired.x,-limit.x,limit.x), Mathf.Clamp(desired.y,-limit.y,limit.y));
+            baseScale = Vector3.one;
+            rectTransform.anchorMin = rectTransform.anchorMax = new Vector2(.5f,.5f);
+            rectTransform.pivot = new Vector2(.5f,.5f);
+            rectTransform.sizeDelta = size;
+            rectTransform.anchoredPosition = baseAnchoredPosition;
+            rectTransform.localScale = baseScale;
+            targetImage.preserveAspect = true;
+            updatingFraming = false;
+        }
 
         private void Awake()
         {
@@ -267,6 +315,7 @@ namespace TheLastArk.UI
                 rectTransform.localScale = baseScale;
                 rectTransform.localEulerAngles = Vector3.zero;
             }
+            UpdateFraming();
         }
 
         private void OnEnable()
@@ -288,10 +337,12 @@ namespace TheLastArk.UI
             {
                 canvasGroup.alpha = 1f;
             }
+            UpdateFraming();
         }
 
         private void Start()
         {
+            if (useFraming) { UpdateFraming(); return; }
             if (rectTransform != null)
             {
                 baseScale = new Vector3(1.08f, 1.08f, 1f);
@@ -314,6 +365,8 @@ namespace TheLastArk.UI
 
             targetImage.sprite = newSprite;
             targetImage.color = Color.white;
+            currentParallaxOffset = Vector2.zero;
+            UpdateFraming();
 
             if (Application.isPlaying && gameObject.activeInHierarchy)
             {

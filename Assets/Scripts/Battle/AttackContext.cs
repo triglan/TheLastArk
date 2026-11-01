@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace TheLastArk.Battle
 {
@@ -28,6 +28,7 @@ namespace TheLastArk.Battle
 
         /// <summary>Share of the target's defense ignored by the hit currently resolving (0–1).</summary>
         public float ArmorIgnore { get; set; }
+        public float FinalDamageMultiplier { get; set; } = 1f;
 
         private readonly Dictionary<BattleCharacter, BattleCharacter> _guardians = new Dictionary<BattleCharacter, BattleCharacter>();
         private readonly Dictionary<BattleCharacter, float> _guardReductions = new Dictionary<BattleCharacter, float>();

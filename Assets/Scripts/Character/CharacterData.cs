@@ -8,6 +8,8 @@ public class CharacterData : ScriptableObject
     public string characterId;
     public string characterName;
     public string jobName;
+    [Tooltip("화면에 표시할 직업명. 비어 있으면 Job을 표시합니다.")]
+    public string jobDisplayName;
     public List<TheLastArk.Data.SynergyType> synergies = new List<TheLastArk.Data.SynergyType>();
     public bool isEnemy = false;
     [Tooltip("캐릭터 카드의 같은 지역 보상 후보를 판정할 때 사용합니다.")]
@@ -15,6 +17,7 @@ public class CharacterData : ScriptableObject
 
     public string DataId => isEnemy ? characterName : GetFirstValidText(characterId, jobName, characterName);
     public string DisplayName => GetFirstValidText(characterName, jobName, characterId);
+    public string JobDisplayName => GetFirstValidText(jobDisplayName, jobName, "방주 승무원");
     public string DataName => isEnemy ? characterName : GetFirstValidText(jobName, characterName, characterId);
 
     // 아군은 초상화와 스탠딩 이미지를 모두 쓰고, 적은 스탠딩 이미지만 씁니다.
@@ -195,7 +198,11 @@ public enum PassiveTrait
     /// <summary>가자 댕댕아!: value = % direct HP damage increase on marked enemies, charges = marks kept.</summary>
     HuntingMark,
     /// <summary>명사수의 눈: value = crit chance %p, secondaryValue = crit damage %p. Excess crit converts to attack %.</summary>
-    MarksmanEye
+    MarksmanEye,
+    /// <summary>태초의 마력: value = primordial mana gained after each actual skill use.</summary>
+    PrimordialMana,
+    /// <summary>철의 축전로: value = own-turn gain, charges = capacity, secondaryValue = shield absorption threshold.</summary>
+    IronCapacitor
 }
 
 /// <summary>Skill mechanics that can't be expressed as plain effects.</summary>
@@ -205,11 +212,15 @@ public enum SkillSpecial
     /// <summary>Split one die into specialCount dice whose values the player chooses (same total).</summary>
     SplitDie,
     /// <summary>A second use this turn whose input value matches the first use counts as "matched".</summary>
-    MatchSecondUse
+    MatchSecondUse,
+    /// <summary>마술의 땅: below 20 mana, shield; at 20 or more, spend 5 and attack all enemies.</summary>
+    MagicLand,
+    PreparedShot,
+    ElectromagneticField
 }
 
 /// <summary>Stat a scaled effect multiplies.</summary>
-public enum EffectStatSource { Auto, Attack, SpellPower, SelfShield, AllyShieldTotal }
+public enum EffectStatSource { Auto, Attack, SpellPower, SelfShield, AllyShieldTotal, CurrentSelfShield }
 
 /// <summary>Who an effect lands on, relative to the skill's targets.</summary>
 public enum EffectTargetScope { SkillTargets, Self, AllAllies }
@@ -223,6 +234,7 @@ public class SkillLevelData
     public TheLastArk.Skills.DiceInputRule diceInput = new TheLastArk.Skills.DiceInputRule();
     public TargetType targetType;
     public string customVfxName; // 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
+    public TheLastArk.Skills.SkillVfxSettings visualEffect = new TheLastArk.Skills.SkillVfxSettings();
     [Tooltip("같은 스킬을 한 턴에 사용할 수 있는 횟수")]
     [Min(1)] public int usesPerTurn = 1;
     [Tooltip("아군 대상 스킬에서 시전자 자신을 대상에서 제외")]
@@ -232,7 +244,38 @@ public class SkillLevelData
     public SkillSpecial special;
     [Tooltip("분할 개수 등 특수 규칙의 수치")]
     public int specialCount;
+    [Tooltip("분할 후 보관함 개수 제한 (0 = 제한 없음)")] public int splitPoolLimit;
+    [Tooltip("사용한 슬롯 복구에 필요한 마력 (0 = 복구 없음)")] public int primalManaRestoreCost;
+    [Tooltip("필요 충전량에서 현재 축전을 차감")] public bool chargeReducedByCapacitor;
+    [Tooltip("마지막 충전 투입의 효과 눈금을 발동에 사용")] public bool chargeUsesLastDie;
+    [Header("원초 마력")]
+    [Min(0)] public int primalManaRequired;
+    [Min(0)] public int primalManaCost;
+    public bool consumeAllPrimalMana;
+    [Min(0)] public int primalManaGain;
+    public bool primalManaGainFromDie;
+    [Tooltip("효과 눈금 2 이하일 때 추가 획득")]
+    [Min(0)] public int primalManaLowDieBonus;
+    public bool primalManaGainBeforeEffects;
+    [Tooltip("사용 직전 마력이 이 값 이상이면 마력을 소모해 최대 1회 추가 시전 (0 = 없음)")]
+    [Min(0)] public int primalManaRepeatThreshold;
+    [Min(0)] public int primalManaRepeatCost;
+    [Tooltip("첫 발사와 추가 발사 사이 간격 (초)")]
+    [Min(0)] public float primalManaRepeatDelay = .3f;
+    [Tooltip("마술의 땅: 이 마력 이상에서 보호막과 공격 동시 발동 (0 = 없음)")]
+    [Min(0)] public int primalManaDualEffectThreshold;
+    [System.NonSerialized] public bool primalManaCostAfterShield;
+    [Header("축전")]
+    [Min(0)] public int capacitorGain;
+    [Tooltip("이 수치 미만이면 소모 없이 기본 효과만 발동")]
+    [Min(0)] public int capacitorSpendThreshold;
+    [Min(0)] public int capacitorMaxSpend;
+    public bool consumeAllCapacitor;
+    [Range(0, 100)] public int capacitorRefundPercent;
     public List<EffectEntry> effects = new List<EffectEntry>();
+
+    // Runtime variants never mutate the shared character asset.
+    public SkillLevelData RuntimeCopy() => (SkillLevelData)MemberwiseClone();
 }
 
 [System.Serializable]
@@ -253,6 +296,7 @@ public class EffectEntry
     public int skillSlot = -1;
     public Sprite statusIcon;
     public string customVfxName; // 개별 효과 커스텀 VFX 이름 (비어있을 시 효과 타입별 기본 VFX 자동 재생)
+    public TheLastArk.Skills.SkillVfxSettings visualEffect = new TheLastArk.Skills.SkillVfxSettings();
 
     [Header("주사위 계수 (D = 효과 눈금, 주사위 여러 개면 합)")]
     [Tooltip("배율에 D마다 더함: (multiplier + multiplierPerDie × D)")]
@@ -290,6 +334,25 @@ public class EffectEntry
     public bool splashUsesActualDamage;
     [Tooltip("첫 대상의 실제 체력 피해 중 모든 적에게 추가로 줄 비율(%)")]
     public float splashAllPercent;
+    [Header("원초 마력 계수")]
+    public float primalManaScaling;
+    public float spentPrimalManaScaling;
+    [Min(0)] public int spentPrimalManaBonusThreshold;
+    public float spentPrimalManaDamageBonusPercent;
+    [Tooltip("주 대상을 제외한 모든 적에게 방어 적용 전 피해의 비율(%)")]
+    public float splashOtherEnemiesPercent;
+    public float loneTargetDamageBonusPercent;
+    [Header("혼합 능력치 / 축전 계수")]
+    public float additionalSpellPowerMultiplier;
+    public float capacitorScaling;
+    public float spentCapacitorScaling;
+    public float damageBonusPercentPerSpentCapacitor;
+    [Tooltip("이 효과에 필요한 이번 스킬의 축전 소모량 (0 = 항상)")]
+    [Min(0)] public int minSpentCapacitor;
+    [Min(0)] public int minCurrentCapacitor;
+    public float belowQuarterHealthDamageBonusPercent;
+    public float noAdjacentFinalDamageBonusPercent;
+    public bool spentManaBonusIsFinalDamage;
 }
 
 [System.Serializable]
@@ -392,7 +455,7 @@ public enum EffectType
     HuntMark = 32,
     // 다음 주사위 사용 시 눈금 보너스 (value = 보너스, charges = 적용 개수)
     DiceBoost = 33,
-    // 회피: charges + floor(D/valuePerDieDivisor), secondaryValue > 0 also avoids sanity damage.
+    // 회피: charges + floor(D/valuePerDieDivisor), secondaryValue: 0 = HP damage, 1 = all damage, 2 = physical only.
     Evasion = 34
 }
 public enum DamageType { Physical, Magical, True }

@@ -185,6 +185,7 @@ public static class EnemyActionExecutor
             durationType = source.durationType,
             skillSlot = source.skillSlot,
             customVfxName = source.customVfxName,
+                visualEffect = source.visualEffect?.Copy(),
             statusIcon = source.statusIcon
         };
         result.charges = Mathf.Max(1, result.charges + state.Get(action.chargesVariableId));
