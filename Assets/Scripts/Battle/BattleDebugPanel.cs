@@ -156,6 +156,16 @@ namespace TheLastArk.Battle
             Tell("모든 몬스터를 처치했습니다.");
         }
 
+        public void ShowRunClear()
+        {
+            if (manager == null || !manager.DebugShowRunClear())
+            {
+                Tell("지금은 엔딩 화면을 띄울 수 없습니다. 전투 진행 중에 다시 시도하세요.");
+                return;
+            }
+            if (panel != null && panel.gameObject.activeSelf) TogglePanel();
+        }
+
         private static void Kill(EnemyBattleCharacter enemy)
         {
             var character = enemy.BattleCharacterComponent;
@@ -364,7 +374,8 @@ namespace TheLastArk.Battle
             Button("SkillTests", panel, "스킬", 412, 12, 88, 32, () => ShowDebugPage(2), false);
             Button("CloseDebug", panel, "닫기", 520, 12, 72, 32, TogglePanel, false);
             stateText = Label(panel, "", 18, 48, 570, 24, 18);
-            practiceButton = Button("PracticeMode", panel, "", 18, 78, 574, 36, () => { manager.DebugSetPracticeMode(!manager.DebugHoldsBattleOpen); RefreshView(); });
+            practiceButton = Button("PracticeMode", panel, "", 18, 78, 380, 36, () => { manager.DebugSetPracticeMode(!manager.DebugHoldsBattleOpen); RefreshView(); });
+            Button("ShowRunClear", panel, "엔딩 바로 보기", 406, 78, 186, 36, ShowRunClear, false);
             enemyContent = Rect("EnemyControls", panel, 0, 0, 610, 780);
             Label(enemyContent, "01  소환 위치 선택", 18, 120, 570, 24, 19);
             float width = (574f - Mathf.Max(0, slots.Length - 1) * 6f) / Mathf.Max(1, slots.Length);

@@ -40,6 +40,7 @@ public class TargetArrow : MonoBehaviour
     void Update()
     {
         HandleMouseClick();
+        HandleTargetHotkeys();
     }
 
     private void Start()

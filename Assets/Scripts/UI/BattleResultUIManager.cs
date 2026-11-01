@@ -313,6 +313,34 @@ namespace UI
             CreateExitButton(cardObj.transform, font, "피해를 수습하고 이동", new Color(0.48f, 0.16f, 0.16f, 1f), new Color(0.6f, 0.2f, 0.2f, 1f), onExit);
         }
 
+        /// <summary>최종 보스 승리 후 런 클리어 요약. 버튼은 메인 메뉴로 돌아갑니다.</summary>
+        public void ShowRunClearScreen(int floorsCleared, int gold, int memoryEarned, Action onExit)
+        {
+            Canvas canvas = GetCanvas();
+            TMP_FontAsset font = GetFontAsset();
+
+            GameObject overlayObj = CreateOverlay(canvas.transform, "RunClearOverlay", new Color(0.03f, 0.05f, 0.09f, 0.96f));
+            GameObject cardObj = CreateCard(overlayObj.transform, "RunClearCard", new Vector2(480, 500), new Color(0.07f, 0.12f, 0.20f, 0.96f), new Color(0.95f, 0.75f, 0.25f, 0.5f));
+
+            var layout = cardObj.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(30, 30, 40, 40);
+            layout.spacing = 18;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlHeight = false;
+            layout.childControlWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.childForceExpandWidth = true;
+
+            CreateText(cardObj.transform, "TitleText", font, "런 클리어", 36, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.98f, 0.82f, 0.35f, 1f), new Vector2(420, 60));
+            CreateLine(cardObj.transform, new Vector2(260, 2), new Color(0.98f, 0.82f, 0.35f, 0.3f));
+            CreateText(cardObj.transform, "DescText", font, "최종 보스를 쓰러뜨렸습니다.", 16, FontStyles.Normal, TextAlignmentOptions.Center, new Color(0.85f, 0.85f, 0.85f, 0.8f), new Vector2(400, 30));
+            CreateRewardItem(cardObj.transform, "FloorItem", font, "도달 층", $"{floorsCleared}층", Color.white);
+            CreateRewardItem(cardObj.transform, "GoldItem", font, "보유 골드", $"{gold} G", new Color(1f, 0.84f, 0.3f));
+            CreateRewardItem(cardObj.transform, "MemoryItem", font, "획득한 기억", $"+{memoryEarned}", new Color(0.4f, 0.75f, 1f));
+            CreateSpacer(cardObj.transform, new Vector2(420, 6));
+            CreateExitButton(cardObj.transform, font, "메인 메뉴로", new Color(0.18f, 0.35f, 0.55f, 1f), new Color(0.22f, 0.44f, 0.68f, 1f), onExit);
+        }
+
         private GameObject CreateOverlay(Transform parent, string name, Color color)
         {
             GameObject overlayObj = new GameObject(name);

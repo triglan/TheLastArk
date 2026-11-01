@@ -2721,10 +2721,13 @@ public partial class BattleManager : MonoBehaviour
         {
             if (playerWin)
             {
+                // The boss node ends the run: rewards first, then the run-clear summary instead of the map.
+                bool runClear = Application.isPlaying && RunManager.Instance.CurrentNode != null
+                    && RunManager.Instance.CurrentNode.nodeType == NodeType.Boss;
                 BattleResultUIManager.Instance.ShowVictoryScreen(
                     RunManager.Instance.CurrentEncounterPool,
                     VictoryGold,
-                    LoadMapScene);
+                    runClear ? (System.Action)ShowRunClearScreen : LoadMapScene);
             }
             else
                 BattleResultUIManager.Instance.ShowDefeatScreen(LoadMapScene);
@@ -2742,6 +2745,25 @@ public partial class BattleManager : MonoBehaviour
 
         ResourceManager.Instance.AddGold(VictoryGold);
         Debug.Log($"[Battle] 승리 보상 지급: 골드 +{VictoryGold}");
+    }
+
+    private const string MainMenuSceneName = "MainMenu";
+
+    /// <summary>Settles the 특전 memory now (the main menu's own settle then finds nothing left) and shows the summary.</summary>
+    private void ShowRunClearScreen()
+    {
+        MapNode node = RunManager.Instance.CurrentNode;
+        int gold = ResourceManager.Instance != null ? ResourceManager.Instance.Gold : 0;
+        int memory = TheLastArk.Run.ArkProgression.SettleRun();
+        BattleResultUIManager.Instance.ShowRunClearScreen(node != null ? node.floor : 0, gold, memory, LoadMainMenuAfterRun);
+    }
+
+    private void LoadMainMenuAfterRun()
+    {
+        // Drop the finished map so nothing resumes it; a new game resets the rest of the run state.
+        RunManager.Instance.CurrentMap = null;
+        RunManager.Instance.CurrentNode = null;
+        UnityEngine.SceneManagement.SceneManager.LoadScene(MainMenuSceneName);
     }
 
     private void LoadMapScene()

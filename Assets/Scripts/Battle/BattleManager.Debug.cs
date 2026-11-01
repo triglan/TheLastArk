@@ -133,6 +133,27 @@ public partial class BattleManager
     }
 
     public void DebugCheckBattleEnd() => TryEndBattleIfPartyWiped();
+
+    public bool DebugCanShowRunClear => Application.isPlaying && _currentPhase != BattlePhase.BattleEnd
+        && UI.BattleResultUIManager.Instance != null && !_resolvingSkill && !DebugActionRunning;
+
+    /// <summary>Jumps straight to the boss-clear ending; memory is settled from the run's real progress so far.</summary>
+    public bool DebugShowRunClear()
+    {
+        if (!DebugCanShowRunClear) return false;
+        CancelInvoke();
+        CancelPendingSelection();
+        targetHandler?.Deselect(false);
+        ClearBattlePanic();
+        ClearEnemyTargetMarkers();
+        ClearEnemyIntents();
+        DebugHoldsBattleOpen = false;
+        // Lock battle input without running the normal victory/defeat flow.
+        _currentPhase = BattlePhase.BattleEnd;
+        UpdateTurnEndButtonState();
+        ShowRunClearScreen();
+        return true;
+    }
 #else
     public bool DebugHoldsBattleOpen => false;
     public bool DebugActionRunning => false;
