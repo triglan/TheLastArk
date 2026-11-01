@@ -128,3 +128,14 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Unverified third-party effects pack; install locally.
+/Assets/Effect and FX Pixel All Free/
+/Assets/Effect and FX Pixel All Free.meta
+# Review screenshots stay local.
+/Captures/
+# Unity Version Control (Plastic SCM) leftovers and scratch files.
+*.private.*
+새 텍스트 문서.txt
+/Assets/Resources/TestEffefct/Documentation - Free Quick Effects.pdf
+/Assets/Resources/TestEffefct/Documentation - Free Quick Effects.pdf.meta
