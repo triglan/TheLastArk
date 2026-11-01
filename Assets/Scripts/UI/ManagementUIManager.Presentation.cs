@@ -143,7 +143,7 @@ namespace TheLastArk.UI
             var portrait = ManagementTheme.Panel("Portrait", card, ManagementTheme.Background);
             ManagementTheme.Place(portrait, new Vector2(0, 0), new Vector2(0.33f, 1), new Vector2(14, 60), new Vector2(-4, -44));
             var art = ManagementTheme.Rect("Art", portrait).gameObject.AddComponent<UnityEngine.UI.Image>();
-            art.sprite = data.portraitSprite; art.preserveAspect = true; art.raycastTarget = false; art.enabled = art.sprite != null;
+            art.sprite = data.PortraitSprite; art.preserveAspect = true; art.raycastTarget = false; art.enabled = art.sprite != null;
             var info = ManagementTheme.Rect("Info", card);
             ManagementTheme.Place(info, new Vector2(0.35f, 0), Vector2.one, new Vector2(4, 55), new Vector2(-14, -43));
             var name = ManagementTheme.Label(info, data.DisplayName, 23); ManagementTheme.Top(name.rectTransform, 0, 54);

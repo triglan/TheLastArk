@@ -22,7 +22,7 @@ namespace TheLastArk.UI
             Color color = GetColor(intent.VisualType);
             background.color = new Color(color.r, color.g, color.b, 0.92f);
             int count = Mathf.Clamp(intent.Effects.Count, 1, 3);
-            panelRect.sizeDelta = new Vector2(Mathf.Max(100f, count * 84f), 28f);
+            panelRect.sizeDelta = new Vector2(204f, 30f);
             for (int i = 0; i < icons.Length; i++)
             {
                 bool active = i < count;
@@ -38,8 +38,12 @@ namespace TheLastArk.UI
                 values[i].text = effect != null ? CompactValue(effect) : GetBadge(intent.VisualType);
                 if (i == 2 && intent.Effects.Count > 3) values[i].text += "+";
                 var cell = (RectTransform)icons[i].transform.parent;
-                cell.anchoredPosition = new Vector2((i - (count - 1) * 0.5f) * 84f, 0f);
-                values[i].rectTransform.anchoredPosition = new Vector2(icons[i].sprite != null ? 12f : 0f, 0f);
+                float cellWidth = 204f / count;
+                cell.sizeDelta = new Vector2(cellWidth, 30f);
+                cell.anchoredPosition = new Vector2((i - (count - 1) * 0.5f) * cellWidth, 0f);
+                icons[i].rectTransform.anchoredPosition = new Vector2(-cellWidth * 0.5f + 13f, 0f);
+                values[i].rectTransform.anchoredPosition = new Vector2(icons[i].sprite != null ? 11f : 0f, 0f);
+                values[i].rectTransform.sizeDelta = new Vector2(cellWidth - (icons[i].sprite != null ? 25f : 4f), 28f);
             }
             tooltip.SetContent(intent.PatternName + "\n" + BuildDetail(intent));
             panelRect.gameObject.SetActive(true);
@@ -69,9 +73,11 @@ namespace TheLastArk.UI
                 ((RectTransform)cell.transform).sizeDelta = new Vector2(84f, 42f);
                 var icon = new GameObject("Action Icon", typeof(RectTransform), typeof(Image)); icon.transform.SetParent(cell.transform, false);
                 icons[i] = icon.GetComponent<Image>(); icons[i].raycastTarget = false; icons[i].preserveAspect = true;
-                icons[i].rectTransform.sizeDelta = new Vector2(24f, 24f); icons[i].rectTransform.anchoredPosition = new Vector2(-28f, 0f);
+                icons[i].rectTransform.sizeDelta = new Vector2(20f, 20f); icons[i].rectTransform.anchoredPosition = new Vector2(-28f, 0f);
                 var label = new GameObject("Value", typeof(RectTransform), typeof(TextMeshProUGUI)); label.transform.SetParent(cell.transform, false);
                 values[i] = label.GetComponent<TextMeshProUGUI>(); values[i].fontSize = 18f; values[i].fontStyle = FontStyles.Bold;
+                values[i].enableAutoSizing = true; values[i].fontSizeMin = 12f; values[i].fontSizeMax = 18f;
+                values[i].enableWordWrapping = false;
                 values[i].alignment = TextAlignmentOptions.Center; values[i].raycastTarget = false;
                 values[i].rectTransform.sizeDelta = new Vector2(64f, 36f); TMPFontManager.ApplyFont(values[i]);
             }

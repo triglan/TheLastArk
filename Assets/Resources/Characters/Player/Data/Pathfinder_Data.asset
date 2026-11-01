@@ -20,6 +20,17 @@ MonoBehaviour:
   regionId: temp
   standingSprite: {fileID: 21300000, guid: f1719d0417e5693448ea6c68f19fef49, type: 3}
   portraitSprite: {fileID: 21300000, guid: c91ae052e3d5bac4dbbe19a2580fcef9, type: 3}
+  closedEyesSprite: {fileID: 0}
+  panicIllustrations:
+  - {fileID: 21300000, guid: 43ae2ed7eec224245a7c3a35979b0853, type: 3}
+  - {fileID: 21300000, guid: f9a12f074fd7f834b809d6a613bf7deb, type: 3}
+  - {fileID: 21300000, guid: 7dc1f86a1ecc14f47b394cdf23e7b3a8, type: 3}
+  - {fileID: 21300000, guid: a83578368ee548b4a82787adeb6f273d, type: 3}
+  enemyFormationType: 0
+  enemyIllustrationScale: 1
+  enemyIllustrationHeight: 180
+  enemyIllustrationOffset: {x: 0, y: 0}
+  enemyIllustrationKeepFeet: 1
   maxHp: 25
   maxMental: 35
   baseAttack: 4
@@ -39,7 +50,8 @@ MonoBehaviour:
     baseCost: 3
     passiveTrait: 4
     levels:
-    - overrideCost: -1
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 0
@@ -82,7 +94,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 0
@@ -125,7 +144,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 0
@@ -168,13 +194,20 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
   activeSkills:
   - skillName: "\uAE30\uD68C \uD3EC\uCC29"
     skillIcon: {fileID: 21300000, guid: 736f0c8a089438446b8a895bfa282391, type: 3}
     baseCost: 3
     passiveTrait: 0
     levels:
-    - overrideCost: -1
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 0
@@ -217,6 +250,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 32
         damageType: 0
         multiplier: 0
@@ -244,6 +283,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 21
         damageType: 0
         multiplier: 0
@@ -254,7 +299,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -271,6 +316,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 30
         damageType: 0
         multiplier: 0
@@ -281,7 +332,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -298,7 +349,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 0
@@ -324,7 +382,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -341,6 +399,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 0
         damageType: 0
         multiplier: 1.2
@@ -368,6 +432,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 32
         damageType: 0
         multiplier: 0
@@ -395,6 +465,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 21
         damageType: 0
         multiplier: 0
@@ -405,7 +481,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -422,6 +498,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 30
         damageType: 0
         multiplier: 0
@@ -432,7 +514,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -449,7 +531,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 0
@@ -475,7 +564,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -492,6 +581,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 0
         damageType: 0
         multiplier: 1.6
@@ -519,6 +614,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 32
         damageType: 0
         multiplier: 0
@@ -546,6 +647,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 21
         damageType: 0
         multiplier: 0
@@ -556,7 +663,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -573,6 +680,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 30
         damageType: 0
         multiplier: 0
@@ -583,7 +696,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -600,12 +713,19 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
   - skillName: "\uC800\uCABD\uC744 \uACF5\uACA9\uD574!"
     skillIcon: {fileID: 21300000, guid: 7c8e13c68a1a0da44b1e423119973618, type: 3}
     baseCost: 3
     passiveTrait: 0
     levels:
-    - overrideCost: -1
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 3
@@ -648,7 +768,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 3
@@ -691,7 +818,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 3
@@ -734,12 +868,19 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
   - skillName: "\uBE59\uACB0 \uD568\uC815"
     skillIcon: {fileID: 21300000, guid: 9b45b6b38a008cb46ad2c572efbac889, type: 3}
     baseCost: 3
     passiveTrait: 0
     levels:
-    - overrideCost: -1
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 3
@@ -765,7 +906,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -782,6 +923,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 28
         damageType: 0
         multiplier: 0
@@ -792,7 +939,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -809,7 +956,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 3
@@ -835,7 +989,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -852,6 +1006,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 28
         damageType: 0
         multiplier: 0
@@ -862,7 +1022,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -879,7 +1039,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 3
@@ -905,7 +1072,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -922,6 +1089,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 28
         damageType: 0
         multiplier: 0
@@ -932,7 +1105,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -949,6 +1122,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 3
         damageType: 0
         multiplier: 0
@@ -959,7 +1138,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -976,12 +1155,19 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
   - skillName: "\uD558\uC6B8\uB9C1"
     skillIcon: {fileID: 21300000, guid: a4297eb53081d104993c1dfb4aa3513c, type: 3}
     baseCost: 3
     passiveTrait: 0
     levels:
-    - overrideCost: -1
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 0
@@ -1007,7 +1193,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -1024,6 +1210,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 27
         damageType: 0
         multiplier: 0
@@ -1034,7 +1226,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -1051,7 +1243,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 0
@@ -1077,7 +1276,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -1094,6 +1293,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 27
         damageType: 0
         multiplier: 0
@@ -1104,7 +1309,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -1121,7 +1326,14 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
-    - overrideCost: -1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: 
+      overrideCost: -1
       diceInput:
         diceCount: 1
         condition: 0
@@ -1147,7 +1359,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -1164,6 +1376,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 27
         damageType: 0
         multiplier: 0
@@ -1174,7 +1392,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -1191,6 +1409,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 20
         damageType: 0
         multiplier: 0
@@ -1201,7 +1425,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -1218,6 +1442,12 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
       - type: 29
         damageType: 0
         multiplier: 0
@@ -1228,7 +1458,7 @@ MonoBehaviour:
         hitCount: 1
         duration: 1
         charges: 1
-        durationType: 0
+        durationType: 1
         skillSlot: -1
         statusIcon: {fileID: 0}
         customVfxName: 
@@ -1245,4 +1475,18 @@ MonoBehaviour:
         matchedHitCount: 0
         matchedArmorIgnorePercent: 0
         focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+  enemyRoleDescription: 
+  damageBonusPerCycle: 0
+  bleedBonusPerCycle: 0
   enemyPatterns: []
+  enemyRuntimeVariables: []
+  enemyEnhancementIcon: {fileID: 0}
+  defeatGoldBonus: 0
+  returnStolenGoldOnDefeat: 0
+  stolenGoldVariableId: 

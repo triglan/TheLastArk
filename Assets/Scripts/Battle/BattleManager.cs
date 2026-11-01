@@ -17,7 +17,6 @@ public partial class BattleManager : MonoBehaviour
     public const string DiceReasonUsed = "사용 완료";
     public const string DiceReasonNotEnoughDice = "주사위 부족";
     public const string DiceReasonConditionMismatch = "눈 조건 불충족";
-    public const string DiceReasonStorageFull = "보관함 부족";
 
     public static bool AutoEndDiceTurn
     {
@@ -111,6 +110,7 @@ public partial class BattleManager : MonoBehaviour
         && TheLastArk.Data.NexusModuleDatabase.GetModule(TheLastArk.Managers.TrainManager.Instance.nexusCar.installedModuleId)?.moduleId
             == TheLastArk.Data.NexusModuleDatabase.OriginId;
     public BattleConfig Config => battleConfig;
+    public int TurnNumber => _turnCount;
     /// <summary>The running battle (set in Start, cleared on destroy).</summary>
     public static BattleManager Active { get; private set; }
 
@@ -139,10 +139,6 @@ public partial class BattleManager : MonoBehaviour
 
         DiceInputRule rule = GetDiceRule(skill, actor);
         if (rule.IsCharge && IsChargeReady(actor, skill)) return null;
-        SkillLevelData skillLevel = GetSkillLevel(skill, actor);
-        if (skillLevel != null && skillLevel.special == SkillSpecial.SplitDie
-            && _dicePool.Dice.Count - 1 + Mathf.Max(1, skillLevel.specialCount) > ActionDicePool.MaxStoredDice)
-            return DiceReasonStorageFull;
         int matching = 0;
         int available = 0;
         foreach (ActionDie die in _dicePool.Dice)
@@ -531,6 +527,25 @@ public partial class BattleManager : MonoBehaviour
     public bool HasChanceProtocol => UsesDice && OriginPartLevel(TrainPartEffectType.ChanceProtocol) >= 0;
     public int ManipulateUsesLeft => _manipulateUsesLeft;
     public int RerollUsesLeft => _rerollUsesLeft;
+    private TheLastArk.Battle.ArkDiceBenefits _arkDice;
+    private TheLastArk.Battle.ArkDiceBenefits ArkDice => _arkDice ?? (_arkDice = new TheLastArk.Battle.ArkDiceBenefits(
+        Application.isPlaying ? TheLastArk.Run.ArkProgression.Amount(ArkNodeKind.ExtraDie) : 0,
+        Application.isPlaying ? TheLastArk.Run.ArkProgression.Amount(ArkNodeKind.EnhanceDie) : 0,
+        Application.isPlaying ? TheLastArk.Run.ArkProgression.Amount(ArkNodeKind.Reroll) : 0));
+    public bool HasArkEnhance => UsesDice && ArkDice.EnhanceCapacity > 0;
+    public bool HasArkReroll => UsesDice && ArkDice.RerollCapacity > 0;
+    public int ArkEnhancesLeft => ArkDice.EnhancesLeft;
+    public int ArkRerollsLeft => ArkDice.RerollsLeft;
+    public bool TryArkEnhanceDie(int id)
+    {
+        if (!UsesDice || !IsPlayerTurn || !ArkDice.TryEnhance(_dicePool, id)) return false;
+        _selectedDiceIds.Clear(); RefreshDiceUI(); RefreshSkillSlots(); return true;
+    }
+    public bool TryArkRerollDie(int id)
+    {
+        if (!UsesDice || !IsPlayerTurn || !ArkDice.TryReroll(_dicePool, id)) return false;
+        _selectedDiceIds.Clear(); RefreshDiceUI(); RefreshSkillSlots(); return true;
+    }
     public int ParasiticStacks => _parasiticStacks;
 
     /// <summary>기회 프로토콜 기본형 rerolls every available die; upgraded levels reroll the selected dice.</summary>
@@ -596,7 +611,7 @@ public partial class BattleManager : MonoBehaviour
         int baseNormal = TheLastArk.Managers.TrainManager.OriginNormalDiceRequest(car, balance, _parasiticStacks);
         int archiumExtra = SynergyExtraNormalDice();
         int bannerDice = RelicRules.Has(RelicEffectType.UnityBanner) && SynergyEffects.ActiveSynergyCount() == 0 ? UnityBannerDice : 0;
-        _dicePool.BeginTurn(baseNormal + archiumExtra + bannerDice, ActionDicePool.DefaultFaces, SynergySpecialDice(), TakeCarriedDice());
+        _dicePool.BeginTurn(baseNormal + archiumExtra + bannerDice + ArkDice.ExtraDiceForTurn(_turnCount), ActionDicePool.DefaultFaces, SynergySpecialDice(), TakeCarriedDice());
         ApplyArchiumTopBonus();
         int placedNormal = 0;
         foreach (ActionDie die in _dicePool.Dice) if (!die.IsCarried && !die.IsSpecial) placedNormal++;
@@ -1003,6 +1018,8 @@ public partial class BattleManager : MonoBehaviour
     {
         Debug.Log($"[Battle] 페이즈 전환: {_currentPhase} -> {next}");
         _currentPhase = next;
+        if (next == BattlePhase.PlayerTurn || next == BattlePhase.EnemyTurn)
+            _turnClock?.SetPhase(next == BattlePhase.PlayerTurn);
         UpdateTurnEndButtonState();
         if (_diceUI != null) _diceUI.Refresh(_dicePool, _selectedDiceIds, DicePreviewHint());
 
@@ -2538,6 +2555,11 @@ public partial class BattleManager : MonoBehaviour
         ClearEnemyTargetMarkers();
         ClearEnemyIntents();
         bool playerWin = IsPartyWiped(enemyParty);
+        if (Application.isPlaying && playerWin && RunManager.Instance.CurrentNode != null)
+        {
+            var node = RunManager.Instance.CurrentNode;
+            TheLastArk.Run.ArkProgression.RecordVictory(node.id.ToString(), node.nodeType);
+        }
         Debug.Log($"[Battle] 전투 종료: {(playerWin ? "승리" : "패배")}");
 
         // [의무실] 전투 승리 시 체력/정신력 회복 및 소생 적용
@@ -2589,7 +2611,7 @@ public partial class BattleManager : MonoBehaviour
             int available = 0;
             foreach (ActionDie die in _dicePool.Dice)
                 if (die.IsAvailable) available++;
-            apText.text = $"주사위 {available}<size=55%><color=#8CAFC8> / {ActionDicePool.MaxStoredDice}</color></size>";
+            apText.text = $"주사위 {available}";
             return;
         }
         apText.text = $"{currentAP}<size=55%><color=#8CAFC8> / {MaxAP}</color></size>";

@@ -23,6 +23,21 @@ public class RunState
 
     /// <summary>파티 리더의 캐릭터 ID</summary>
     public string leaderCharacterID = "";
+    public int arkLeaderHealth;
+    public int arkLeaderMental;
+    public int arkLeaderArmor;
+    public int arkLeaderMagicResist;
+    public int arkLeaderAttack;
+    public int arkLeaderSpellPower;
+
+    public void ApplyArkLeaderBonuses(CharacterStatus status)
+    {
+        if (status?.origin == null) return;
+        bool leader = !status.origin.isEnemy && status.origin.DataId == leaderCharacterID;
+        status.ApplyArkLeaderBonuses(leader ? arkLeaderHealth : 0, leader ? arkLeaderMental : 0,
+            leader ? arkLeaderArmor : 0, leader ? arkLeaderMagicResist : 0,
+            leader ? arkLeaderAttack : 0, leader ? arkLeaderSpellPower : 0);
+    }
 
     // ── 유물·소모품 ───────────────────────────────────────────────
     public List<string> relicIDs      = new List<string>();
@@ -45,6 +60,12 @@ public class RunState
         partyStatuses           = new List<CharacterStatus>();
         equipmentLoadouts       = new TheLastArk.Data.EquipmentLoadouts();
         leaderCharacterID       = "";
+        arkLeaderHealth         = 0;
+        arkLeaderMental         = 0;
+        arkLeaderArmor          = 0;
+        arkLeaderMagicResist    = 0;
+        arkLeaderAttack         = 0;
+        arkLeaderSpellPower     = 0;
         relicIDs                = new List<string>();
         consumableIDs           = new List<string>();
         upgradeNextBattlesCount = 0;

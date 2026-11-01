@@ -54,8 +54,11 @@ namespace TheLastArk.UI
         {
             if (!enabled || _canvas == null || _image == null) return;
             OnPointerDown(eventData);
-            var preview = new GameObject("DraggedDie", typeof(RectTransform), typeof(Image));
+            var preview = new GameObject("DraggedDie", typeof(RectTransform), typeof(Image), typeof(Canvas));
             preview.transform.SetParent(_canvas, false);
+            var overlay = preview.GetComponent<Canvas>();
+            overlay.overrideSorting = true;
+            overlay.sortingOrder = 600;
             _ghost = preview.GetComponent<RectTransform>();
             _ghost.sizeDelta = new Vector2(72f, 72f);
             Image ghostImage = preview.GetComponent<Image>();

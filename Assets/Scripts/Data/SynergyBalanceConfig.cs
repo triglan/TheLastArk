@@ -51,7 +51,7 @@ namespace TheLastArk.Data
         [Header("엘븐우드 대삼림 2/4/6 (단계 n = 앞에서 n개)")]
         public int[] elvenwoodFaces = { 12, 18, 24 };
 
-        [Header("미라주 2/4/6/8")]
+        [Header("신기루 2/4/6/8")]
         public float[] mirageGoldPercent = { 0, 25, 50, 100 };
         public int mirageGoldDiceCost = 30;
         public float[] mirageGuardianShieldPercent = { 4, 6, 8, 12 };
@@ -98,7 +98,7 @@ namespace TheLastArk.Data
         [Header("마법사 2/4")]
         public float[] mageDebuffMultiplier = { 1.5f, 2f };
 
-        [Header("서포터 1/2/3")]
+        [Header("지원가 1/2/3")]
         public float[] supportReceivePercent = { 15, 25, 35 };
         public int[] supportMental = { 1, 2, 3 };
 

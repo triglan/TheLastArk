@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Text;
@@ -23,16 +23,18 @@ public class CharacterView : MonoBehaviour
     private RectTransform statusIconRoot;
     private readonly List<Image> statusIcons = new List<Image>();
     private EnemyThornChargesUI thornCharges;
-    private BattleHoverTooltip statusTooltip;
     private RectTransform illustrationRect;
     private Vector3 illustrationBaseScale;
     private Vector2 illustrationBasePosition;
     private bool illustrationBasePreserveAspect;
     private float presentationScale = 1f;
     private CharacterData illustrationData;
-    private int enemyStatusRows;
+    private const int VisibleStatusLimit = 4;
     private readonly List<TextMeshProUGUI> statusCounts = new List<TextMeshProUGUI>();
     private readonly List<Image> statusCountBackgrounds = new List<Image>();
+    private Image panicIcon;
+    private PanicIconGraphic panicSymbol;
+    private BattleHoverTooltip panicTooltip;
 
     private void Awake()
     {
@@ -59,7 +61,7 @@ public class CharacterView : MonoBehaviour
         {
             Sprite sprite = (status.origin.isEnemy || isStandingIllust)
                 ? status.origin.standingSprite
-                : status.origin.portraitSprite;
+                : status.origin.PortraitSprite;
             if (status.origin.closedEyesSprite != null && GetComponent<EnemyAI>()?.RuntimeState.Get("eyes_closed") == 1)
                 sprite = status.origin.closedEyesSprite;
             if (sprite != null) displayImage.sprite = sprite;
@@ -128,7 +130,7 @@ public class CharacterView : MonoBehaviour
     }
 
     private float EnhancementHeight => GetComponent<EnemyEnhancementUI>()?.LayoutHeight ?? 0f;
-    public float EnemyHUDHeight => 92f + Mathf.Max(0, enemyStatusRows - 1) * 32f + EnhancementHeight;
+    public float EnemyHUDHeight => 100f;
     public float IllustrationBaseline => illustrationRect != null
         ? illustrationBasePosition.y - illustrationRect.rect.height * illustrationRect.pivot.y * illustrationBaseScale.y : -352f;
 
@@ -140,8 +142,8 @@ public class CharacterView : MonoBehaviour
         if (barRoot == null || barRoot == transform) return;
         barRoot.anchorMin = barRoot.anchorMax = new Vector2(0.5f, 0.5f);
         barRoot.localScale = Vector3.one;
-        barRoot.anchoredPosition = new Vector2(bounds.center.x, bounds.yMax + 56f + Mathf.Max(0, enemyStatusRows - 1) * 32f + EnhancementHeight);
-        GetComponent<EnemyEnhancementUI>()?.SetPosition(new Vector2(bounds.center.x, bounds.yMax + 20f));
+        barRoot.anchoredPosition = new Vector2(bounds.center.x, bounds.yMax + 56f);
+        GetComponent<EnemyEnhancementUI>()?.SetPosition(new Vector2(bounds.center.x, bounds.yMin - 64f));
         var hpRect = barUI.hpSlider.GetComponent<RectTransform>();
         var mentalRect = barUI.mentalSlider.GetComponent<RectTransform>();
         SetCompactBarHeight(hpRect);
@@ -149,16 +151,17 @@ public class CharacterView : MonoBehaviour
         mentalRect.anchoredPosition = new Vector2(0f, -18f);
         if (defenseRoot != null)
         {
-            defenseRoot.anchoredPosition = new Vector2(enemyStatusRows > 0 ? -54f : 0f, -38f);
+            defenseRoot.anchoredPosition = new Vector2(0f, -40f);
             defenseRoot.localScale = Vector3.one * 0.9f;
         }
         if (statusIconRoot != null)
         {
-            statusIconRoot.pivot = new Vector2(0.5f, 1f);
-            statusIconRoot.anchoredPosition = new Vector2(50f, -38f);
+            statusIconRoot.SetParent(transform, false);
+            statusIconRoot.anchorMin = statusIconRoot.anchorMax = statusIconRoot.pivot = Vector2.one * 0.5f;
+            statusIconRoot.anchoredPosition = new Vector2(bounds.center.x, bounds.yMin - 26f);
         }
-        GetComponent<EnemyIntentUI>()?.SetPosition(barRoot.anchoredPosition + new Vector2(0f, 22f));
-        GetComponent<EnemyNameHoverUI>()?.SetLabelPosition(new Vector2(bounds.center.x, bounds.yMin - 28f));
+        GetComponent<EnemyIntentUI>()?.SetPosition(barRoot.anchoredPosition + new Vector2(0f, 32f));
+        GetComponent<EnemyNameHoverUI>()?.SetLabelPosition(new Vector2(bounds.center.x, bounds.yMin + 20f));
         if (thornCharges != null)
         {
             thornCharges.rectTransform.anchorMin = thornCharges.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
@@ -176,164 +179,150 @@ public class CharacterView : MonoBehaviour
 
     private void UpdateStatusEffects(CharacterStatus status)
     {
+        if (statusText != null) statusText.gameObject.SetActive(false);
         if (status?.origin != null && status.origin.isEnemy)
         {
             UpdateEnemyStatusIcons(status);
-            UpdateEnemyPanicLabel(status);
-            if (statusText != null) statusText.gameObject.SetActive(false);
             return;
         }
-        EnsureStatusText();
-        if (statusText == null) return;
-
-        var builder = new StringBuilder();
-        if (status?.panic != null && status.panic.IsActive)
-        {
-            builder.Append("<color=#FF7777>패닉 · ").Append(TheLastArk.Battle.PanicState.Name(status.panic.Type)).Append("</color>");
-        }
-        var details = new StringBuilder();
-        if (status?.panic != null && status.panic.IsActive)
-            details.Append("패닉 · ").Append(TheLastArk.Battle.PanicState.Name(status.panic.Type)).Append(": ")
-                .Append(TheLastArk.Battle.PanicState.Description(status.panic.Type));
-        if (status?.activeStatusEffects != null)
-        {
-            foreach (var entry in status.GetStatusSummaries())
-            {
-                if (builder.Length > 0) builder.AppendLine();
-                builder.Append(entry.summary);
-                if (details.Length > 0) details.AppendLine();
-                details.Append(entry.breakdown);
-            }
-        }
-
         UpdateStatusIcons(status);
-        statusText.text = builder.ToString();
-        statusTooltip?.SetContent(details.ToString());
-        statusText.gameObject.SetActive(builder.Length > 0);
     }
 
-    private TextMeshProUGUI enemyPanicLabel;
-
-    /// <summary>Enemy panic name above the status icons, one-line description on hover.</summary>
-    private void UpdateEnemyPanicLabel(CharacterStatus status)
+    private bool UpdatePanicIcon(CharacterStatus status)
     {
         bool active = status?.panic != null && status.panic.IsActive;
-        if (!active && enemyPanicLabel == null) return;
-        if (enemyPanicLabel == null && barUI != null && barUI.hpSlider != null)
+        if (!active && panicIcon == null) return false;
+        if (panicIcon == null)
         {
-            var labelObject = new GameObject("Enemy Panic", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(BattleHoverTooltip));
-            labelObject.transform.SetParent(barUI.hpSlider.transform.parent, false);
-            enemyPanicLabel = labelObject.GetComponent<TextMeshProUGUI>();
-            enemyPanicLabel.fontSize = 15f;
-            enemyPanicLabel.alignment = TextAlignmentOptions.Center;
-            enemyPanicLabel.color = new Color(1f, 0.47f, 0.47f);
-            enemyPanicLabel.rectTransform.anchorMin = enemyPanicLabel.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-            enemyPanicLabel.rectTransform.sizeDelta = new Vector2(160f, 20f);
-            enemyPanicLabel.rectTransform.anchoredPosition = new Vector2(0f, 14f);
-            TMPFontManager.ApplyFont(enemyPanicLabel);
+            var root=new GameObject("Panic Icon",typeof(RectTransform),typeof(Image),typeof(BattleHoverTooltip),typeof(PanicIconPulse));
+            root.transform.SetParent(statusIconRoot,false);
+            panicIcon=root.GetComponent<Image>();panicIcon.color=new Color(.25f,.055f,.09f,.98f);
+            panicIcon.rectTransform.sizeDelta=Vector2.one*34f;
+            panicIcon.rectTransform.anchorMin=panicIcon.rectTransform.anchorMax=Vector2.one*.5f;
+            panicTooltip=root.GetComponent<BattleHoverTooltip>();
+            var symbol=new GameObject("Symbol",typeof(RectTransform),typeof(PanicIconGraphic));symbol.transform.SetParent(root.transform,false);
+            panicSymbol=symbol.GetComponent<PanicIconGraphic>();panicSymbol.color=new Color(1,.65f,.61f);panicSymbol.raycastTarget=false;
+            panicSymbol.rectTransform.anchorMin=Vector2.zero;panicSymbol.rectTransform.anchorMax=Vector2.one;
+            panicSymbol.rectTransform.offsetMin=Vector2.one*3;panicSymbol.rectTransform.offsetMax=Vector2.one*-3;
         }
-        if (enemyPanicLabel == null) return;
-        enemyPanicLabel.gameObject.SetActive(active);
-        if (!active) return;
-        enemyPanicLabel.text = "패닉 · " + TheLastArk.Battle.PanicState.Name(status.panic.Type);
-        enemyPanicLabel.GetComponent<BattleHoverTooltip>().SetContent(TheLastArk.Battle.PanicState.Description(status.panic.Type));
+        panicIcon.gameObject.SetActive(active);
+        if (!active) return false;
+        panicSymbol.SetType(status.panic.Type);
+        panicTooltip.SetContent("패닉 · "+TheLastArk.Battle.PanicState.Name(status.panic.Type)+"\n"+TheLastArk.Battle.PanicState.Description(status.panic.Type)+"\n정신력을 회복하면 해제");
+        return true;
     }
 
-    private void UpdateEnemyStatusIcons(CharacterStatus status)
+    private void UpdateEnemyStatusIcons(CharacterStatus status) => DrawStatusIcons(status);
+
+    public void PulsePanicIcon()
     {
-        if (barUI == null || barUI.hpSlider == null) return;
+        if (panicIcon != null && panicIcon.gameObject.activeInHierarchy)
+            panicIcon.GetComponent<PanicIconPulse>()?.Play();
+    }
+
+    private static int StatusPriority(EffectType type)
+        => type == EffectType.Stun ? 0 : type == EffectType.Blockade ? 1 : 2;
+
+    private void DrawStatusIcons(CharacterStatus status)
+    {
         EnsureStatusIconRoot();
-        if (statusIconRoot == null) return;
-        statusIconRoot.SetParent(barUI.hpSlider.transform.parent, false);
-        statusIconRoot.anchorMin = statusIconRoot.anchorMax = new Vector2(0.5f, 0.5f);
+        if (statusIconRoot == null || status == null) return;
         var summaries = status.GetStatusSummaries();
-        var active = new List<ActiveStatusEffect>(summaries.Count);
-        foreach (var entry in summaries)
-            active.Add(status.activeStatusEffects.Find(effect => effect != null && effect.IsActive && effect.effectType == entry.type));
-        while (statusIcons.Count < active.Count)
+        summaries.Sort((a, b) =>
         {
-            var root = new GameObject("Status Icon", typeof(RectTransform), typeof(Image), typeof(BattleHoverTooltip));
+            int priority = StatusPriority(a.type).CompareTo(StatusPriority(b.type));
+            return priority != 0 ? priority : a.type.CompareTo(b.type);
+        });
+        bool panicking=UpdatePanicIcon(status);
+        int limit=panicking?VisibleStatusLimit-1:VisibleStatusLimit;
+        bool overflow = summaries.Count > limit;
+        int count = Mathf.Min(summaries.Count, limit) + (overflow ? 1 : 0);
+        int total=count+(panicking?1:0);
+        if (panicking) panicIcon.rectTransform.anchoredPosition=new Vector2(-(total-1)*.5f*42f,0);
+        while (statusIcons.Count < count)
+        {
+            var root = new GameObject("Status Icon", typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(BattleHoverTooltip));
             root.transform.SetParent(statusIconRoot, false);
-            var icon = root.GetComponent<Image>(); icon.preserveAspect = true; icon.rectTransform.sizeDelta = new Vector2(30f, 30f);
+            var icon = root.GetComponent<UnityEngine.UI.Image>();
+            icon.preserveAspect = true;
+            icon.rectTransform.sizeDelta = new Vector2(34f, 34f);
             statusIcons.Add(icon);
-            var bubble = new GameObject("Count Background", typeof(RectTransform), typeof(Image)); bubble.transform.SetParent(root.transform, false);
-            var bubbleImage = bubble.GetComponent<Image>(); bubbleImage.color = new Color(0.04f, 0.06f, 0.1f, 0.95f); bubbleImage.raycastTarget = false;
+            var bubble = new GameObject("Count Background", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+            bubble.transform.SetParent(root.transform, false);
+            var bubbleImage = bubble.GetComponent<UnityEngine.UI.Image>();
+            bubbleImage.color = new Color(0.04f, 0.06f, 0.1f, 0.95f);
+            bubbleImage.raycastTarget = false;
             bubbleImage.rectTransform.anchorMin = bubbleImage.rectTransform.anchorMax = new Vector2(1f, 0f);
             bubbleImage.rectTransform.sizeDelta = new Vector2(18f, 18f);
             statusCountBackgrounds.Add(bubbleImage);
-            var count = new GameObject("Count", typeof(RectTransform), typeof(TextMeshProUGUI)); count.transform.SetParent(root.transform, false);
-            var label = count.GetComponent<TextMeshProUGUI>(); label.fontSize = 15f; label.fontStyle = FontStyles.Bold;
-            label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
-            label.rectTransform.anchorMin = label.rectTransform.anchorMax = new Vector2(1f, 0f);
-            label.rectTransform.sizeDelta = new Vector2(24f, 20f);
-            TMPFontManager.ApplyFont(label); statusCounts.Add(label);
+            var textObject = new GameObject("Count", typeof(RectTransform), typeof(TextMeshProUGUI));
+            textObject.transform.SetParent(root.transform, false);
+            var label = textObject.GetComponent<TextMeshProUGUI>();
+            label.fontSize = 15f;
+            label.fontStyle = FontStyles.Bold;
+            label.alignment = TextAlignmentOptions.Center;
+            label.raycastTarget = false;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 10f;
+            label.fontSizeMax = 15f;
+            TMPFontManager.ApplyFont(label);
+            statusCounts.Add(label);
         }
-        enemyStatusRows = Mathf.CeilToInt(active.Count / 3f);
-        statusIconRoot.sizeDelta = new Vector2(180f, enemyStatusRows * 32f);
+        statusIconRoot.sizeDelta = new Vector2(210f, 36f);
         for (int i = 0; i < statusIcons.Count; i++)
         {
-            statusIcons[i].gameObject.SetActive(i < active.Count);
-            if (i >= active.Count) continue;
-            var effect = active[i]; var icon = statusIcons[i];
-            icon.sprite = effect.displayIcon != null ? effect.displayIcon : IconLibrary.FindIcon(effect.effectType);
-            icon.color = icon.sprite != null ? Color.white : new Color(0.2f, 0.25f, 0.34f);
-            int columns = Mathf.Min(3, active.Count - i / 3 * 3);
-            icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-            icon.rectTransform.anchoredPosition = new Vector2((i % 3 - (columns - 1) * 0.5f) * 32f, -i / 3 * 32f);
-            float value = status.GetStatusValue(effect.effectType);
-            string count = value > 0f ? Mathf.Floor(value + 1e-4f).ToString("0")
-                : effect.durationType == StatusDurationType.Turns ? effect.remainingTurns.ToString()
-                : effect.durationType == StatusDurationType.Charges ? effect.remainingCharges.ToString() : "";
-            statusCounts[i].text = icon.sprite != null ? count : ActiveStatusEffect.GetDisplayName(effect.effectType) + count;
-            statusCountBackgrounds[i].gameObject.SetActive(icon.sprite != null && count.Length > 0);
-            statusCounts[i].rectTransform.anchorMin = statusCounts[i].rectTransform.anchorMax = icon.sprite != null ? new Vector2(1f, 0f) : new Vector2(0.5f, 0.5f);
-            statusCounts[i].rectTransform.sizeDelta = icon.sprite != null ? new Vector2(24f, 20f) : new Vector2(32f, 30f);
-            statusCounts[i].fontSize = icon.sprite != null ? 15f : 11f;
-            icon.GetComponent<BattleHoverTooltip>().SetContent(summaries[i].breakdown);
+            var icon = statusIcons[i];
+            icon.gameObject.SetActive(i < count);
+            if (i >= count) continue;
+            icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = Vector2.one * 0.5f;
+            icon.rectTransform.anchoredPosition = new Vector2((i + (panicking?1:0) - (total - 1) * 0.5f) * 42f, 0f);
+            bool more = overflow && i == limit;
+            var effect = more ? null : status.GetStatus(summaries[i].type);
+            icon.sprite = effect == null ? null : effect.displayIcon != null ? effect.displayIcon : IconLibrary.FindIcon(effect.effectType);
+            icon.color = icon.sprite != null ? Color.white : new Color(0.08f, 0.14f, 0.21f, 0.96f);
+            string text;
+            string detail;
+            if (more)
+            {
+                text = "+" + (summaries.Count - limit);
+                var details = new StringBuilder();
+                for (int j = limit; j < summaries.Count; j++)
+                {
+                    if (details.Length > 0) details.AppendLine();
+                    details.Append(summaries[j].breakdown);
+                }
+                detail = details.ToString();
+            }
+            else
+            {
+                float value = status.GetStatusValue(effect.effectType);
+                text = value > 0f ? Mathf.Floor(value + 1e-4f).ToString("0")
+                    : effect.durationType == StatusDurationType.Turns ? effect.remainingTurns.ToString()
+                    : effect.durationType == StatusDurationType.Charges || effect.effectType == EffectType.Evasion ? effect.remainingCharges.ToString() : "";
+                if (icon.sprite == null) text = ActiveStatusEffect.GetDisplayName(effect.effectType) + text;
+                detail = summaries[i].breakdown;
+            }
+            statusCounts[i].text = text;
+            bool badge = icon.sprite != null;
+            statusCounts[i].rectTransform.anchorMin = statusCounts[i].rectTransform.anchorMax = badge ? new Vector2(1f, 0f) : Vector2.one * 0.5f;
+            statusCounts[i].rectTransform.sizeDelta = badge ? new Vector2(24f, 20f) : new Vector2(34f, 34f);
+            statusCountBackgrounds[i].gameObject.SetActive(badge && text.Length > 0);
+            icon.GetComponent<BattleHoverTooltip>().SetContent(detail);
         }
-        statusIconRoot.gameObject.SetActive(active.Count > 0);
+        statusIconRoot.gameObject.SetActive(total > 0);
     }
 
     private void UpdateStatusIcons(CharacterStatus status)
     {
-        EnsureStatusIconRoot();
-        if (statusIconRoot == null) return;
-
-        var sprites = new List<Sprite>();
-        if (status?.activeStatusEffects != null)
-            foreach (ActiveStatusEffect effect in status.activeStatusEffects)
-                if (effect != null && effect.IsActive && effect.displayIcon != null) sprites.Add(effect.displayIcon);
-
-        while (statusIcons.Count < sprites.Count)
-        {
-            GameObject icon = new GameObject("Status Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            icon.transform.SetParent(statusIconRoot, false);
-            Image image = icon.GetComponent<Image>();
-            image.preserveAspect = true;
-            image.raycastTarget = false;
-            image.rectTransform.sizeDelta = new Vector2(26f, 26f);
-            statusIcons.Add(image);
-        }
-
-        int rows = Mathf.CeilToInt(sprites.Count / 5f);
-        float defenseOffset = status?.origin != null && status.origin.isEnemy ? 34f : 0f;
-        RectTransform sourceRect = barUI.mentalText.rectTransform;
-        statusIconRoot.anchoredPosition = sourceRect.anchoredPosition + new Vector2(0f, -24f - defenseOffset);
-        statusIconRoot.sizeDelta = new Vector2(180f, rows * 30f);
-        for (int i = 0; i < statusIcons.Count; i++)
-        {
-            bool active = i < sprites.Count;
-            statusIcons[i].gameObject.SetActive(active);
-            if (!active) continue;
-            int row = i / 5;
-            int column = i % 5;
-            int columnsInRow = Mathf.Min(5, sprites.Count - row * 5);
-            statusIcons[i].sprite = sprites[i];
-            statusIcons[i].rectTransform.anchoredPosition = new Vector2((column - (columnsInRow - 1) * 0.5f) * 30f, -row * 30f);
-        }
-
-        statusIconRoot.gameObject.SetActive(sprites.Count > 0);
-        statusText.rectTransform.anchoredPosition = sourceRect.anchoredPosition + new Vector2(0f, -24f - defenseOffset - rows * 30f);
+        DrawStatusIcons(status);
+        if (statusIconRoot == null || barUI == null || barUI.mentalSlider == null) return;
+        var mental = barUI.mentalSlider.GetComponent<RectTransform>();
+        statusIconRoot.SetParent(mental.parent, false);
+        statusIconRoot.anchorMin = mental.anchorMin;
+        statusIconRoot.anchorMax = mental.anchorMax;
+        statusIconRoot.pivot = Vector2.one * 0.5f;
+        statusIconRoot.localScale = Vector3.one * 0.68f;
+        statusIconRoot.anchoredPosition = mental.anchoredPosition + new Vector2(0f, -29f);
     }
 
     private void UpdateDefense(CharacterStatus status)
@@ -362,10 +351,10 @@ public class CharacterView : MonoBehaviour
         defenseRoot = root.GetComponent<RectTransform>();
         defenseRoot.anchorMin = defenseRoot.anchorMax = defenseRoot.pivot = new Vector2(0.5f, 0.5f);
         defenseRoot.anchoredPosition = barUI.hpSlider.GetComponent<RectTransform>().anchoredPosition + new Vector2(0f, -44f);
-        defenseRoot.sizeDelta = new Vector2(72f, 30f);
+        defenseRoot.sizeDelta = new Vector2(144f, 30f);
 
-        armorText = CreateDefenseSlot("Armor", -18f, IconLibrary.FindArmorIcon());
-        magicResistText = CreateDefenseSlot("Magic Resist", 18f, IconLibrary.FindMagicResistIcon());
+        armorText = CreateDefenseSlot("Armor", -40f, IconLibrary.FindArmorIcon());
+        magicResistText = CreateDefenseSlot("Magic Resist", 40f, IconLibrary.FindMagicResistIcon());
     }
 
     private TextMeshProUGUI CreateDefenseSlot(string name, float x, Sprite sprite)
@@ -386,7 +375,7 @@ public class CharacterView : MonoBehaviour
         label.transform.SetParent(slot.transform, false);
         TextMeshProUGUI text = label.GetComponent<TextMeshProUGUI>();
         text.font = barUI.hpText != null ? barUI.hpText.font : null;
-        text.fontSize = 13f;
+        text.fontSize = 18f;
         text.fontStyle = FontStyles.Bold;
         text.alignment = TextAlignmentOptions.BottomRight;
         text.color = Color.white;
@@ -396,37 +385,13 @@ public class CharacterView : MonoBehaviour
         TMPFontManager.ApplyFont(text);
 
         RectTransform textRect = text.rectTransform;
-        textRect.anchorMin = Vector2.zero;
-        textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = Vector2.zero;
-        textRect.offsetMax = Vector2.zero;
+        textRect.anchorMin = textRect.anchorMax = new Vector2(1f, 0.5f);
+        textRect.anchoredPosition = new Vector2(18f, 0f);
+        textRect.sizeDelta = new Vector2(32f, 28f);
+        text.alignment = TextAlignmentOptions.MidlineLeft;
+        image.raycastTarget = true;
+        slot.AddComponent<BattleHoverTooltip>().SetContent(name == "Armor" ? "방어력" : "마법 저항력");
         return text;
-    }
-
-    private void EnsureStatusText()
-    {
-        if (statusText != null || barUI == null || barUI.mentalText == null) return;
-
-        GameObject statusObject = new GameObject("StatusText", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-        statusObject.transform.SetParent(barUI.mentalText.transform.parent, false);
-        statusText = statusObject.GetComponent<TextMeshProUGUI>();
-        statusText.font = barUI.mentalText.font;
-        statusText.fontSize = 14f;
-        statusText.alignment = TextAlignmentOptions.Top;
-        statusText.color = Color.white;
-        statusText.raycastTarget = true;
-        statusText.enableWordWrapping = false;
-        TMPFontManager.ApplyFont(statusText);
-        statusTooltip = statusObject.AddComponent<BattleHoverTooltip>();
-
-        RectTransform sourceRect = barUI.mentalText.rectTransform;
-        RectTransform rect = statusText.rectTransform;
-        rect.anchorMin = sourceRect.anchorMin;
-        rect.anchorMax = sourceRect.anchorMax;
-        rect.pivot = new Vector2(sourceRect.pivot.x, 1f);
-        rect.anchoredPosition = sourceRect.anchoredPosition + new Vector2(0f, -24f);
-        rect.sizeDelta = new Vector2(Mathf.Max(220f, sourceRect.sizeDelta.x), 90f);
-        statusObject.SetActive(false);
     }
 
     private void EnsureStatusIconRoot()

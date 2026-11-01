@@ -16,6 +16,7 @@ public class PanicAndDiceTests
     private TrainManager _train;
     private object _previousTrain;
     private object _previousResources;
+    private object _previousRun;
     private Random.State _random;
     private const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
     private T Own<T>(T item) where T : Object { _owned.Add(item); return item; }
@@ -23,6 +24,9 @@ public class PanicAndDiceTests
     [SetUp] public void Setup()
     {
         _random = Random.state;
+        var runField = typeof(RunManager).GetField("_instance", BindingFlags.NonPublic | BindingFlags.Static);
+        _previousRun = runField.GetValue(null);
+        runField.SetValue(null, Own(new GameObject("PanicTestRun")).AddComponent<RunManager>());
         var resourcesField = typeof(ResourceManager).GetField("instance", BindingFlags.NonPublic | BindingFlags.Static);
         _previousResources = resourcesField.GetValue(null);
         resourcesField.SetValue(null, Own(new GameObject("PanicTestResources")).AddComponent<ResourceManager>());
@@ -47,6 +51,7 @@ public class PanicAndDiceTests
         _owned.Clear();
         typeof(TrainManager).GetField("instance", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, _previousTrain);
         typeof(ResourceManager).GetField("instance", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, _previousResources);
+        typeof(RunManager).GetField("_instance", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, _previousRun);
         Random.state = _random;
     }
 

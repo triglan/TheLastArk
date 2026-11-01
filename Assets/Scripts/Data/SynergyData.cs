@@ -31,8 +31,6 @@ namespace TheLastArk.Data
         Mechanic,
         Vanguard,
 
-        // 적 세력 분류
-        BanditGang
     }
 
     [Serializable]

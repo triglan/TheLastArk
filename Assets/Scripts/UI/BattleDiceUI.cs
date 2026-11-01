@@ -11,6 +11,8 @@ namespace TheLastArk.UI
     public sealed class BattleDiceUI : MonoBehaviour
     {
         public const float DieSize = 64f;
+        private const int VisibleDiceColumns = 10;
+        private const float DiePitch = 74f;
         private const int MaxPipValue = 9;
         private const int MaxSpriteValue = 6;
         private const float PipSize = 11f;
@@ -31,15 +33,19 @@ namespace TheLastArk.UI
         private RectTransform _root;
         private RectTransform _dragCanvas;
         private RectTransform _tray;
+        private RectTransform _diceContent;
+        private ScrollRect _diceScroll;
+        private Scrollbar _diceScrollbar;
         private bool? _dockedDiceMode;
         private TextMeshProUGUI _hint;
         private TextMeshProUGUI _usageLog;
-        private readonly List<DieView> _views = new List<DieView>(ActionDicePool.MaxStoredDice);
+        private readonly List<DieView> _views = new List<DieView>();
         private readonly Dictionary<int, Sprite> _sprites = new Dictionary<int, Sprite>();
         private readonly HashSet<int> _shownIds = new HashSet<int>();
         private readonly HashSet<int> _currentIds = new HashSet<int>();
         private readonly StringBuilder _logBuilder = new StringBuilder();
         private Sprite _pipSprite;
+        private Texture2D _pipTexture;
         private string _defaultHint;
         private ActionDicePool _pool;
         private readonly HashSet<int> _focused = new HashSet<int>();
@@ -52,7 +58,16 @@ namespace TheLastArk.UI
         private TextMeshProUGUI _manipulateLabel;
         private Button _goldButton;
         private Button _carryButton;
+        private Button _arkEnhanceButton, _arkRerollButton;
+        private TextMeshProUGUI _arkEnhanceLabel, _arkRerollLabel;
         private bool _carryMode;
+        private readonly Dictionary<int, int> _dieSlots = new Dictionary<int, int>();
+        private readonly List<int> _expiredSlots = new List<int>();
+        private ActionDicePool _slotPool;
+        private int _slotTurn = -1;
+        private int _slotCapacity = VisibleDiceColumns;
+        private readonly HashSet<int> _aliveSlots = new HashSet<int>();
+        private readonly HashSet<int> _occupiedSlots = new HashSet<int>();
         private static readonly Color CarryColor = new Color(0.78f, 0.62f, 1f);
 
         private sealed class DieView
@@ -74,15 +89,15 @@ namespace TheLastArk.UI
             if (_root != null) return;
             _dragCanvas = canvas as RectTransform;
             _tray = canvas.Find("BattleSkillTray") as RectTransform;
-            _pipSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/Knob.psd");
+            CreatePipSprite();
 
             var panel = new GameObject("BattleDicePool", typeof(RectTransform), typeof(Image), typeof(GridLayoutGroup));
             panel.transform.SetParent(_tray != null ? _tray : canvas, false);
             _root = panel.GetComponent<RectTransform>();
-            _root.anchorMin = _root.anchorMax = _tray != null ? new Vector2(1f, 0.5f) : new Vector2(0.5f, 0f);
+            _root.anchorMin = _root.anchorMax = _tray != null ? Vector2.zero : new Vector2(0.5f, 0f);
             _root.pivot = new Vector2(0.5f, 0.5f);
-            _root.anchoredPosition = _tray != null ? new Vector2(-330f, -10f) : new Vector2(0f, 90f);
-            _root.sizeDelta = new Vector2(376f, 152f);
+            _root.anchoredPosition = _tray != null ? new Vector2(594f, 252f) : new Vector2(0f, 90f);
+            _root.sizeDelta = new Vector2(740f, 72f);
             panel.GetComponent<Image>().color = new Color(0.04f, 0.09f, 0.16f, 0.82f);
             panel.GetComponent<Image>().raycastTarget = false;
             var layout = panel.GetComponent<GridLayoutGroup>();
@@ -91,10 +106,13 @@ namespace TheLastArk.UI
             layout.padding = new RectOffset(8, 8, 7, 7);
             layout.childAlignment = TextAnchor.MiddleCenter;
             layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            layout.constraintCount = 5;
+            layout.constraintCount = VisibleDiceColumns;
+            // Manual, identity-based slots keep surviving dice still after spending a die.
+            layout.enabled = false;
 
-            for (int i = 0; i < ActionDicePool.MaxStoredDice; i++)
-                _views.Add(CreateDieView(panel.transform, i));
+            CreateDiceScroll();
+            for (int i = 0; i < VisibleDiceColumns; i++)
+                _views.Add(CreateDieView(_diceContent, i));
 
             _hint = CreateLabel("DiceHint", new Vector2(0f, 16f), 18f, new Color(0.7f, 0.82f, 0.86f));
             _hint.rectTransform.anchorMin = _hint.rectTransform.anchorMax = new Vector2(0.5f, 1f);
@@ -102,9 +120,49 @@ namespace TheLastArk.UI
             _hint.text = _defaultHint;
             _usageLog = CreateLabel("DiceUsageLog", new Vector2(0f, -14f), 15f, new Color(0.6f, 0.68f, 0.74f));
             _usageLog.rectTransform.anchorMin = _usageLog.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            if (_tray != null)
+            {
+                _hint.rectTransform.anchorMin = _hint.rectTransform.anchorMax = Vector2.one * 0.5f;
+                _hint.rectTransform.anchoredPosition = new Vector2(656f, 38f);
+                _hint.rectTransform.sizeDelta = new Vector2(124f, 64f);
+                _hint.fontSize = 14f;
+                _hint.enableWordWrapping = true;
+                _usageLog.rectTransform.anchorMin = _usageLog.rectTransform.anchorMax = new Vector2(0f, 0.5f);
+                _usageLog.rectTransform.anchoredPosition = new Vector2(-106f, 0f);
+                _usageLog.rectTransform.sizeDelta = new Vector2(180f, 64f);
+                _usageLog.enableWordWrapping = true;
+                _usageLog.overflowMode = TextOverflowModes.Ellipsis;
+            }
             CreateControls();
             DiceDragSource.Clicked += OnDieClicked;
             ApplyTrayLayout(_battle != null && _battle.UsesDice);
+        }
+
+        private void CreateDiceScroll()
+        {
+            var viewportObject=new GameObject("Viewport",typeof(RectTransform),typeof(Image),typeof(RectMask2D));
+            viewportObject.transform.SetParent(_root,false);
+            var viewport=viewportObject.GetComponent<RectTransform>();
+            viewport.anchorMin=Vector2.zero;viewport.anchorMax=Vector2.one;
+            viewport.offsetMin=new Vector2(0,-12);viewport.offsetMax=new Vector2(0,12);
+            viewportObject.GetComponent<Image>().color=Color.clear;
+            _diceContent=new GameObject("Content",typeof(RectTransform)).GetComponent<RectTransform>();
+            _diceContent.SetParent(viewport,false);_diceContent.anchorMin=_diceContent.anchorMax=_diceContent.pivot=new Vector2(0,.5f);
+            _diceContent.sizeDelta=new Vector2(VisibleDiceColumns*DiePitch,96);
+            _diceScroll=_root.gameObject.AddComponent<ScrollRect>();
+            _diceScroll.viewport=viewport;_diceScroll.content=_diceContent;
+            _diceScroll.horizontal=true;_diceScroll.vertical=false;_diceScroll.inertia=false;
+            _diceScroll.movementType=ScrollRect.MovementType.Clamped;_diceScroll.scrollSensitivity=DiePitch;
+
+            var track=new GameObject("DiceScrollbar",typeof(RectTransform),typeof(Image),typeof(Scrollbar));
+            track.transform.SetParent(_root,false);var rect=track.GetComponent<RectTransform>();
+            rect.anchorMin=new Vector2(0,0);rect.anchorMax=new Vector2(1,0);rect.sizeDelta=new Vector2(-16,4);rect.anchoredPosition=new Vector2(0,1);
+            track.GetComponent<Image>().color=new Color(.25f,.38f,.46f,.4f);
+            var handle=new GameObject("Handle",typeof(RectTransform),typeof(Image));handle.transform.SetParent(track.transform,false);
+            var handleRect=handle.GetComponent<RectTransform>();handleRect.anchorMin=Vector2.zero;handleRect.anchorMax=Vector2.one;handleRect.offsetMin=handleRect.offsetMax=Vector2.zero;
+            handle.GetComponent<Image>().color=new Color(.6f,.82f,.93f,.8f);
+            _diceScrollbar=track.GetComponent<Scrollbar>();_diceScrollbar.handleRect=handleRect;_diceScrollbar.targetGraphic=handle.GetComponent<Image>();
+            _diceScroll.horizontalScrollbar=_diceScrollbar;track.SetActive(false);
         }
 
         /// <summary>숫자 조작 / 기회 프로토콜 buttons; dice are focused by clicking them.</summary>
@@ -114,9 +172,9 @@ namespace TheLastArk.UI
             row.transform.SetParent(_root, false);
             row.GetComponent<LayoutElement>().ignoreLayout = true;
             _controls = row.GetComponent<RectTransform>();
-            _controls.anchorMin = _controls.anchorMax = new Vector2(0.5f, 0f);
-            _controls.sizeDelta = new Vector2(376f, 28f);
-            _controls.anchoredPosition = new Vector2(0f, -42f);
+            _controls.anchorMin = _controls.anchorMax = new Vector2(0.5f, 1f);
+            _controls.sizeDelta = new Vector2(1152f, 28f);
+            _controls.anchoredPosition = new Vector2(0f, 20f);
             var layout = row.GetComponent<HorizontalLayoutGroup>();
             layout.spacing = 6f;
             layout.childAlignment = TextAnchor.MiddleCenter;
@@ -130,6 +188,12 @@ namespace TheLastArk.UI
             _rerollLabel = _rerollButton.GetComponentInChildren<TextMeshProUGUI>();
             _goldButton = CreateControlButton(row.transform, "골드 주사위", () => { _battle?.TryBuyGoldDie(); }, 110f);
             _carryButton = CreateControlButton(row.transform, "이월 지정", () => { _carryMode = !_carryMode; Refresh(_pool, null, null); }, 90f);
+            _arkEnhanceButton = CreateControlButton(row.transform, "기억 +1", () => UseArkDie(false), 125f);
+            _arkRerollButton = CreateControlButton(row.transform, "기억 재굴림", () => UseArkDie(true), 145f);
+            _arkEnhanceLabel = _arkEnhanceButton.GetComponentInChildren<TextMeshProUGUI>();
+            _arkRerollLabel = _arkRerollButton.GetComponentInChildren<TextMeshProUGUI>();
+            _arkEnhanceButton.gameObject.AddComponent<BattleHoverTooltip>().SetContent("주사위 하나를 클릭해 선택한 뒤 눈금을 +1 합니다. 전투마다 사용 횟수가 초기화됩니다.");
+            _arkRerollButton.gameObject.AddComponent<BattleHoverTooltip>().SetContent("주사위 하나를 클릭해 선택한 뒤 다시 굴립니다. 고정 주사위에는 사용할 수 없습니다. 전투마다 사용 횟수가 초기화됩니다.");
         }
 
         private TextMeshProUGUI CreateControlLabel(Transform parent)
@@ -268,7 +332,16 @@ namespace TheLastArk.UI
         }
 
         private bool CanFocusDice => _battle != null && _battle.IsPlayerTurn
-            && (_battle.HasNumberManipulator || _battle.HasChanceProtocol && !_battle.RerollTargetsAll);
+            && (_battle.HasNumberManipulator || _battle.HasChanceProtocol && !_battle.RerollTargetsAll || _battle.HasArkEnhance || _battle.HasArkReroll);
+
+        private void UseArkDie(bool reroll)
+        {
+            if (_battle == null || _focused.Count != 1) return;
+            bool used = false;
+            foreach (int id in _focused) { used = reroll ? _battle.TryArkRerollDie(id) : _battle.TryArkEnhanceDie(id); break; }
+            if (used) _focused.Clear();
+            Refresh(_pool, null, null);
+        }
 
         private void OnDieClicked(int dieId)
         {
@@ -305,7 +378,14 @@ namespace TheLastArk.UI
             bool gold = TheLastArk.Character.SynergyEffects.Tier(TheLastArk.Data.SynergyType.Mirage) > 0;
             bool carry = _battle.CarryCapacity > 0;
             if (!carry) _carryMode = false;
-            _controls.gameObject.SetActive(manipulate || reroll || gold || carry);
+            bool arkEnhance = _battle.HasArkEnhance, arkReroll = _battle.HasArkReroll;
+            _controls.gameObject.SetActive(manipulate || reroll || gold || carry || arkEnhance || arkReroll);
+            _arkEnhanceButton.gameObject.SetActive(arkEnhance);
+            _arkRerollButton.gameObject.SetActive(arkReroll);
+            _arkEnhanceLabel.text = $"기억 +1  {_battle.ArkEnhancesLeft}";
+            _arkRerollLabel.text = $"기억 재굴림  {_battle.ArkRerollsLeft}";
+            _arkEnhanceButton.interactable = turn && _battle.ArkEnhancesLeft > 0 && _focused.Count == 1;
+            _arkRerollButton.interactable = turn && _battle.ArkRerollsLeft > 0 && _focused.Count == 1;
             _goldButton.gameObject.SetActive(gold);
             if (gold)
             {
@@ -331,6 +411,37 @@ namespace TheLastArk.UI
                 _rerollLabel.text = all ? $"전체 리롤 {_battle.RerollUsesLeft}" : $"선택 리롤 {_battle.RerollUsesLeft}";
                 _rerollButton.interactable = turn && _battle.RerollUsesLeft > 0 && (all || _focused.Count > 0);
             }
+        }
+
+        private void CreatePipSprite()
+        {
+            // Generate once per UI: built-in editor skin sprites are not available in every player/editor.
+            const int size = 32;
+            const float radius = (size - 2) * 0.5f;
+            _pipTexture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "BattleDicePipTexture",
+                hideFlags = HideFlags.DontSave,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x + 0.5f - size * 0.5f;
+                    float dy = y + 0.5f - size * 0.5f;
+                    float alpha = Mathf.Clamp01(radius + 0.5f - Mathf.Sqrt(dx * dx + dy * dy));
+                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
+                }
+            }
+            _pipTexture.SetPixels32(pixels);
+            _pipTexture.Apply(false, true);
+            _pipSprite = Sprite.Create(_pipTexture, new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            _pipSprite.name = "BattleDicePip";
+            _pipSprite.hideFlags = HideFlags.DontSave;
         }
 
         private DieView CreateDieView(Transform parent, int index)
@@ -438,6 +549,10 @@ namespace TheLastArk.UI
             if (!_root.gameObject.activeSelf) return;
 
             IReadOnlyList<ActionDie> dice = pool?.Dice;
+            UpdateDieSlots(pool);
+            while(dice!=null && _views.Count<dice.Count) _views.Add(CreateDieView(_diceContent,_views.Count));
+            _diceContent.sizeDelta=new Vector2(Mathf.Max(_root.rect.width,_slotCapacity*DiePitch),96);
+            _diceScrollbar.gameObject.SetActive(_diceContent.rect.width>_root.rect.width+1);
             _currentIds.Clear();
             int appearOrder = 0;
             for (int i = 0; i < _views.Count; i++)
@@ -448,6 +563,8 @@ namespace TheLastArk.UI
                 if (!exists) continue;
 
                 ActionDie die = dice[i];
+                view.Rect.anchorMin = view.Rect.anchorMax = new Vector2(0,.5f);
+                view.Rect.anchoredPosition = new Vector2((_dieSlots[die.Id]+.5f)*DiePitch,0f);
                 _currentIds.Add(die.Id);
                 view.Source.Configure(die.Id, _dragCanvas);
                 view.Source.enabled = die.IsAvailable && _battle.IsPlayerTurn;
@@ -457,7 +574,7 @@ namespace TheLastArk.UI
                 if (_shownIds.Add(die.Id))
                 {
                     if (view.Animation != null) StopCoroutine(view.Animation);
-                    view.Animation = StartCoroutine(PlayRoll(view, appearOrder++ * AppearStagger));
+                    view.Animation = StartCoroutine(PlayRoll(view, Mathf.Min(appearOrder++,6)*AppearStagger));
                 }
             }
             _shownIds.IntersectWith(_currentIds);
@@ -465,8 +582,43 @@ namespace TheLastArk.UI
             if (!CanFocusDice) _focused.Clear();
             RefreshControls();
 
-            _hint.text = string.IsNullOrEmpty(previewHint) ? _defaultHint : previewHint;
+            _hint.text = string.IsNullOrEmpty(previewHint) ? (_diceScrollbar.gameObject.activeSelf ? "휠로 주사위 이동\n대상 선택 후 주사위를 스킬로" : _defaultHint) : previewHint;
             _usageLog.text = BuildUsageLog(pool?.UsedThisTurn);
+        }
+
+        private void UpdateDieSlots(ActionDicePool pool)
+        {
+            int turn = _battle != null ? _battle.TurnNumber : 0;
+            if (_slotPool != pool || _slotTurn != turn)
+            {
+                _dieSlots.Clear();
+                _slotPool = pool;
+                _slotTurn = turn;
+                _slotCapacity=VisibleDiceColumns;
+                if(_diceContent!=null)_diceContent.anchoredPosition=Vector2.zero;
+            }
+            _expiredSlots.Clear();
+            _aliveSlots.Clear();if(pool!=null)foreach(var die in pool.Dice)_aliveSlots.Add(die.Id);
+            foreach (var pair in _dieSlots)
+                if (!_aliveSlots.Contains(pair.Key)) _expiredSlots.Add(pair.Key);
+            foreach (int id in _expiredSlots) _dieSlots.Remove(id);
+            if (pool == null) return;
+            if (_dieSlots.Count == 0)
+            {
+                int start = Mathf.Max(0,(VisibleDiceColumns-pool.Dice.Count)/2);
+                for (int i = 0; i < pool.Dice.Count; i++) _dieSlots[pool.Dice[i].Id] = start + i;
+                _slotCapacity=Mathf.Max(_slotCapacity,start+pool.Dice.Count);
+                return;
+            }
+            _occupiedSlots.Clear();foreach(int slot in _dieSlots.Values)_occupiedSlots.Add(slot);
+            int nextSlot=0;
+            foreach (var die in pool.Dice)
+            {
+                if (_dieSlots.ContainsKey(die.Id)) continue;
+                while(_occupiedSlots.Contains(nextSlot))nextSlot++;
+                _dieSlots[die.Id]=nextSlot;_occupiedSlots.Add(nextSlot);
+                _slotCapacity=Mathf.Max(_slotCapacity,nextSlot+1);
+            }
         }
 
         private void ApplyFace(DieView view, ActionDie die, bool isSelected, bool isFocused)
@@ -594,6 +746,8 @@ namespace TheLastArk.UI
             DiceDragSource.Clicked -= OnDieClicked;
             CloseSplitDialog();
             if (_root != null) Destroy(_root.gameObject);
+            if (_pipSprite != null) Destroy(_pipSprite);
+            if (_pipTexture != null) Destroy(_pipTexture);
         }
     }
 }

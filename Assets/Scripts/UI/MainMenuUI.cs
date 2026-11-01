@@ -158,6 +158,8 @@ namespace TheLastArk.UI
 
                 AutoBindSceneReferences();
                 TryAutoLoadAssets();
+                TheLastArk.Run.ArkProgression.SettleRun();
+                BindArkTitle();
                 ShowTitlePanel();
             }
             else
@@ -436,6 +438,7 @@ namespace TheLastArk.UI
 
             // 7. Rebind button listeners to the detected objects
             BindAllButtonListeners();
+            BindArkTitle();
         }
 
         private void BindAllButtonListeners()
@@ -906,7 +909,7 @@ namespace TheLastArk.UI
 
             CreateMenuButton(btnContainerObj.transform, "새 게임", OnNewGameClicked, new Color(0.2f, 0.45f, 0.35f, 1f));
             CreateMenuButton(btnContainerObj.transform, "불러오기", OnLoadGameClicked, new Color(0.2f, 0.25f, 0.35f, 1f));
-            CreateMenuButton(btnContainerObj.transform, "특전", OnPerksClicked, new Color(0.28f, 0.22f, 0.35f, 1f));
+            CreateMenuButton(btnContainerObj.transform, "방주", OnPerksClicked, new Color(0.28f, 0.22f, 0.35f, 1f));
             CreateMenuButton(btnContainerObj.transform, "설정", OnSettingsClicked, new Color(0.22f, 0.25f, 0.3f, 1f));
             CreateMenuButton(btnContainerObj.transform, "게임 종료", OnQuitGameClicked, new Color(0.35f, 0.18f, 0.18f, 1f));
 
@@ -1167,7 +1170,7 @@ namespace TheLastArk.UI
             titleRect.offsetMax = Vector2.zero;
 
             TextMeshProUGUI titleText = titleObj.AddComponent<TextMeshProUGUI>();
-            titleText.text = "[시작 특전 유물 소환]";
+            titleText.text = "[시작 방주 유물 소환]";
             titleText.fontSize = 24;
             titleText.fontStyle = FontStyles.Bold;
             titleText.alignment = TextAlignmentOptions.Center;
@@ -1705,7 +1708,7 @@ namespace TheLastArk.UI
             gachaTextRect.sizeDelta = Vector2.zero;
 
             TextMeshProUGUI gachaText = gachaTextObj.AddComponent<TextMeshProUGUI>();
-            gachaText.text = "특전 유물 소환";
+            gachaText.text = "방주 유물 소환";
             gachaText.fontSize = 20;
             gachaText.alignment = TextAlignmentOptions.Center;
             gachaText.color = Color.white;
@@ -1855,6 +1858,7 @@ namespace TheLastArk.UI
                 characterSelectionPanel.SetActive(true);
                 characterSelectionPanel.transform.SetAsLastSibling();
                 PopulateCharacterList();
+                RefreshArkFeatureVisibility();
             }
         }
 
@@ -1865,7 +1869,7 @@ namespace TheLastArk.UI
 
         private void OnPerksClicked()
         {
-            ShowNotification("특전 & 특성 해금 시스템은\n현재 준비 중입니다.");
+            OpenArk();
         }
 
         private void OnSettingsClicked()
@@ -1885,6 +1889,7 @@ namespace TheLastArk.UI
 
         private void OnTrainCarClicked(string carName)
         {
+            if (!TheLastArk.Run.ArkProgression.IsUnlocked(ArkProgressionConfig.TrainNode)) return;
             ShowNotification($"🚆 {carName}\n\n[열차 파츠 커스텀]\n해당 기차 칸의 모듈과 무장을 커스텀할 수 있습니다.\n(기차 커스텀 그래픽 바인딩 준비 완료)");
         }
 
@@ -1912,15 +1917,30 @@ namespace TheLastArk.UI
             cardOutlines.Clear();
             selectedCharacterData = null;
 
-            // 1. Check if matching cards already exist in scene container (preserve user custom styles/layouts)
-            bool hasMatchingCards = false;
+            // Reconcile saved scene cards with the current roster (including newly added characters).
+            var validCards = new HashSet<string>();
+            foreach (var data in allCharacters)
+                if (data != null && !data.isEnemy) validCards.Add("Card_" + data.DataId);
+            for (int i = characterListContainer.childCount - 1; i >= 0; i--)
+            {
+                var child = characterListContainer.GetChild(i);
+                if (validCards.Contains(child.name)) continue;
+                child.gameObject.SetActive(false);
+                SafeDestroy(child.gameObject);
+            }
+            CharacterData firstValidChar = null;
             foreach (var charData in allCharacters)
             {
                 if (charData == null || charData.isEnemy) continue;
+                if (firstValidChar == null) firstValidChar = charData;
                 Transform existingCard = characterListContainer.Find($"Card_{charData.DataId}");
+                if (existingCard == null)
+                {
+                    CreateCharacterCard(charData);
+                    continue;
+                }
                 if (existingCard != null)
                 {
-                    hasMatchingCards = true;
                     Button btn = existingCard.GetComponent<Button>();
                     if (btn != null)
                     {
@@ -1935,39 +1955,7 @@ namespace TheLastArk.UI
                 }
             }
 
-            // 2. If no cards exist in scene yet, generate them dynamically
-            if (!hasMatchingCards)
-            {
-                for (int i = characterListContainer.childCount - 1; i >= 0; i--)
-                {
-                    SafeDestroy(characterListContainer.GetChild(i).gameObject);
-                }
-
-                CharacterData firstValidChar = null;
-                foreach (var charData in allCharacters)
-                {
-                    if (charData == null || charData.isEnemy) continue;
-                    CreateCharacterCard(charData);
-                    if (firstValidChar == null) firstValidChar = charData;
-                }
-
-                if (firstValidChar != null)
-                {
-                    SelectCharacter(firstValidChar);
-                }
-            }
-            else
-            {
-                // Select first valid character to update detail & background
-                foreach (var charData in allCharacters)
-                {
-                    if (charData != null && !charData.isEnemy)
-                    {
-                        SelectCharacter(charData);
-                        break;
-                    }
-                }
-            }
+            if (firstValidChar != null) SelectCharacter(firstValidChar);
         }
 
         private void CreateCharacterCard(CharacterData data)
@@ -2009,7 +1997,7 @@ namespace TheLastArk.UI
             pLayout.minHeight = 100;
 
             Image pImg = portraitObj.AddComponent<Image>();
-            Sprite charSprite = data.portraitSprite != null ? data.portraitSprite : data.standingSprite;
+            Sprite charSprite = data.PortraitSprite != null ? data.PortraitSprite : data.standingSprite;
             pImg.sprite = charSprite;
             pImg.color = charSprite != null ? Color.white : new Color(0.2f, 0.25f, 0.35f, 0.8f);
             pImg.preserveAspect = true;
@@ -2061,7 +2049,7 @@ namespace TheLastArk.UI
             // 1. 대형 전신 일러스트 & 기본 스탯 정보 (초상화 대신 전신 standingSprite 우선 출력)
             if (detailPortraitImageComponent != null)
             {
-                Sprite charSprite = data.standingSprite != null ? data.standingSprite : (data.portraitSprite != null ? data.portraitSprite : null);
+                Sprite charSprite = data.standingSprite != null ? data.standingSprite : (data.PortraitSprite != null ? data.PortraitSprite : null);
                 detailPortraitImageComponent.sprite = charSprite;
                 detailPortraitImageComponent.preserveAspect = true;
                 detailPortraitImageComponent.color = charSprite != null ? Color.white : new Color(0.3f, 0.3f, 0.3f, 0.5f);
@@ -2345,6 +2333,11 @@ namespace TheLastArk.UI
             }
 
             // Top-Left Cost Badge (AP 텍스트 제외 숫자/P만 표시)
+            if (skill.skillIcon == null)
+            {
+                var fallback = CrewLabel(slotObj.transform,"FallbackLabel",sName,14,CrewWhite,.02f,.02f,.98f,.76f,TextAlignmentOptions.Center);
+                fallback.enableWordWrapping = true;
+            }
             GameObject tagObj = new GameObject("CostBadge");
             tagObj.transform.SetParent(slotObj.transform, false);
             RectTransform tRect = tagObj.GetComponent<RectTransform>();
@@ -2373,6 +2366,11 @@ namespace TheLastArk.UI
             if (tagTmp != null)
             {
                 tagTmp.text = isPassive ? "P" : $"{skill.baseCost}";
+                if (!isPassive && skill.levels != null && skill.levels.Length > 0 && !string.IsNullOrEmpty(skill.levels[0]?.description))
+                {
+                    var rule=skill.levels[0].diceInput;
+                    tagTmp.text=rule.IsCharge?rule.chargeTarget.ToString():rule.condition==TheLastArk.Skills.DiceCondition.Even?"짝":rule.condition==TheLastArk.Skills.DiceCondition.AtLeast?rule.value+"+":"·";
+                }
                 tagTmp.fontSize = 13;
                 tagTmp.fontStyle = FontStyles.Bold;
                 tagTmp.alignment = TextAlignmentOptions.Center;
@@ -2385,6 +2383,7 @@ namespace TheLastArk.UI
             UIHoverTrigger trigger = slotObj.AddComponent<UIHoverTrigger>();
             trigger.title = isPassive ? $"✨ {sName}" : $"⚔️ {sName}";
             trigger.category = isPassive ? "[패시브 스킬]" : $"[액티브 스킬 - 소모: {skill.baseCost} AP]";
+            if (!isPassive && skill.levels != null && skill.levels.Length > 0 && !string.IsNullOrEmpty(skill.levels[0]?.description)) trigger.category="[액티브 스킬]";
             trigger.description = FormatSkillDescription(skill);
             trigger.onHoverEnter = ShowHoverTooltip;
             trigger.onHoverExit = HideHoverTooltip;
@@ -2393,6 +2392,8 @@ namespace TheLastArk.UI
         private string FormatSkillDescription(SkillInfo skill)
         {
             if (skill == null) return "스킬 정보가 없습니다.";
+            if (skill.levels != null && skill.levels.Length > 0 && !string.IsNullOrEmpty(skill.levels[0]?.description))
+                return skill.levels[0].description;
 
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             if (skill.levels != null && skill.levels.Length > 0 && skill.levels[0] != null)
@@ -2459,7 +2460,7 @@ namespace TheLastArk.UI
                 RunManager.Instance.StartNewRun();
                 RunManager.Instance.AddPartyMember(selectedCharacterData);
 
-                if (selectedStartingRelic != null)
+                if (selectedStartingRelic != null && TheLastArk.Run.ArkProgression.IsUnlocked(ArkProgressionConfig.RelicNode))
                 {
                     RunManager.Instance.State.relicIDs.Add(selectedStartingRelic.relicID);
                     Debug.Log($"[MainMenuUI] Starting relic added: {selectedStartingRelic.relicName} ({selectedStartingRelic.relicID})");
@@ -2480,6 +2481,7 @@ namespace TheLastArk.UI
 
         private void OnRelicGachaClicked()
         {
+            if (!TheLastArk.Run.ArkProgression.IsUnlocked(ArkProgressionConfig.RelicNode)) return;
             if (relicGachaModal != null)
             {
                 relicGachaModal.SetActive(true);
@@ -2583,7 +2585,7 @@ namespace TheLastArk.UI
             if (drawnRelicHoverTrigger != null)
             {
                 drawnRelicHoverTrigger.title = $"🔮 {selectedStartingRelic.relicName}";
-                drawnRelicHoverTrigger.category = "[시작 특전 유물]";
+                drawnRelicHoverTrigger.category = "[시작 방주 유물]";
                 drawnRelicHoverTrigger.description = selectedStartingRelic.description;
                 drawnRelicHoverTrigger.onHoverEnter = ShowHoverTooltip;
                 drawnRelicHoverTrigger.onHoverExit = HideHoverTooltip;

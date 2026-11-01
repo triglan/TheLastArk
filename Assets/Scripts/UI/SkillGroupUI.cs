@@ -32,9 +32,9 @@ namespace UI
                     charNameText.text = owner.characterName;
                     charNameText.font = TMPFontManager.MainKoreanFont;
                 }
-                if (portraitImage != null && owner.status.origin != null && owner.status.origin.portraitSprite != null)
+                if (portraitImage != null && owner.status.origin != null && owner.status.origin.PortraitSprite != null)
                 {
-                    portraitImage.sprite = owner.status.origin.portraitSprite;
+                    portraitImage.sprite = owner.status.origin.PortraitSprite;
                     portraitImage.color = Color.white;
                 }
             }

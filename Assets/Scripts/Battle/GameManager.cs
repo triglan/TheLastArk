@@ -131,6 +131,7 @@ public class GameManager : MonoBehaviour
                 {
                     pChar.Init(data, isLeader);
                     TheLastArk.Managers.ResourceManager.Instance.EquipmentLoadouts.ApplyTo(pChar.status);
+                    RunManager.Instance.State.ApplyArkLeaderBonuses(pChar.status);
                     pChar.status.currentHp = pChar.status.FinalMaxHp;
                     pChar.status.currentMental = pChar.status.FinalMaxMental;
                     if (pChar.view != null) pChar.view.UpdateVisual(pChar.status);
@@ -139,6 +140,7 @@ public class GameManager : MonoBehaviour
                 {
                     pChar.isLeader = isLeader;
                     pChar.PrepareCharacterData();
+                    RunManager.Instance.State.ApplyArkLeaderBonuses(pChar.status);
                 }
 
                 if (battleManager != null)
@@ -171,7 +173,8 @@ public class GameManager : MonoBehaviour
         {
             var layout = GetComponent<TheLastArk.UI.BattleEnemyFormationLayout>();
             if (layout == null) layout = gameObject.AddComponent<TheLastArk.UI.BattleEnemyFormationLayout>();
-            layout.Initialize(battleManager.enemyParty[0].transform.parent);
+            layout.Initialize(battleManager.enemyParty[0].transform.parent,
+                GameObject.Find("TopBarCanvas")?.transform.Find("BattleSkillTray") as RectTransform);
         }
         Debug.Log("[GameManager] BeginBattleSetup() 완료");
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

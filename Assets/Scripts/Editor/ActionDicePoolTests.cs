@@ -21,18 +21,18 @@ public class ActionDicePoolTests
     }
 
     [Test]
-    public void StorageCapsWaitingDiceButNotGeneration()
+    public void WaitingDiceAndGenerationGrowWithoutTenDieLimit()
     {
         var pool = new ActionDicePool(Seq(3));
         pool.BeginTurn(12);
-        Assert.AreEqual(ActionDicePool.MaxStoredDice, pool.Dice.Count);
+        Assert.AreEqual(12, pool.Dice.Count);
         Assert.AreEqual(12, pool.GeneratedThisTurn);
-        Assert.AreEqual(0, pool.FreeSlots);
-        Assert.AreEqual(0, pool.Roll(3), "Excess generation is cancelled, not carried");
+        Assert.AreEqual(3, pool.Roll(3));
         Assert.AreEqual(15, pool.GeneratedThisTurn);
 
         pool.SetLocked(pool.Dice[0].Id, true);
-        Assert.AreEqual(ActionDicePool.MaxStoredDice, pool.Dice.Count, "Locked dice still occupy storage");
+        Assert.AreEqual(15, pool.Dice.Count);
+        Assert.AreEqual(1000,pool.Roll(1000));Assert.AreEqual(1015,pool.Dice.Count);
     }
 
     [Test]
@@ -47,7 +47,7 @@ public class ActionDicePoolTests
         Assert.AreEqual(2, pool.UsedThisTurn.Count);
         Assert.IsNull(pool.Find(first));
 
-        Assert.AreEqual(2, pool.Roll(5), "Only the freed slots are refilled");
+        Assert.AreEqual(5, pool.Roll(5));Assert.AreEqual(13,pool.Dice.Count);
         var after = Ids(pool);
         Assert.AreEqual(after.Count, new HashSet<int>(after).Count, "Ids stay unique after reclaim");
         Assert.IsFalse(after.Contains(first));
@@ -56,11 +56,11 @@ public class ActionDicePoolTests
     }
 
     [Test]
-    public void SpecialDiceArePlacedFirstOnOverflow()
+    public void SpecialDiceAreAddedWithoutDiscardingNormalDice()
     {
         var pool = new ActionDicePool(Seq(2));
         pool.BeginTurn(10, 6, new[] { 8, 8 });
-        Assert.AreEqual(ActionDicePool.MaxStoredDice, pool.Dice.Count);
+        Assert.AreEqual(12, pool.Dice.Count);
         Assert.IsTrue(pool.Dice[0].IsSpecial && pool.Dice[0].Faces == 8);
         Assert.IsTrue(pool.Dice[1].IsSpecial && pool.Dice[1].Faces == 8);
         int specials = 0;
@@ -248,7 +248,7 @@ public class ActionDicePoolTests
     }
 
     [Test]
-    public void SplitKeepsTotalMovesModifierAndChecksStorage()
+    public void SplitKeepsTotalMovesModifierAndCanExceedTenDice()
     {
         var pool = new ActionDicePool(Seq(3));
         pool.BeginTurn(1);
@@ -269,19 +269,19 @@ public class ActionDicePoolTests
 
         var full = new ActionDicePool(Seq(4));
         full.BeginTurn(10);
-        Assert.IsFalse(full.TrySplit(full.Dice[0].Id, new[] { 2, 2 }, 0), "Would exceed 10 waiting dice");
-        Assert.AreEqual(10, full.Dice.Count);
+        Assert.IsTrue(full.TrySplit(full.Dice[0].Id, new[] { 2, 2 }, 0));
+        Assert.AreEqual(11, full.Dice.Count);
     }
 
     [Test]
-    public void FixedZeroDieRespectsStorage()
+    public void FixedZeroDieCanBeAddedBeyondTenDice()
     {
         var pool = new ActionDicePool(Seq(4));
         pool.BeginTurn(9);
         Assert.IsTrue(pool.AddFixedDie(6, 0));
         Assert.AreEqual(0, pool.Dice[9].Value);
         Assert.AreEqual(6, pool.Dice[9].Faces);
-        Assert.IsFalse(pool.AddFixedDie(6, 0), "Storage full: cancelled");
+        Assert.IsTrue(pool.AddFixedDie(6, 0));Assert.AreEqual(11,pool.Dice.Count);
     }
 
     [Test]
@@ -322,7 +322,7 @@ public class ActionDicePoolTests
         Assert.AreSame(carried[0], pool.Dice[0]);
         Assert.IsTrue(pool.Dice[0].IsCarried);
         Assert.AreEqual(7, pool.Dice[0].Value, "Roll and modifier kept, no reroll");
-        Assert.AreEqual(ActionDicePool.MaxStoredDice, pool.Dice.Count, "Carried dice count toward the 10 slots");
+        Assert.AreEqual(11, pool.Dice.Count, "Carried dice do not discard any new dice");
     }
 
     [Test]

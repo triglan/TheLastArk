@@ -8,22 +8,30 @@ namespace TheLastArk.UI
 {
     public sealed class PanicPresentationUI : MonoBehaviour
     {
-        private readonly Queue<(string name, Sprite art, PanicType type)> _queue = new Queue<(string, Sprite, PanicType)>();
+        private readonly Queue<(string name, Sprite art, PanicType type, CharacterView view)> _queue
+            = new Queue<(string, Sprite, PanicType, CharacterView)>();
+        private readonly HashSet<CharacterView> _pendingPulses = new HashSet<CharacterView>();
         private CanvasGroup _group;
+        private RectTransform _composition;
         private RectTransform _artRect;
-        private UnityEngine.UI.Image _art;
+        private FeatheredIllustration _art;
+        private CanvasGroup _artGroup, _frameGroup, _stampGroup;
+        private UnityEngine.UI.Image _frame;
+        private UnityEngine.UI.Image _flash;
+        private PanicImpactAudio _audio;
         private TextMeshProUGUI _title;
-        private TextMeshProUGUI _description;
+        private TextMeshProUGUI _panicName;
+        private const float ImpactAt = .12f, StampAt = .26f;
+        private const float Duration = 2.45f, FadeOutDuration = .48f;
+        private float _shakeStrength;
         public bool IsPresenting { get; private set; }
 
         public void Enqueue(BattleCharacter actor)
         {
             var data = actor.status.origin;
-            var illustrations = data.panicIllustrations?.FindAll(s => s != null);
-            Sprite sprite = illustrations != null && illustrations.Count > 0
-                ? illustrations[Random.Range(0, illustrations.Count)]
-                : data.standingSprite != null ? data.standingSprite : data.portraitSprite;
-            _queue.Enqueue((actor.characterName, sprite, actor.status.panic.Type));
+            Sprite sprite = data.GetPanicIllustration(actor.status.panic.Type);
+            _queue.Enqueue((actor.characterName, sprite, actor.status.panic.Type,
+                actor.view != null ? actor.view : actor.GetComponent<CharacterView>()));
             if (!IsPresenting) StartCoroutine(Present());
         }
 
@@ -35,22 +43,59 @@ namespace TheLastArk.UI
             while (_queue.Count > 0)
             {
                 var entry = _queue.Dequeue();
-                _art.sprite = entry.art;
+                _art.SetSprite(entry.art);
                 _art.enabled = entry.art != null;
-                _title.text = $"<size=28>{entry.name}</size>\n{PanicState.Name(entry.type)}";
-                _description.text = PanicState.Description(entry.type) + "\n<size=18>전투 종료까지 유지</size>";
-                const float duration = 2.2f;
-                for (float elapsed = 0f; elapsed < duration; elapsed += Time.unscaledDeltaTime)
+                _title.text = entry.name;
+                _panicName.text = PanicState.Name(entry.type);
+                int shake = Mathf.Clamp(PlayerPrefs.GetInt("Setting.ScreenShake", 1), 0, 2);
+                _shakeStrength = shake == 0 ? 0 : shake == 1 ? 7 : 13;
+                if (entry.view != null) _pendingPulses.Add(entry.view);
+                bool playedImpact = false;
+                float startedAt = Time.realtimeSinceStartup;
+                for (float elapsed = 0f; elapsed < Duration; elapsed = Time.realtimeSinceStartup - startedAt)
                 {
-                    _group.alpha = Mathf.Min(Mathf.Clamp01(elapsed / 0.16f), Mathf.Clamp01((duration - elapsed) / 0.3f));
-                    float scale = Mathf.Lerp(1.08f, 1f, Mathf.Clamp01(elapsed / 0.45f));
-                    _artRect.localScale = Vector3.one * scale;
+                    ApplyFrame(elapsed);
+                    if (!playedImpact && elapsed >= ImpactAt)
+                    {
+                        _audio.Play();
+                        playedImpact = true;
+                    }
                     yield return null;
                 }
             }
+            _group.alpha=0;
             _group.gameObject.SetActive(false);
             IsPresenting = false;
+            // Wait until the entire queue is gone, so chained panics don't hide the icon pulse.
+            foreach (var view in _pendingPulses)
+                if (view != null) view.PulsePanicIcon();
+            _pendingPulses.Clear();
         }
+
+        private void ApplyFrame(float elapsed)
+        {
+            _group.alpha = Ease(elapsed / .10f) * Ease((Duration - elapsed) / FadeOutDuration);
+            float impact = Mathf.Clamp01((elapsed - ImpactAt) / .26f);
+            float settle = 1 - Mathf.Pow(1 - impact, 3);
+            _artGroup.alpha = Ease((elapsed - ImpactAt) / .07f);
+            _artRect.localScale = Vector3.one * Mathf.Lerp(1.14f, 1f, settle);
+            _frameGroup.alpha = Ease((elapsed - ImpactAt) / .12f);
+            _frame.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.32f, 1.18f, settle);
+            _frame.rectTransform.localEulerAngles = new Vector3(0, 0, Mathf.Lerp(-3, 0, settle));
+
+            float shock = elapsed >= ImpactAt ? Mathf.Pow(1 - impact, 2) : 0;
+            _composition.anchoredPosition = new Vector2(Mathf.Sin(impact * 49), Mathf.Sin(impact * 71))
+                * (shock * _shakeStrength);
+            float flash = elapsed >= ImpactAt ? Mathf.Clamp01(1 - (elapsed - ImpactAt) / .14f) : 0;
+            _flash.color = new Color(.65f, .025f, .075f, flash * .16f);
+            _title.alpha = Ease((elapsed - .18f) / .20f);
+            float stamp = Ease((elapsed - StampAt) / .16f);
+            _stampGroup.alpha = Ease((elapsed - StampAt) / .04f);
+            _panicName.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.65f, 1f, stamp);
+            _panicName.rectTransform.localEulerAngles = new Vector3(0, 0, Mathf.Lerp(-5, 0, stamp));
+        }
+
+        private static float Ease(float value) => Mathf.SmoothStep(0, 1, Mathf.Clamp01(value));
 
         private void EnsureUI()
         {
@@ -60,23 +105,39 @@ namespace TheLastArk.UI
             // canvas so screen anchors use the viewport rather than a 100x100 child rect.
             var canvas = root.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 500;
+            canvas.sortingOrder = 600;
             var scaler = root.GetComponent<UnityEngine.UI.CanvasScaler>();
             scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
             _group = root.GetComponent<CanvasGroup>();
+            _audio = root.AddComponent<PanicImpactAudio>();
             var veil = Rect("Veil", root.transform, Vector2.zero, Vector2.one).gameObject.AddComponent<UnityEngine.UI.Image>();
-            veil.color = new Color(0.035f, 0.01f, 0.025f, 0.88f);
-            var stripe = Rect("CrimsonBand", root.transform, new Vector2(0, 0.16f), new Vector2(1, 0.84f)).gameObject.AddComponent<UnityEngine.UI.Image>();
-            stripe.color = new Color(0.22f, 0.025f, 0.045f, 0.8f);
-            stripe.raycastTarget = false;
-            _artRect = Rect("CharacterIllustration", root.transform, new Vector2(0.26f, 0.24f), new Vector2(0.74f, 0.94f));
-            _art = _artRect.gameObject.AddComponent<UnityEngine.UI.Image>();
-            _art.preserveAspect = true;
+            veil.color = new Color(0.018f, 0.012f, 0.025f, 0.96f);
+            var vignette = Rect("PanicVignette", root.transform, Vector2.zero, Vector2.one).gameObject.AddComponent<PanicVignetteGraphic>();
+            vignette.raycastTarget = false;
+            _flash = Rect("ImpactFlash", root.transform, Vector2.zero, Vector2.one).gameObject.AddComponent<UnityEngine.UI.Image>();
+            _flash.raycastTarget = false;
+            _composition = Rect("FracturedIllustration", root.transform, Vector2.zero, Vector2.one);
+            Vector2 artMin = new Vector2(.22f, .16f), artMax = new Vector2(.78f, .84f);
+            _artRect = Rect("CharacterIllustration", _composition, artMin, artMax);
+            _art = _artRect.gameObject.AddComponent<FeatheredIllustration>();
             _art.raycastTarget = false;
-            _title = Label("PanicName", root.transform, new Vector2(0.15f, 0.14f), new Vector2(0.85f, 0.34f), 58, new Color(1f, 0.73f, 0.65f));
-            _description = Label("PanicEffect", root.transform, new Vector2(0.12f, 0.035f), new Vector2(0.88f, 0.15f), 25, Color.white);
+            _artGroup = _artRect.gameObject.AddComponent<CanvasGroup>();
+            _frame = Rect("PanicIllustratedFrame", _composition, artMin, artMax).gameObject.AddComponent<UnityEngine.UI.Image>();
+            _frame.sprite = Resources.Load<Sprite>("UI/Panic/PanicFrame");
+            _frame.enabled = _frame.sprite != null;
+            _frame.preserveAspect = true;
+            _frame.raycastTarget = false;
+            _frameGroup = _frame.gameObject.AddComponent<CanvasGroup>();
+            // Keep the illustration readable; only its feathered edges reveal the surrounding thorns.
+            _frame.transform.SetAsFirstSibling();
+            _title = Label("CharacterName", root.transform, new Vector2(0.15f, 0.86f), new Vector2(0.85f, 0.95f), 34, new Color(.9f,.86f,.84f));
+            _panicName = Label("PanicName", root.transform, new Vector2(0.15f, 0.045f), new Vector2(0.85f, 0.145f), 64, new Color(1f, 0.52f, 0.48f));
+            _panicName.fontStyle = FontStyles.Bold;
+            _panicName.characterSpacing = 5;
+            _stampGroup = _panicName.gameObject.AddComponent<CanvasGroup>();
+            ApplyFrame(0);
         }
 
         private static RectTransform Rect(string name, Transform parent, Vector2 min, Vector2 max)
@@ -102,8 +163,9 @@ namespace TheLastArk.UI
         {
             StopAllCoroutines();
             _queue.Clear();
+            _pendingPulses.Clear();
             IsPresenting = false;
-            if (_group != null) _group.gameObject.SetActive(false);
+            if (_group != null) {_group.alpha=0;_group.gameObject.SetActive(false);}
         }
 
         private void OnDestroy()

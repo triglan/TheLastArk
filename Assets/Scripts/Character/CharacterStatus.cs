@@ -13,6 +13,23 @@ public class CharacterStatus : ISerializationCallbackReceiver
     public float currentMental;
     [System.NonSerialized] public TheLastArk.Battle.PanicState panic = new TheLastArk.Battle.PanicState();
     public float bonusAttack; // 버프로 추가된 공격력입니다.
+    private int arkLeaderHealth, arkLeaderMental, arkLeaderArmor, arkLeaderMagicResist;
+    private int arkLeaderAttack, arkLeaderSpellPower;
+
+    public void ApplyArkLeaderBonuses(int health, int mental, int armor = 0, int magicResist = 0, int attack = 0, int spellPower = 0)
+    {
+        health = origin != null && !origin.isEnemy ? Mathf.Max(0, health) : 0;
+        mental = origin != null && !origin.isEnemy ? Mathf.Max(0, mental) : 0;
+        bool fullHealth = currentHp >= FinalMaxHp, fullMental = currentMental >= FinalMaxMental;
+        arkLeaderHealth = health; arkLeaderMental = mental;
+        arkLeaderArmor = origin != null && !origin.isEnemy ? Mathf.Max(0, armor) : 0;
+        arkLeaderMagicResist = origin != null && !origin.isEnemy ? Mathf.Max(0, magicResist) : 0;
+        arkLeaderAttack = origin != null && !origin.isEnemy ? Mathf.Max(0, attack) : 0;
+        arkLeaderSpellPower = origin != null && !origin.isEnemy ? Mathf.Max(0, spellPower) : 0;
+        // Reordering injured crew cannot heal them. A fallen or panicked member stays at zero.
+        if (currentHp > 0f) currentHp = fullHealth ? FinalMaxHp : Mathf.Min(currentHp, FinalMaxHp);
+        if (currentMental > 0f) currentMental = fullMental ? FinalMaxMental : Mathf.Min(currentMental, FinalMaxMental);
+    }
 
     // 아군 강화 단계입니다. 적은 0으로 고정합니다.
     public int charLevel = 0;
@@ -107,18 +124,18 @@ public class CharacterStatus : ISerializationCallbackReceiver
         }
     }
 
-    public float FinalMaxHp => Mathf.Max(0f, BaseMaxHp * (1f + EquipmentPercent(e => e.bonusHpPercent)));
+    public float FinalMaxHp => Mathf.Max(0f, BaseMaxHp * (1f + EquipmentPercent(e => e.bonusHpPercent)) + arkLeaderHealth);
     private float BaseMaxHp => origin != null ? (origin.maxHp * (1 + GetMultiplier() + GetSynergyHpMultiplier() + TrainBonusHpMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxHP) + EquipmentBonusHp : EquipmentBonusHp;
-    public float FinalMaxMental => origin != null ? (origin.maxMental * (1 + GetMultiplier() + GetSynergyMentalMultiplier() + TrainBonusMentalMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental;
+    public float FinalMaxMental => (origin != null ? (origin.maxMental * (1 + GetMultiplier() + GetSynergyMentalMultiplier() + TrainBonusMentalMultiplier)) + GetRelicBonus(TheLastArk.Data.RelicEffectType.BonusMaxMental) + EquipmentBonusMental : EquipmentBonusMental) + arkLeaderMental;
     public float AttackStatusModifier => GetStatusValue(EffectType.Strength) - GetStatusValue(EffectType.Weakness);
     public float SpellPowerStatusModifier => GetStatusValue(EffectType.Amplification) - GetStatusValue(EffectType.Frailty);
     public float ArmorStatusModifier => GetStatusValue(EffectType.Protection) - GetStatusValue(EffectType.Vulnerable);
     public float MagicResistStatusModifier => GetStatusValue(EffectType.MagicGuard) - GetStatusValue(EffectType.Corrosion);
 
-    public float FinalAttack => Mathf.Max(0f, (AttackCore + SpellbladeBonus(true)) * (1f + EquipmentPercent(e => e.bonusAttackPercent) + turnAttackSpellPercent));
-    public float FinalSpellPower => Mathf.Max(0f, (SpellCore + SpellbladeBonus(false)) * (1f + EquipmentPercent(e => e.bonusSpellPowerPercent) + turnAttackSpellPercent));
-    public float FinalArmor => Mathf.Max(0f, PatternArmorOverride ?? (RawArmor + AdaptiveShieldBonus(true)) * (1f + EquipmentPercent(e => e.bonusArmorPercent)));
-    public float FinalMagicResist => Mathf.Max(0f, RawMagicResist + AdaptiveShieldBonus(false));
+    public float FinalAttack => Mathf.Max(0f, ((AttackCore + SpellbladeBonus(true)) * (1f + EquipmentPercent(e => e.bonusAttackPercent) + turnAttackSpellPercent) + arkLeaderAttack) * (1f + CritOverflowAttackPercent * .01f));
+    public float FinalSpellPower => Mathf.Max(0f, (SpellCore + SpellbladeBonus(false)) * (1f + EquipmentPercent(e => e.bonusSpellPowerPercent) + turnAttackSpellPercent) + arkLeaderSpellPower);
+    public float FinalArmor => Mathf.Max(0f, PatternArmorOverride ?? (RawArmor + AdaptiveShieldBonus(true)) * (1f + EquipmentPercent(e => e.bonusArmorPercent)) + arkLeaderArmor);
+    public float FinalMagicResist => Mathf.Max(0f, RawMagicResist + AdaptiveShieldBonus(false) + arkLeaderMagicResist);
 
     // ── equipment unique effects (each counted once even with two copies) ──
     [Tooltip("자율주행 도우미 로봇: 이번 턴 공격력·주문력 증가 (0.3 = +30%)")]
@@ -192,9 +209,12 @@ public class CharacterStatus : ISerializationCallbackReceiver
     public float? PatternArmorOverride { get; set; }
     private float RawArmor => origin != null ? (origin.armor * (1 + GetMultiplier())) + ArmorStatusModifier + EquipmentBonusArmor : ArmorStatusModifier + EquipmentBonusArmor;
     private float RawMagicResist => origin != null ? (origin.magicResist * (1 + GetMultiplier())) + MagicResistStatusModifier + EquipmentBonusMagicResist : MagicResistStatusModifier + EquipmentBonusMagicResist;
-    public float FinalCritRate => Mathf.Min(MaxCritRate, origin != null
+    public float UncappedCritRate => (origin != null
         ? origin.critRate + EquipmentBonusCritRate + AllianceCrestCritBonus + (CanUsePlayerSynergy() ? TheLastArk.Character.SynergyEffects.CritBonus(this) : 0f)
-        : EquipmentBonusCritRate);
+        : EquipmentBonusCritRate) + (GetPassiveEntry(PassiveTrait.MarksmanEye)?.value ?? 0f);
+    public float FinalCritRate => Mathf.Clamp(UncappedCritRate, 0f, MaxCritRate);
+    public float CritOverflowAttackPercent => GetPassiveEntry(PassiveTrait.MarksmanEye) != null ? Mathf.Max(0f, UncappedCritRate-MaxCritRate) : 0f;
+    public float PassiveCritDamageBonus => GetPassiveEntry(PassiveTrait.MarksmanEye)?.secondaryValue ?? 0f;
     public const float MaxCritRate = 100f;
 
     public bool HasSynergy(TheLastArk.Data.SynergyType type)
@@ -242,6 +262,7 @@ public class CharacterStatus : ISerializationCallbackReceiver
         get
         {
             if (origin == null || origin.isEnemy) return 0f;
+            if (!TheLastArk.Managers.ResourceManager.IsInitialized) return 0f;
             if (TheLastArk.Managers.ResourceManager.Instance == null || !TheLastArk.Managers.ResourceManager.Instance.HasRelicEffect(TheLastArk.Data.RelicEffectType.AllianceCrest)) return 0f;
             
             // 연합의 문장 no longer grants crit (now: sanity at turn start, see BattleManager.Relics).

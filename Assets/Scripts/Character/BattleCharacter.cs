@@ -282,6 +282,12 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     /// <summary>Defense → protect reduction → floor → shield → HP. Responses are deferred to the attack's end.</summary>
     private DamageResult ApplyHit(float amount, BattleCharacter attacker, DamageType damageType, float protectReduction, AttackContext context, bool viaProtectOrTaunt = false)
     {
+        if (TryEvade(false))
+        {
+            var avoided = new DamageResult(amount, 0f, 0f, 0f, 0f, this, false);
+            DamageResolved?.Invoke(avoided);
+            return avoided;
+        }
         float defense = damageType switch
         {
             DamageType.Physical => Mathf.Max(0f, status.FinalArmor),
@@ -298,7 +304,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         var damageModifier = new ValueModifier().AddIncrease(markBonus).AddDecrease(protectReduction);
         if (status.panic != null && status.panic.Type == PanicType.Agitation) damageModifier.AddMultiplier(PanicState.AgitationDamageMultiplier);
         // 거석 방패 부동: below 20% HP right before the hit, physical damage −50% (protected hits included).
-        if (damageType == DamageType.Physical && status.HasEquipment("MegalithShield") && status.currentHp < status.FinalMaxHp * 0.2f)
+        if (damageType == DamageType.Physical && status.HasEquipment("MegalithShield") && status.currentHp * 5f < status.FinalMaxHp)
             damageModifier.AddDecrease(0.5f);
         // 수호자: team reduction, plus extra while protecting / taunting (applied before shields).
         if (context != null) TheLastArk.Character.SynergyEffects.AddGuardianReductions(status, viaProtectOrTaunt, damageModifier);
@@ -444,6 +450,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     public float TakeMentalDamage(float amount, bool fromAlly = false)
     {
         if (status == null || amount <= 0f) return 0f;
+        if (TryEvade(true)) return 0f;
 
         float mentalBefore = status.currentMental;
         float resolvedDamage = ValueModifier.Floor(amount);
@@ -452,7 +459,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
         // [파쇄 주문서] 유물: 정신 피해를 줄 때 대상의 정신력이 10% 미만이면 즉시 패닉
         // 아군 정신 피해 후 10% 미만이면 0 → 기존 패닉 진입 경로. 이미 0이거나 패닉 중이면 중복 없음.
         if (fromAlly && RelicRules.Has(TheLastArk.Data.RelicEffectType.ShatterScroll)
-            && status.currentMental > 0f && status.currentMental < status.FinalMaxMental * 0.10f
+            && status.currentMental > 0f && status.currentMental * 10f < status.FinalMaxMental
             && (status.panic == null || !status.panic.IsActive))
         {
             status.currentMental = 0f;
@@ -466,6 +473,21 @@ public class BattleCharacter : MonoBehaviour, IDamageable
             MentalDepleted?.Invoke(this);
 
         return appliedDamage;
+    }
+
+    private bool TryEvade(bool mentalDamage)
+    {
+        if (status == null) return false;
+        for (int i=0; i<status.activeStatusEffects.Count; i++)
+        {
+            var effect=status.activeStatusEffects[i];
+            if (effect == null || effect.effectType != EffectType.Evasion || !effect.IsActive
+                || effect.remainingCharges <= 0 || mentalDamage && effect.secondaryValue <= 0f) continue;
+            if (--effect.remainingCharges <= 0) status.activeStatusEffects.RemoveAt(i);
+            view?.UpdateVisual(status);
+            return true;
+        }
+        return false;
     }
 
     public float ReceiveMentalHeal(float amount)
@@ -592,7 +614,7 @@ public class BattleCharacter : MonoBehaviour, IDamageable
     public float ReceiveHeal(float amount, BattleCharacter healer) => ReceiveHeal(amount, healer, 0f);
 
     /// <summary>
-    /// Grants a shield through the shared rule: received-shield bonuses (서포터), then floor. Default duration lasts
+    /// Grants a shield through the shared rule: received-shield bonuses (지원가), then floor. Default duration lasts
     /// until this side's next turn start. Returns the amount granted.
     /// </summary>
     public float GainShield(float amount, BattleCharacter source, int turns = 1, StatusDurationType duration = StatusDurationType.Default)

@@ -928,14 +928,14 @@ namespace TheLastArk.UI
             vLayout.childControlHeight = false;
 
             // Portrait
-            if (data.portraitSprite != null)
+            if (data.PortraitSprite != null)
             {
                 GameObject portObj = new GameObject("Portrait");
                 portObj.transform.SetParent(charObj.transform, false);
                 RectTransform pRect = portObj.AddComponent<RectTransform>();
                 pRect.sizeDelta = new Vector2(160, 100);
                 Image pImg = portObj.AddComponent<Image>();
-                pImg.sprite = data.portraitSprite;
+                pImg.sprite = data.PortraitSprite;
                 pImg.preserveAspect = true;
             }
 
@@ -958,9 +958,9 @@ namespace TheLastArk.UI
             {
                 detailPortrait.sprite = data.standingSprite;
             }
-            else if (data.portraitSprite != null)
+            else if (data.PortraitSprite != null)
             {
-                detailPortrait.sprite = data.portraitSprite;
+                detailPortrait.sprite = data.PortraitSprite;
             }
             
             CharacterStatus tempStatus = new CharacterStatus(data);

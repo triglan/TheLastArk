@@ -42,7 +42,7 @@ public class MirageBattlePresentationTests
                 Is.EqualTo(-300f + 600f * BattleEnemyFormationLayout.NormalizedBaseline(i, count)).Within(0.01f));
             Assert.That(position.y + (view.IllustrationBounds.yMax + view.EnemyHUDHeight) * 0.5f, Is.LessThanOrEqualTo(240.1f));
         }
-        Assert.That(average / count, Is.EqualTo(100f).Within(0.01f));
+        Assert.That(average / count, Is.EqualTo(120f).Within(0.01f));
         if (count > 1)
         {
             Assert.Greater(enemies[1].transform.position.y, enemies[0].transform.position.y);
@@ -52,7 +52,7 @@ public class MirageBattlePresentationTests
             Assert.That(Vector3.Distance(firstPosition, enemies[0].transform.position), Is.LessThan(0.01f), "Drawing order must not reshuffle slots.");
             for (int i = 1; i < count; i++) enemies[i].gameObject.SetActive(false);
             layout.Refresh();
-            Assert.That(canvas.transform.InverseTransformPoint(enemies[0].transform.position).x, Is.EqualTo(100f).Within(0.01f));
+            Assert.That(canvas.transform.InverseTransformPoint(enemies[0].transform.position).x, Is.EqualTo(120f).Within(0.01f));
         }
     }
 
@@ -101,7 +101,8 @@ public class MirageBattlePresentationTests
         var effect = new EnemyIntentEffectData { ActionType = EnemyPatternActionType.Effect, EffectType = EffectType.Damage, Value = 3, HitCount = 4 };
         ui.Show(new EnemyIntentData { PatternName = "연타", Effects = new List<EnemyIntentEffectData> { effect } });
         Assert.AreEqual("3×4", EnemyIntentUI.CompactValue(effect));
-        Assert.AreEqual(28f, ui.Panel.rect.height);
+        Assert.AreEqual(30f, ui.Panel.rect.height);
+        Assert.AreEqual(204f, ui.Panel.rect.width);
         Assert.NotNull(ui.Panel.GetComponent<BattleHoverTooltip>());
         Assert.IsNull(ui.Panel.Find("Detail"));
         ui.Hide(); Assert.IsFalse(ui.Panel.gameObject.activeSelf);
@@ -116,13 +117,16 @@ public class MirageBattlePresentationTests
         var dock = tray.transform.Find("BattleDicePool") as RectTransform;
         Assert.NotNull(dock);
         var layout = dock.GetComponent<GridLayoutGroup>();
-        Assert.AreEqual(5, layout.constraintCount);
+        Assert.AreEqual(10, layout.constraintCount);
+        Assert.IsFalse(layout.enabled, "The row uses persistent die slots instead of packing active children.");
         Assert.Greater(BattleDiceUI.DieSize, 48f);
-        Assert.LessOrEqual(layout.padding.horizontal + 5 * BattleDiceUI.DieSize + 4 * layout.spacing.x, dock.rect.width);
-        Assert.LessOrEqual(layout.padding.vertical + 2 * BattleDiceUI.DieSize + layout.spacing.y, dock.rect.height);
-        for (int i = 0; i < dock.childCount; i++)
-            if (dock.GetChild(i).GetComponent<DiceDragSource>() != null)
-                Assert.AreEqual(Vector2.one * BattleDiceUI.DieSize, ((RectTransform)dock.GetChild(i)).sizeDelta);
+        Assert.LessOrEqual(10 * BattleDiceUI.DieSize + 9 * layout.spacing.x, dock.rect.width);
+        Assert.LessOrEqual(BattleDiceUI.DieSize, dock.rect.height);
+        var sources=dock.GetComponentsInChildren<DiceDragSource>(true);
+        Assert.AreEqual(10,sources.Length);
+        foreach(var source in sources)
+            Assert.AreEqual(Vector2.one*BattleDiceUI.DieSize,((RectTransform)source.transform).sizeDelta);
+        Assert.NotNull(dock.GetComponent<ScrollRect>().content);
     }
 
     [Test] public void StatusCountAndHoverTooltipKeepFullDetails()
@@ -135,7 +139,7 @@ public class MirageBattlePresentationTests
         enemy.AssignAndInitialize(Resources.Load<CharacterData>("Characters/Enemy/Data/무장 상인_Data"));
         enemy.CurrentStatus.activeStatusEffects.Add(new ActiveStatusEffect(EffectType.Stun, 0f, 3));
         root.GetComponent<CharacterView>().UpdateVisual(enemy.CurrentStatus);
-        var icon = root.transform.Find("Enemy Bar/StatusIcons/Status Icon");
+        var icon = root.transform.Find("StatusIcons/Status Icon");
         Assert.NotNull(icon);
         StringAssert.Contains("3", icon.Find("Count").GetComponent<TMPro.TextMeshProUGUI>().text);
         var hover = icon.GetComponent<BattleHoverTooltip>(); hover.OnPointerEnter(null);
@@ -163,13 +167,65 @@ public class MirageBattlePresentationTests
         Assert.AreEqual(36f, enhancement.LayoutHeight);
         var layout = canvas.AddComponent<BattleEnemyFormationLayout>(); layout.Initialize(canvas.transform);
         var panel = root.transform.Find("Enemy Enhancements") as RectTransform;
-        Assert.Greater(panel.anchoredPosition.y - panel.rect.height * 0.5f, view.IllustrationBounds.yMax);
+        Assert.Less(panel.anchoredPosition.y + panel.rect.height * 0.5f, view.IllustrationBounds.yMin);
         Assert.LessOrEqual(canvas.transform.InverseTransformPoint(root.transform.position).y + (view.IllustrationBounds.yMax + view.EnemyHUDHeight) * 0.5f, 240.1f);
         var hover = panel.GetComponent<BattleHoverTooltip>(); hover.OnPointerEnter(null);
         StringAssert.Contains("공격 강화 +4", canvas.transform.Find("Battle Detail Tooltip").GetComponentInChildren<TMPro.TextMeshProUGUI>().text);
         root.GetComponent<EnemyAI>().RuntimeState.Set("power", 0); enhancement.Refresh();
         Assert.AreEqual(0f, enhancement.LayoutHeight);
         Assert.IsFalse(panel.gameObject.activeSelf);
+    }
+
+    [Test] public void SpentDiceKeepSurvivorsInTheirSlotsAndGenerationReusesHoles()
+    {
+        var root = Own(new GameObject("Dice slot test"));
+        var ui = root.AddComponent<BattleDiceUI>();
+        var pool = new TheLastArk.Battle.ActionDicePool(_ => 4);
+        pool.BeginTurn(10);
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var update = typeof(BattleDiceUI).GetMethod("UpdateDieSlots", flags);
+        var field = typeof(BattleDiceUI).GetField("_dieSlots", flags);
+        update.Invoke(ui, new object[] { pool });
+        var slots = (Dictionary<int, int>)field.GetValue(ui);
+        var before = new Dictionary<int, int>(slots);
+        int first = pool.Dice[0].Id, middle = pool.Dice[4].Id;
+        Assert.IsTrue(pool.TrySpend(new[] { first, middle }));
+        update.Invoke(ui, new object[] { pool });
+        foreach (var die in pool.Dice) Assert.AreEqual(before[die.Id], slots[die.Id]);
+        Assert.IsFalse(slots.ContainsKey(first));
+        Assert.IsFalse(slots.ContainsKey(middle));
+        pool.Roll(2);
+        update.Invoke(ui, new object[] { pool });
+        foreach (var die in pool.Dice)
+            if (before.ContainsKey(die.Id)) Assert.AreEqual(before[die.Id], slots[die.Id]);
+        Assert.AreEqual(10, new HashSet<int>(slots.Values).Count);
+        pool.BeginTurn(3);
+        update.Invoke(ui, new object[] { pool });
+        Assert.AreEqual(3, slots.Count);
+        foreach (var die in pool.Dice) Assert.That(slots[die.Id], Is.InRange(0, 9));
+    }
+
+    [Test] public void StatusOverflowDoesNotMoveHeaderAndRetainsHiddenDetails()
+    {
+        var root = Own(Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefab/Enemy Character.prefab")));
+        var enemy = root.GetComponent<EnemyBattleCharacter>();
+        enemy.AssignAndInitialize(Resources.Load<CharacterData>("Characters/Enemy/Data/무장 상인_Data"));
+        var view = root.GetComponent<CharacterView>();
+        var bar = view.barUI.hpSlider.transform.parent as RectTransform;
+        Vector2 before = bar.anchoredPosition;
+        float height = view.EnemyHUDHeight;
+        foreach (var type in new[] { EffectType.Stun, EffectType.Bleed, EffectType.Poison, EffectType.Weakness, EffectType.Frailty, EffectType.Corrosion })
+            enemy.CurrentStatus.ApplyStatusEffect(type, 3f, 2);
+        view.UpdateVisual(enemy.CurrentStatus);
+        Assert.AreEqual(before, bar.anchoredPosition);
+        Assert.AreEqual(height, view.EnemyHUDHeight);
+        var icons = root.transform.Find("StatusIcons");
+        Assert.AreEqual(5, icons.childCount);
+        StringAssert.Contains("+2", icons.GetChild(4).GetComponentInChildren<TMPro.TextMeshProUGUI>().text);
+        var content = typeof(BattleHoverTooltip).GetField("content", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        string detail = (string)content.GetValue(icons.GetChild(4).GetComponent<BattleHoverTooltip>());
+        Assert.IsTrue(detail.Contains("\n"), "Both hidden status descriptions must remain accessible.");
+        Assert.Less(((RectTransform)icons).anchoredPosition.y, view.IllustrationBounds.yMin);
     }
 
     public void VerifyDockedDiceDragInPlayMode()

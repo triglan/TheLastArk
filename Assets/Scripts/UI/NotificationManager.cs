@@ -19,7 +19,7 @@ namespace TheLastArk.UI
                     {
                         GameObject go = new GameObject("NotificationManager");
                         instance = go.AddComponent<NotificationManager>();
-                        DontDestroyOnLoad(go);
+                        if (Application.isPlaying) DontDestroyOnLoad(go);
                     }
                 }
                 return instance;
@@ -35,7 +35,7 @@ namespace TheLastArk.UI
             if (instance == null)
             {
                 instance = this;
-                DontDestroyOnLoad(gameObject);
+                if (Application.isPlaying) DontDestroyOnLoad(gameObject);
             }
             else if (instance != this)
             {
@@ -46,6 +46,8 @@ namespace TheLastArk.UI
         public void ShowMessage(string message, Color color)
         {
             Debug.Log($"[Notification] {message}");
+            // Editor validation may change train data, but must not create runtime UI or coroutines.
+            if (!Application.isPlaying) return;
             EnsureUI();
 
             if (notificationText != null)
@@ -57,6 +59,11 @@ namespace TheLastArk.UI
                 if (hideCoroutine != null) StopCoroutine(hideCoroutine);
                 hideCoroutine = StartCoroutine(HideMessageAfterDelay(2.5f));
             }
+        }
+
+        private void OnDestroy()
+        {
+            if (instance == this) instance = null;
         }
 
         private IEnumerator HideMessageAfterDelay(float delay)

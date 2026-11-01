@@ -23,7 +23,7 @@ namespace TheLastArk.UI
 
             SynergyInfo info = SynergyDatabase.GetInfo(type);
             int nextThresh = info.GetNextThreshold(count);
-            bool isActive = (count >= (info.tiers != null && info.tiers.Count > 0 ? info.tiers[0].threshold : 1));
+            bool isActive = info.GetCurrentActiveTier(count) != null;
 
             if (iconText != null)
             {
@@ -38,7 +38,7 @@ namespace TheLastArk.UI
             if (badgeText != null)
             {
                 string countColor = isActive ? "#79FF5B" : "#CCCCCC";
-                badgeText.text = $"<color={countColor}>{count}</color>/{nextThresh}";
+                badgeText.text = $"<color={countColor}>{count}</color>" + (nextThresh > 0 ? $"/{nextThresh}" : "");
                 badgeText.font = TMPFontManager.MainKoreanFont;
                 badgeText.fontSize = 11;
                 badgeText.alignment = TextAlignmentOptions.BottomRight;

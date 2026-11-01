@@ -165,7 +165,7 @@ namespace TheLastArk.UI
                 var art = ManagementTheme.Panel("Portrait", card, ManagementTheme.Background);
                 ManagementTheme.Top(art, 16, 220, 16, 16);
                 var picture = ManagementTheme.Rect("Art", art).gameObject.AddComponent<Image>();
-                picture.sprite = data.portraitSprite != null ? data.portraitSprite : data.standingSprite;
+                picture.sprite = data.PortraitSprite != null ? data.PortraitSprite : data.standingSprite;
                 picture.preserveAspect = true; picture.raycastTarget = false; picture.enabled = picture.sprite != null;
                 var name = ManagementTheme.Label(card, data.DisplayName, 27);
                 ManagementTheme.Top(name.rectTransform, 250, 42, 20, 20);

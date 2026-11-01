@@ -190,13 +190,18 @@ public static class EffectEngine
         switch (effect.type)
         {
             case EffectType.Damage:
+                calculatedValue += Mathf.Max(0f, target.status.FinalMaxHp-target.status.currentHp) * effect.targetMissingHealthPercent * .01f;
+                if (target.status.currentHp >= target.status.FinalMaxHp)
+                    calculatedValue *= 1f + effect.fullHealthDamageBonusPercent * .01f;
+                if (target.status.currentHp * 2f < target.status.FinalMaxHp)
+                    calculatedValue *= 1f + effect.belowHalfHealthDamageBonusPercent * .01f;
                 // 치명타 판정
                 bool isCrit = Random.value < (actor.status.FinalCritRate * 0.01f);
                 bool isCritHit = false;
                 float critScale = 1f;
                 if (isCrit)
                 {
-                    float critMultiplier = TheLastArk.Character.SynergyEffects.CritDamagePercent(actor.status) * 0.01f;
+                    float critMultiplier = (TheLastArk.Character.SynergyEffects.CritDamagePercent(actor.status) + actor.status.PassiveCritDamageBonus) * 0.01f;
                     // [저격수의 눈] 사수 아군의 치명타 피해량 +25%
                     if (actor.status.HasSynergy(SynergyType.Ranger) &&
                         ResourceManager.Instance != null && ResourceManager.Instance.HasRelicEffect(RelicEffectType.SniperEye))
@@ -222,15 +227,9 @@ public static class EffectEngine
                     calculatedValue = new TheLastArk.Battle.ValueModifier()
                         .AddIncrease(target.status.GetStatusValue(EffectType.Bleed) * effect.bonusPercentPerTargetBleed * 0.01f)
                         .Raw(calculatedValue);
-                // Enemy 우울 / 무기력: damage dealt −50%.
-                if (TheLastArk.Battle.RelicRules.IsEnemy(actor) && actor.status.panic != null)
-                {
-                    var enemyPanic = actor.status.panic.Type;
-                    if (enemyPanic == TheLastArk.Battle.PanicType.Depression)
-                        calculatedValue = new TheLastArk.Battle.ValueModifier().AddDecrease(TheLastArk.Battle.PanicState.DepressionEnemyDamageDecrease).Raw(calculatedValue);
-                    else if (enemyPanic == TheLastArk.Battle.PanicType.Lethargy)
-                        calculatedValue = new TheLastArk.Battle.ValueModifier().AddDecrease(TheLastArk.Battle.PanicState.LethargyEnemyDamageDecrease).Raw(calculatedValue);
-                }
+                if (TheLastArk.Battle.RelicRules.IsEnemy(actor) && actor.status.panic != null
+                    && actor.status.panic.Type == TheLastArk.Battle.PanicType.Depression)
+                    calculatedValue = new TheLastArk.Battle.ValueModifier().AddDecrease(TheLastArk.Battle.PanicState.DepressionEnemyDamageDecrease).Raw(calculatedValue);
                 if (CurrentCast != null)
                     calculatedValue = new TheLastArk.Battle.ValueModifier()
                         .AddIncrease(effect.damageType == DamageType.Physical ? CurrentCast.PhysicalDamageBonus : 0f)
@@ -240,6 +239,7 @@ public static class EffectEngine
                 float previousIgnore = attack?.ArmorIgnore ?? 0f;
                 if (attack != null && CurrentCast != null && CurrentCast.MatchedSecondUse && effect.matchedArmorIgnorePercent > 0f)
                     attack.ArmorIgnore = effect.matchedArmorIgnorePercent * 0.01f;
+                if (attack != null) attack.ArmorIgnore = Mathf.Max(attack.ArmorIgnore, effect.armorIgnorePercent * .01f);
                 float hitValue = calculatedValue;
                 if (CurrentCast != null && CurrentCast.FirstHitBonus > 0f && !CurrentCast.FirstHitDone && attack != null && target == attack.PrimaryTarget)
                 {
@@ -263,7 +263,11 @@ public static class EffectEngine
                         CurrentCast.HealthDamageDealt += receiver.ReceiveDamage(SharpNailDamage, null, DamageType.True, false);
                 }
                 onDamage?.Invoke(damageResult);
-                if (effect.splashAdjacentPercent > 0f) SplashAdjacent(effect, actor, target, calculatedValue * effect.splashAdjacentPercent * 0.01f);
+                if (effect.splashAdjacentPercent > 0f)
+                    SplashAdjacent(effect, actor, damageResult.FinalTarget ?? target,
+                        (effect.splashUsesActualDamage ? damageResult.HealthDamage : calculatedValue) * effect.splashAdjacentPercent * .01f);
+                if (effect.splashAllPercent > 0f)
+                    SplashAll(effect, actor, damageResult.HealthDamage * effect.splashAllPercent * .01f);
 
                 break;
 
@@ -518,6 +522,12 @@ public static class EffectEngine
                     Mathf.Max(1, effect.charges), -1, actor, StatusDurationType.Charges);
                 lastCalculatedValue = effect.charges;
                 break;
+            case EffectType.Evasion:
+                int evades=Mathf.Max(0, Mathf.FloorToInt(ScaledStatusValue(effect.charges, effect, dice)));
+                if (evades>0) target.status.ApplyStatusEffect(EffectType.Evasion, 0f, 1, effect.secondaryValue,
+                    evades, -1, actor, StatusDurationType.UntilOwnerPhase);
+                lastCalculatedValue=evades;
+                break;
         }
 
         if (CurrentCast != null && TheLastArk.Battle.RelicRules.IsEnemy(target) && IsStatusEffectType(effect.type)
@@ -573,7 +583,7 @@ public static class EffectEngine
     private static bool IsDebuffStat(EffectType type)
         => type == EffectType.Weakness || type == EffectType.Frailty || type == EffectType.Vulnerable || type == EffectType.Corrosion;
 
-    /// <summary>서포터: an ally that actually received heal / shield / buff / dice bonus from a 서포터's active.</summary>
+    /// <summary>지원가: an ally that actually received heal / shield / buff / dice bonus from a 지원가's active.</summary>
     private static void SupportRecipient(BattleCharacter actor, BattleCharacter target)
     {
         if (CurrentCast == null || actor?.status == null || target?.status?.origin == null || target.status.origin.isEnemy) return;
@@ -609,6 +619,20 @@ public static class EffectEngine
             if (side?.status == null || side.status.currentHp <= 0f) continue;
             DamageResult result = side.ReceiveDamageDetailed(amount, actor, effect.damageType);
             if (CurrentCast != null) CurrentCast.HealthDamageDealt += result.HealthDamage;
+        }
+    }
+
+    // Follow-up damage uses the primary hit's actual HP loss; it does not roll another critical hit.
+    private static void SplashAll(EffectEntry effect, BattleCharacter actor, float amount)
+    {
+        var bm = Object.FindObjectOfType<BattleManager>();
+        if (bm == null || amount <= 0f) return;
+        var party=actor.status.origin != null && actor.status.origin.isEnemy ? bm.playerParty : bm.enemyParty;
+        foreach (var target in party)
+        {
+            if (target?.status == null || target.status.currentHp <= 0f) continue;
+            var result=target.ReceiveDamageDetailed(amount,actor,effect.damageType);
+            if (CurrentCast != null) CurrentCast.HealthDamageDealt+=result.HealthDamage;
         }
     }
 

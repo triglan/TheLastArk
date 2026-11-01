@@ -4,16 +4,14 @@ using System.Collections.Generic;
 namespace TheLastArk.Battle
 {
     /// <summary>
-    /// Origin dice storage. Holds at most <see cref="MaxStoredDice"/> waiting dice (available + locked).
-    /// Spent dice leave storage and are kept in a per-turn usage log. Generation per turn is uncapped;
-    /// extra dice only fill free slots and any excess is cancelled.
+    /// Origin dice storage, with no gameplay limit on waiting or generated dice.
+    /// Spent dice leave storage and are kept in a per-turn usage log.
     /// </summary>
     public sealed class ActionDicePool
     {
-        public const int MaxStoredDice = 10;
         public const int DefaultFaces = 6;
 
-        private readonly List<ActionDie> dice = new List<ActionDie>(MaxStoredDice);
+        private readonly List<ActionDie> dice = new List<ActionDie>();
         private readonly List<ActionDie> usedThisTurn = new List<ActionDie>();
         private readonly Func<int, int> roller;
         private int nextId;
@@ -21,7 +19,6 @@ namespace TheLastArk.Battle
         public IReadOnlyList<ActionDie> Dice { get; }
         public IReadOnlyList<ActionDie> UsedThisTurn { get; }
         public int GeneratedThisTurn { get; private set; }
-        public int FreeSlots => MaxStoredDice - dice.Count;
 
         /// <param name="roller">Returns a roll in [1, faces]. Defaults to UnityEngine.Random.</param>
         public ActionDicePool(Func<int, int> roller = null)
@@ -32,7 +29,7 @@ namespace TheLastArk.Battle
         }
 
         /// <summary>Clears storage and the usage log, then rolls the turn's dice.
-        /// On overflow, special dice are placed first and normal dice fill the rest.</summary>
+        /// Special dice are placed first, followed by all normal dice.</summary>
         public void BeginTurn(int normalCount, int faces = DefaultFaces, IReadOnlyList<int> specialFaces = null)
         {
             List<DieSpec> specials = null;
@@ -46,7 +43,7 @@ namespace TheLastArk.Battle
 
         /// <summary>
         /// Turn start placement: carried-over dice first (kept as they are), then special dice, then normal dice.
-        /// Anything beyond the storage cap is cancelled.
+        /// All requested dice are retained.
         /// </summary>
         public void BeginTurn(int normalCount, int faces, IReadOnlyList<DieSpec> specials, IReadOnlyList<ActionDie> carried)
         {
@@ -54,7 +51,7 @@ namespace TheLastArk.Battle
             usedThisTurn.Clear();
             GeneratedThisTurn = 0;
             if (carried != null)
-                for (int i = 0; i < carried.Count && dice.Count < MaxStoredDice; i++)
+                for (int i = 0; i < carried.Count; i++)
                 {
                     if (carried[i] == null) continue;
                     carried[i].IsCarried = true;
@@ -82,7 +79,7 @@ namespace TheLastArk.Battle
             return taken;
         }
 
-        /// <summary>Adds one die of a given spec mid-turn (storage cap applies).</summary>
+        /// <summary>Adds one die of a given spec mid-turn.</summary>
         public bool AddDie(DieSpec spec)
         {
             if (!IsValidFaces(spec.Faces)) return false;
@@ -93,7 +90,7 @@ namespace TheLastArk.Battle
         /// <summary>Removes remaining waiting dice at turn end.</summary>
         public void EndTurn() => dice.Clear();
 
-        /// <returns>The number of dice actually stored (limited by free slots).</returns>
+        /// <returns>The number of dice stored.</returns>
         public int Roll(int count, int faces = DefaultFaces)
         {
             if (count <= 0 || !IsValidFaces(faces)) return 0;
@@ -183,12 +180,11 @@ namespace TheLastArk.Battle
             return any;
         }
 
-        /// <summary>Adds a die with a fixed actual value (e.g. 흑사's 0 die). Respects the storage cap.</summary>
+        /// <summary>Adds a die with a fixed actual value (e.g. 흑사's 0 die).</summary>
         public bool AddFixedDie(int faces, int value)
         {
             if (!IsValidFaces(faces)) return false;
             GeneratedThisTurn++;
-            if (dice.Count >= MaxStoredDice) return false;
             dice.Add(new ActionDie(nextId++, faces, Math.Max(0, value)));
             return true;
         }
@@ -196,7 +192,7 @@ namespace TheLastArk.Battle
         /// <summary>
         /// Splits an available die into dice with the given actual values (each ≥ 0, summing to the original's actual
         /// value). The kept modifier moves to the result at <paramref name="modifierIndex"/>. Validates everything
-        /// (including free storage) before changing anything; the original goes to the usage log.
+        /// before changing anything; the original goes to the usage log.
         /// </summary>
         public bool TrySplit(int id, IReadOnlyList<int> values, int modifierIndex)
         {
@@ -209,7 +205,7 @@ namespace TheLastArk.Battle
                 if (values[i] < 0) return false;
                 total += values[i];
             }
-            if (total != die.Value || dice.Count - 1 + values.Count > MaxStoredDice) return false;
+            if (total != die.Value) return false;
 
             int index = dice.IndexOf(die);
             dice.RemoveAt(index);
@@ -226,10 +222,10 @@ namespace TheLastArk.Battle
             return true;
         }
 
-        /// <summary>Puts a spent die back into storage unchanged (type, roll, modifier). Storage cap applies.</summary>
+        /// <summary>Puts a spent die back into storage unchanged (type, roll, modifier).</summary>
         public bool ReturnDie(ActionDie die)
         {
-            if (die == null || dice.Contains(die) || dice.Count >= MaxStoredDice) return false;
+            if (die == null || dice.Contains(die)) return false;
             usedThisTurn.Remove(die);
             die.IsLocked = false;
             dice.Add(die);
@@ -261,7 +257,6 @@ namespace TheLastArk.Battle
 
         private bool AddSpec(DieSpec spec, bool special)
         {
-            if (dice.Count >= MaxStoredDice) return false;
             var die = new ActionDie(nextId++, spec.Faces, spec.FixedRoll >= 0 ? spec.FixedRoll : roller(spec.Faces), special)
             {
                 Kind = spec.Kind,
@@ -273,7 +268,6 @@ namespace TheLastArk.Battle
 
         private bool Add(int faces, bool special)
         {
-            if (dice.Count >= MaxStoredDice) return false;
             dice.Add(new ActionDie(nextId++, faces, roller(faces), special));
             return true;
         }

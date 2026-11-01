@@ -11,6 +11,7 @@ namespace TheLastArk.UI
         private RectTransform gear;
         private TextMeshProUGUI number;
         private TextMeshProUGUI outgoing;
+        private TextMeshProUGUI phaseLabel;
         private Coroutine transition;
         private int targetTurn = -1;
         public int DisplayedTurn { get; private set; } = -1;
@@ -61,10 +62,31 @@ namespace TheLastArk.UI
             caption.enableAutoSizing = false;
             caption.fontSize = 10f;
             caption.characterSpacing = 2f;
-            caption.text = "TURN";
+            caption.text = "CYCLE";
             caption.color = new Color(0.65f, 0.72f, 0.78f);
             caption.rectTransform.anchoredPosition = new Vector2(0f, -23f);
             caption.rectTransform.sizeDelta = new Vector2(64f, 18f);
+            phaseLabel = Instantiate(caption, transform);
+            phaseLabel.name = "Current Phase";
+            phaseLabel.fontSize = 16f;
+            phaseLabel.characterSpacing = 0f;
+            phaseLabel.text = "아군 턴";
+            phaseLabel.rectTransform.anchoredPosition = new Vector2(0f, -76f);
+            phaseLabel.rectTransform.sizeDelta = new Vector2(130f, 26f);
+        }
+
+        public void DockToTray(RectTransform tray)
+        {
+            var rect = (RectTransform)transform;
+            rect.SetParent(tray, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(1f, 0f);
+            rect.anchoredPosition = new Vector2(-70f, 184f);
+            rect.localScale = Vector3.one * 0.76f;
+        }
+
+        public void SetPhase(bool playerTurn)
+        {
+            if (phaseLabel != null) phaseLabel.text = playerTurn ? "아군 턴" : "적군 턴";
         }
 
         private RectTransform MakeGear(string name, float size, Color tint, bool face)

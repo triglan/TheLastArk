@@ -307,7 +307,7 @@ public class CharacterSkillTests
     }
 
     [Test]
-    public void SplitDieKeepsTotalCarriesModifierAndRespectsStorage()
+    public void SplitDieKeepsTotalCarriesModifierAndExceedsTenDice()
     {
         var kaede = Hero(Kaede, 0);
         var pool = Dice(3);
@@ -322,10 +322,10 @@ public class CharacterSkillTests
 
         NewTurn();
         pool = Dice(1, 1, 1, 1, 1, 1, 1, 1, 1, 6);
-        Assert.AreEqual(BattleManager.DiceReasonStorageFull, _battle.GetDiceSkillUnavailableReason(kaede, split));
-        Assert.IsFalse(_battle.TrySplitDie(kaede, split, 9, new[] { 3, 3 }, 0));
-        Assert.AreEqual(10, pool.Dice.Count, "Nothing consumed");
-        Assert.AreEqual(0, _battle.GetSkillUsesThisTurn(kaede, split));
+        Assert.IsNull(_battle.GetDiceSkillUnavailableReason(kaede, split));
+        Assert.IsTrue(_battle.TrySplitDie(kaede, split, 9, new[] { 3, 3 }, 0));
+        Assert.AreEqual(11, pool.Dice.Count);
+        Assert.AreEqual(1, _battle.GetSkillUsesThisTurn(kaede, split));
     }
 
     [Test]

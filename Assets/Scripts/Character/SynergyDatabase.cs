@@ -133,7 +133,7 @@ namespace TheLastArk.Character
                 }
             );
             infoDict[SynergyType.Mirage] = new SynergyInfo(
-                SynergyType.Mirage, "미라주", "미라주", true,
+                SynergyType.Mirage, "신기루", "신기루", true,
                 "골드 주사위 사용 가능(턴당 1회). 획득 골드 증가. 실제 파티 직업마다 생존 아군 전체를 지원합니다.",
                 new List<SynergyTierInfo>
                 {
@@ -173,12 +173,6 @@ namespace TheLastArk.Character
                     new SynergyTierInfo(3, "(3) 이월 2개, 6번째 턴부터 매 턴 무작위 소속 1명 최대 눈금 효과")
                 }
             );
-            infoDict[SynergyType.BanditGang] = new SynergyInfo(
-                SynergyType.BanditGang, "도적단", "도적단", true,
-                "도적단 소속 적을 분류합니다.",
-                new List<SynergyTierInfo>()
-            );
-
             infoDict[SynergyType.Guardian] = new SynergyInfo(
                 SynergyType.Guardian, "수호자", "수호자", false,
                 "아군 전체가 받는 체력 피해 감소. 수호자가 보호·도발로 받는 피해 추가 감소.",
@@ -225,8 +219,8 @@ namespace TheLastArk.Character
                 }
             );
             infoDict[SynergyType.Support] = new SynergyInfo(
-                SynergyType.Support, "서포터", "서포터", false,
-                "아군 전체가 받는 회복·보호막 증가. 서포터의 지원을 받은 아군 정신력 회복(대상별 턴당 1회).",
+                SynergyType.Support, "지원가", "지원가", false,
+                "아군 전체가 받는 회복·보호막 증가. 지원가의 지원을 받은 아군 정신력 회복(대상별 턴당 1회).",
                 new List<SynergyTierInfo>
                 {
                     new SynergyTierInfo(1, "(1) 회복·보호막 +15%, 정신력 +1"),

@@ -1,0 +1,348 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 291717aee2e8252408070f7d0e358304, type: 3}
+  m_Name: ArkProgression
+  m_EditorClassIdentifier: 
+  memoryPerFloor: 5
+  memoryPerBattle: 5
+  memoryPerElite: 15
+  memoryPerBoss: 30
+  nodes:
+  - id: leader_health
+    title: "\uC0DD\uBA85\uC758 \uAE30\uC5B5"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uB9AC\uB354\uC758 \uCD5C\uB300 \uCCB4\uB825
+      +1.\n\uC774 \uBCC4\uC5D0\uC11C \uCD5C\uB300 +5\uAE4C\uC9C0 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+    kind: 0
+    major: 0
+    placeholder: 0
+    costs: 190000002d00000046000000640000008c000000
+    amountPerLevel: 1
+    position: {x: 0.37, y: 0.62}
+    prerequisites: []
+    branch: "\uC218\uD638\uC758 \uBCC4\uC790\uB9AC"
+  - id: leader_mental
+    title: "\uD3C9\uC815\uC758 \uAE30\uC5B5"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uB9AC\uB354\uC758 \uCD5C\uB300 \uC815\uC2E0\uB825
+      +1.\n\uC774 \uBCC4\uC5D0\uC11C \uCD5C\uB300 +5\uAE4C\uC9C0 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+    kind: 1
+    major: 0
+    placeholder: 0
+    costs: 190000002d00000046000000640000008c000000
+    amountPerLevel: 1
+    position: {x: 0.25, y: 0.66}
+    prerequisites:
+    - leader_health
+    branch: "\uC218\uD638\uC758 \uBCC4\uC790\uB9AC"
+  - id: health_2
+    title: "\uAEBC\uC9C0\uC9C0 \uC54A\uB294 \uB9E5\uBC15"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uB9AC\uB354\uC758 \uCD5C\uB300 \uCCB4\uB825
+      +1.\n\uC774 \uBCC4\uC5D0\uC11C \uCD5C\uB300 +5\uAE4C\uC9C0 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+    kind: 0
+    major: 0
+    placeholder: 0
+    costs: 550000007300000096000000be000000eb000000
+    amountPerLevel: 1
+    position: {x: 0.32, y: 0.82}
+    prerequisites:
+    - leader_health
+    branch: "\uC218\uD638\uC758 \uBCC4\uC790\uB9AC"
+  - id: health_3
+    title: "\uC0DD\uBA85\uC758 \uC794\uAD11"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uB9AC\uB354\uC758 \uCD5C\uB300 \uCCB4\uB825
+      +1.\n\uC774 \uBCC4\uC5D0\uC11C \uCD5C\uB300 +5\uAE4C\uC9C0 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+    kind: 0
+    major: 0
+    placeholder: 0
+    costs: 6e00000091000000b9000000e600000018010000
+    amountPerLevel: 1
+    position: {x: 0.21, y: 0.92}
+    prerequisites:
+    - health_2
+    branch: "\uC218\uD638\uC758 \uBCC4\uC790\uB9AC"
+  - id: leader_armor
+    title: "\uBCC4\uC758 \uAC11\uC8FC"
+    description: "\uB9AC\uB354\uC758 \uBC29\uC5B4\uB825 +1."
+    kind: 8
+    major: 0
+    placeholder: 0
+    costs: 8c000000
+    amountPerLevel: 1
+    position: {x: 0.09, y: 0.85}
+    prerequisites:
+    - health_3
+    branch: "\uC218\uD638\uC758 \uBCC4\uC790\uB9AC"
+  - id: mental_2
+    title: "\uD754\uB4E4\uB9AC\uC9C0 \uC54A\uB294 \uC228"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uB9AC\uB354\uC758 \uCD5C\uB300 \uC815\uC2E0\uB825
+      +1.\n\uC774 \uBCC4\uC5D0\uC11C \uCD5C\uB300 +5\uAE4C\uC9C0 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+    kind: 1
+    major: 0
+    placeholder: 0
+    costs: 550000007300000096000000be000000eb000000
+    amountPerLevel: 1
+    position: {x: 0.14, y: 0.72}
+    prerequisites:
+    - leader_mental
+    branch: "\uC218\uD638\uC758 \uBCC4\uC790\uB9AC"
+  - id: mental_3
+    title: "\uACE0\uC694\uC758 \uC794\uAD11"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uB9AC\uB354\uC758 \uCD5C\uB300 \uC815\uC2E0\uB825
+      +1.\n\uC774 \uBCC4\uC5D0\uC11C \uCD5C\uB300 +5\uAE4C\uC9C0 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+    kind: 1
+    major: 0
+    placeholder: 0
+    costs: 6e00000091000000b9000000e600000018010000
+    amountPerLevel: 1
+    position: {x: 0.07, y: 0.6}
+    prerequisites:
+    - mental_2
+    branch: "\uC218\uD638\uC758 \uBCC4\uC790\uB9AC"
+  - id: leader_resist
+    title: "\uBCC4\uC758 \uC7A5\uB9C9"
+    description: "\uB9AC\uB354\uC758 \uB9C8\uBC95 \uC800\uD56D\uB825 +1."
+    kind: 9
+    major: 0
+    placeholder: 0
+    costs: 8c000000
+    amountPerLevel: 1
+    position: {x: 0.18, y: 0.52}
+    prerequisites:
+    - mental_3
+    branch: "\uC218\uD638\uC758 \uBCC4\uC790\uB9AC"
+  - id: extra_die
+    title: "\uCCAB \uBC88\uC9F8 \uAC00\uB2A5\uC131"
+    description: "\uB9E4 \uC804\uD22C\uC758 \uCCAB \uC544\uAD70 \uD134\uC5D0 \uC77C\uBC18
+      \uC8FC\uC0AC\uC704 +1\uAC1C."
+    kind: 2
+    major: 0
+    placeholder: 0
+    costs: 50000000
+    amountPerLevel: 1
+    position: {x: 0.58, y: 0.63}
+    prerequisites: []
+    branch: "\uC6B4\uBA85\uC758 \uBCC4\uC790\uB9AC"
+  - id: enhance_die
+    title: "\uC6B4\uBA85\uC758 \uC190\uAE38"
+    description: "\uC804\uD22C\uB2F9 \uC8FC\uC0AC\uC704 \uAC15\uD654 +1\uD68C.\n\uC8FC\uC0AC\uC704\uB97C
+      \uD074\uB9AD\uD558\uACE0 \u2018\uAE30\uC5B5 +1\u2019\uC744 \uB204\uB974\uBA74
+      \uB208\uAE08\uC774 1 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+    kind: 3
+    major: 0
+    placeholder: 0
+    costs: 5a000000
+    amountPerLevel: 1
+    position: {x: 0.66, y: 0.79}
+    prerequisites:
+    - extra_die
+    branch: "\uC6B4\uBA85\uC758 \uBCC4\uC790\uB9AC"
+  - id: enhance_2
+    title: "\uACB9\uCCD0\uC9C4 \uAC00\uB2A5\uC131"
+    description: "\uC804\uD22C\uB2F9 \uC8FC\uC0AC\uC704 \uAC15\uD654 +1\uD68C.\n\uC6B4\uBA85\uC758
+      \uC190\uAE38\uACFC \uD569\uCCD0 \uCD1D 2\uD68C \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+    kind: 3
+    major: 0
+    placeholder: 0
+    costs: b4000000
+    amountPerLevel: 1
+    position: {x: 0.81, y: 0.89}
+    prerequisites:
+    - enhance_die
+    branch: "\uC6B4\uBA85\uC758 \uBCC4\uC790\uB9AC"
+  - id: reroll
+    title: "\uB2E4\uC2DC \uB358\uC9C4 \uC6B4\uBA85"
+    description: "\uC804\uD22C\uB2F9 \uC8FC\uC0AC\uC704 \uC7AC\uAD74\uB9BC +1\uD68C.\n\uC120\uD0DD\uD55C
+      \uC8FC\uC0AC\uC704 \uD558\uB098\uB97C \uB2E4\uC2DC \uAD74\uB9BD\uB2C8\uB2E4.
+      \uACE0\uC815 \uC8FC\uC0AC\uC704\uB294 \uC81C\uC678\uB429\uB2C8\uB2E4."
+    kind: 4
+    major: 0
+    placeholder: 0
+    costs: 5a000000
+    amountPerLevel: 1
+    position: {x: 0.75, y: 0.65}
+    prerequisites:
+    - extra_die
+    branch: "\uC6B4\uBA85\uC758 \uBCC4\uC790\uB9AC"
+  - id: reroll_2
+    title: "\uB450 \uBC88\uC9F8 \uAE30\uD68C"
+    description: "\uC804\uD22C\uB2F9 \uC8FC\uC0AC\uC704 \uC7AC\uAD74\uB9BC +1\uD68C.\n\uB2E4\uC2DC
+      \uB358\uC9C4 \uC6B4\uBA85\uACFC \uD569\uCCD0 \uCD1D 2\uD68C \uC0AC\uC6A9\uD560
+      \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+    kind: 4
+    major: 0
+    placeholder: 0
+    costs: b4000000
+    amountPerLevel: 1
+    position: {x: 0.91, y: 0.75}
+    prerequisites:
+    - reroll
+    branch: "\uC6B4\uBA85\uC758 \uBCC4\uC790\uB9AC"
+  - id: provisions
+    title: "\uC5EC\uC815\uC758 \uCC44\uBE44"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uC2DC\uC791 \uACE8\uB4DC +5.\n\uC774
+      \uBCC4\uC5D0\uC11C \uCD5C\uB300 +25\uAE4C\uC9C0 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+    kind: 10
+    major: 0
+    placeholder: 0
+    costs: 1e000000320000004b000000690000008c000000
+    amountPerLevel: 5
+    position: {x: 0.63, y: 0.4}
+    prerequisites: []
+    branch: "\uC720\uC0B0\uC758 \uBCC4\uC790\uB9AC"
+  - id: relic_trace
+    title: "\uC720\uBB3C\uC758 \uB2E8\uC11C"
+    description: "\uC804\uD22C \uC2B9\uB9AC\uB9C8\uB2E4 \uC815\uC0B0\uD560 \uAE30\uC5B5
+      +1.\n\uC77C\uBC18\xB7\uC815\uC608\xB7\uBCF4\uC2A4 \uC804\uD22C\uC5D0 \uBAA8\uB450
+      \uC801\uC6A9\uB429\uB2C8\uB2E4."
+    kind: 11
+    major: 0
+    placeholder: 0
+    costs: 3c000000
+    amountPerLevel: 1
+    position: {x: 0.76, y: 0.44}
+    prerequisites:
+    - provisions
+    branch: "\uC720\uC0B0\uC758 \uBCC4\uC790\uB9AC"
+  - id: relic_summon
+    title: "\uC78A\uD78C \uC720\uBB3C"
+    description: "\uCE90\uB9AD\uD130 \uC120\uD0DD \uD654\uBA74\uC758 \uC720\uBB3C
+      \uC18C\uD658\uC744 \uD574\uAE08\uD569\uB2C8\uB2E4.\n\uC18C\uD658\uD55C \uC720\uBB3C
+      \uD558\uB098\uC640 \uD568\uAED8 \uC5EC\uC815\uC744 \uC2DC\uC791\uD560 \uC218
+      \uC788\uC2B5\uB2C8\uB2E4."
+    kind: 5
+    major: 1
+    placeholder: 0
+    costs: 64000000
+    amountPerLevel: 1
+    position: {x: 0.9, y: 0.5}
+    prerequisites:
+    - relic_trace
+    branch: "\uC720\uC0B0\uC758 \uBCC4\uC790\uB9AC"
+  - id: train_trace
+    title: "\uC783\uC5B4\uBC84\uB9B0 \uB3C4\uBA74"
+    description: "\uC804\uD22C \uC2B9\uB9AC\uB9C8\uB2E4 \uC815\uC0B0\uD560 \uAE30\uC5B5
+      +1.\n\uC720\uBB3C\uC758 \uB2E8\uC11C\uC640 \uC911\uCCA9\uB429\uB2C8\uB2E4."
+    kind: 11
+    major: 0
+    placeholder: 0
+    costs: 3c000000
+    amountPerLevel: 1
+    position: {x: 0.73, y: 0.28}
+    prerequisites:
+    - provisions
+    branch: "\uC720\uC0B0\uC758 \uBCC4\uC790\uB9AC"
+  - id: train_customization
+    title: "\uBC29\uC8FC\uC758 \uC124\uACC4"
+    description: "\uCE90\uB9AD\uD130 \uC120\uD0DD \uD654\uBA74\uC5D0 \uC5F4\uCC28
+      \uD3B8\uC131\xB7\uCEE4\uC2A4\uD140 \uBA54\uB274\uAC00 \uB098\uD0C0\uB0A9\uB2C8\uB2E4."
+    kind: 6
+    major: 1
+    placeholder: 0
+    costs: 78000000
+    amountPerLevel: 1
+    position: {x: 0.89, y: 0.2}
+    prerequisites:
+    - train_trace
+    branch: "\uC720\uC0B0\uC758 \uBCC4\uC790\uB9AC"
+  - id: crew_signal
+    title: "\uBA3C \uACF3\uC758 \uC2E0\uD638"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uC2DC\uC791 \uACE8\uB4DC +5, \uCD5C\uB300
+      +25.\n\uC900\uBE44\uB97C \uB9C8\uCE58\uBA74 \uC138 \uC778\uC5F0\uC758 \uD56D\uB85C\uAC00
+      \uC5F4\uB9BD\uB2C8\uB2E4."
+    kind: 10
+    major: 0
+    placeholder: 0
+    costs: 1e000000320000004b000000690000008c000000
+    amountPerLevel: 5
+    position: {x: 0.37, y: 0.35}
+    prerequisites: []
+    branch: "\uC778\uC5F0\uC758 \uBCC4\uC790\uB9AC"
+  - id: crew_path_1
+    title: "\uAC1C\uCC99\uC790\uC758 \uD56D\uB85C"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uB9AC\uB354\uC758 \uACF5\uACA9\uB825
+      +1, \uCD5C\uB300 +3.\n\uAE38\uC744 \uC9C1\uC811 \uC5F4\uC5B4 \uB098\uAC00\uB294
+      \uC774\uB4E4\uC758 \uAE30\uC5B5\uC785\uB2C8\uB2E4."
+    kind: 12
+    major: 0
+    placeholder: 0
+    costs: 78000000c80000002c010000
+    amountPerLevel: 1
+    position: {x: 0.24, y: 0.34}
+    prerequisites:
+    - crew_signal
+    branch: "\uC778\uC5F0\uC758 \uBCC4\uC790\uB9AC"
+  - id: character_1
+    title: "\uBBF8\uC9C0\uC758 \uC2B9\uBB34\uC6D0 I"
+    description: "\uC544\uC9C1 \uB2FF\uC9C0 \uC54A\uC740 \uC778\uC5F0\uC785\uB2C8\uB2E4.\n\uCE90\uB9AD\uD130\uAC00
+      \uC900\uBE44\uB418\uBA74 \uC774 \uBCC4\uC5D0\uC11C \uB9CC\uB0A0 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+    kind: 7
+    major: 1
+    placeholder: 1
+    costs: 01000000
+    amountPerLevel: 1
+    position: {x: 0.1, y: 0.35}
+    prerequisites:
+    - crew_path_1
+    branch: "\uC778\uC5F0\uC758 \uBCC4\uC790\uB9AC"
+  - id: crew_path_2
+    title: "\uAD00\uCE21\uC790\uC758 \uD56D\uB85C"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uB9AC\uB354\uC758 \uC8FC\uBB38\uB825
+      +1, \uCD5C\uB300 +3.\n\uBCC4\uC758 \uC774\uCE58\uB97C \uC77D\uC5B4 \uB0B4\uB294
+      \uC774\uB4E4\uC758 \uAE30\uC5B5\uC785\uB2C8\uB2E4."
+    kind: 13
+    major: 0
+    placeholder: 0
+    costs: 78000000c80000002c010000
+    amountPerLevel: 1
+    position: {x: 0.31, y: 0.2}
+    prerequisites:
+    - crew_signal
+    branch: "\uC778\uC5F0\uC758 \uBCC4\uC790\uB9AC"
+  - id: character_2
+    title: "\uBBF8\uC9C0\uC758 \uC2B9\uBB34\uC6D0 II"
+    description: "\uC544\uC9C1 \uB2FF\uC9C0 \uC54A\uC740 \uC778\uC5F0\uC785\uB2C8\uB2E4.\n\uCE90\uB9AD\uD130\uAC00
+      \uC900\uBE44\uB418\uBA74 \uC774 \uBCC4\uC5D0\uC11C \uB9CC\uB0A0 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+    kind: 7
+    major: 1
+    placeholder: 1
+    costs: 01000000
+    amountPerLevel: 1
+    position: {x: 0.2, y: 0.08}
+    prerequisites:
+    - crew_path_2
+    branch: "\uC778\uC5F0\uC758 \uBCC4\uC790\uB9AC"
+  - id: crew_path_3
+    title: "\uD68C\uC218\uC790\uC758 \uD56D\uB85C"
+    description: "\uB2E8\uACC4\uB9C8\uB2E4 \uC804\uD22C \uC2B9\uB9AC \uC2DC \uC5BB\uC744
+      \uAE30\uC5B5 +1, \uCD5C\uB300 +3.\n\uD769\uC5B4\uC9C4 \uAE30\uC5B5\uC744 \uBAA8\uC544
+      \uB2E4\uC74C \uC5EC\uC815\uC73C\uB85C \uC787\uC2B5\uB2C8\uB2E4."
+    kind: 11
+    major: 0
+    placeholder: 0
+    costs: 5000000082000000c8000000
+    amountPerLevel: 1
+    position: {x: 0.47, y: 0.2}
+    prerequisites:
+    - crew_signal
+    branch: "\uC778\uC5F0\uC758 \uBCC4\uC790\uB9AC"
+  - id: character_3
+    title: "\uBBF8\uC9C0\uC758 \uC2B9\uBB34\uC6D0 III"
+    description: "\uC544\uC9C1 \uB2FF\uC9C0 \uC54A\uC740 \uC778\uC5F0\uC785\uB2C8\uB2E4.\n\uCE90\uB9AD\uD130\uAC00
+      \uC900\uBE44\uB418\uBA74 \uC774 \uBCC4\uC5D0\uC11C \uB9CC\uB0A0 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+    kind: 7
+    major: 1
+    placeholder: 1
+    costs: 01000000
+    amountPerLevel: 1
+    position: {x: 0.57, y: 0.08}
+    prerequisites:
+    - crew_path_3
+    branch: "\uC778\uC5F0\uC758 \uBCC4\uC790\uB9AC"

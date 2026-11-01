@@ -102,6 +102,18 @@ namespace TheLastArk.UI
             }
         }
 
+        public void Toggle(TabType tab)
+        {
+            if (popupPanel != null && popupPanel.activeSelf && currentTab == tab)
+            {
+                Hide();
+            }
+            else
+            {
+                Show(tab);
+            }
+        }
+
         public void Show(TabType initialTab = TabType.Character)
         {
             if (popupPanel == null)
@@ -287,9 +299,9 @@ namespace TheLastArk.UI
             pLe.preferredHeight = 160;
 
             Image pImg = portraitObj.AddComponent<Image>();
-            if (data.portraitSprite != null)
+            if (data.PortraitSprite != null)
             {
-                pImg.sprite = data.portraitSprite;
+                pImg.sprite = data.PortraitSprite;
                 pImg.preserveAspect = true;
             }
             else
@@ -397,7 +409,7 @@ namespace TheLastArk.UI
 
             // 1. Standing Sprite Illustration
             if (data.standingSprite != null) detailStandingImage.sprite = data.standingSprite;
-            else if (data.portraitSprite != null) detailStandingImage.sprite = data.portraitSprite;
+            else if (data.PortraitSprite != null) detailStandingImage.sprite = data.PortraitSprite;
             else detailStandingImage.sprite = null;
 
             // 2. Character Status & 7 Stats Display

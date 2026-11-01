@@ -104,6 +104,7 @@ public sealed class IconLibrary : ScriptableObject
             case EffectType.Pierce: return "관통";
             case EffectType.Guard: return "보호";
             case EffectType.Focus: return "집중";
+            case EffectType.Evasion: return "회피";
             case EffectType.MentalDamage: return "정신 피해";
             case EffectType.MentalHeal: return "정신 회복";
             case EffectType.Amplification: return "증폭";

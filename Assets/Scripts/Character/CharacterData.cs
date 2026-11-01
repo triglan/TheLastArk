@@ -20,9 +20,68 @@ public class CharacterData : ScriptableObject
     // 아군은 초상화와 스탠딩 이미지를 모두 쓰고, 적은 스탠딩 이미지만 씁니다.
     public Sprite standingSprite;
     public Sprite portraitSprite;
+    [Tooltip("별도 초상화 대신 기본 일러스트의 얼굴 영역을 사용합니다.")]
+    public bool useStandingPortrait = true;
+    public Vector2 portraitFocus = new Vector2(.53f,.85f);
+    [Range(1f,8f)] public float portraitZoom = 3f;
+    [System.NonSerialized] private Sprite croppedPortrait, portraitSource;
+    [System.NonSerialized] private Rect cachedPortraitRect;
+
+    public Rect PortraitCropRect
+    {
+        get
+        {
+            if (standingSprite==null) return Rect.zero;
+            Rect source=standingSprite.rect;
+            float side=Mathf.Max(1,Mathf.Floor(Mathf.Min(source.width,source.height)/Mathf.Clamp(portraitZoom,1,8)));
+            Vector2 center=source.min+Vector2.Scale(source.size,portraitFocus);
+            return new Rect(Mathf.Floor(Mathf.Clamp(center.x-side*.5f,source.xMin,source.xMax-side)),
+                Mathf.Floor(Mathf.Clamp(center.y-side*.5f,source.yMin,source.yMax-side)),side,side);
+        }
+    }
+    public Sprite PortraitSprite
+    {
+        get
+        {
+            if (isEnemy || !useStandingPortrait || standingSprite==null) return portraitSprite!=null?portraitSprite:standingSprite;
+            Rect crop=PortraitCropRect;
+            if (croppedPortrait!=null && portraitSource==standingSprite && cachedPortraitRect==crop) return croppedPortrait;
+            ReleasePortrait();
+            croppedPortrait=Sprite.Create(standingSprite.texture,crop,Vector2.one*.5f,standingSprite.pixelsPerUnit,0,SpriteMeshType.FullRect);
+            croppedPortrait.name=DataId+"_FacePortrait";croppedPortrait.hideFlags=HideFlags.HideAndDontSave;
+            portraitSource=standingSprite;cachedPortraitRect=crop;
+            return croppedPortrait;
+        }
+    }
+    private void ReleasePortrait()
+    {
+        if (croppedPortrait!=null)
+        {
+            if (Application.isPlaying) Destroy(croppedPortrait);else DestroyImmediate(croppedPortrait);
+        }
+        croppedPortrait=null;portraitSource=null;
+    }
+    private void OnDisable(){ReleasePortrait();}
     public Sprite closedEyesSprite;
-    [Tooltip("패닉 발생 시 이 목록에서 무작위 일러스트를 표시합니다. 비어 있으면 기존 일러스트를 사용합니다.")]
+    [Tooltip("1번: 강박·발작 / 2번: 우울·무기력 / 3번: 동요 / 4번: 환각. 해당 그림이 없으면 기존 일러스트를 사용합니다.")]
     public List<Sprite> panicIllustrations = new List<Sprite>();
+
+    public Sprite GetPanicIllustration(TheLastArk.Battle.PanicType type)
+    {
+        int index=type switch
+        {
+            TheLastArk.Battle.PanicType.Compulsion => 0,
+            TheLastArk.Battle.PanicType.Seizure => 0,
+            TheLastArk.Battle.PanicType.Depression => 1,
+            TheLastArk.Battle.PanicType.Lethargy => 1,
+            TheLastArk.Battle.PanicType.Agitation => 2,
+            TheLastArk.Battle.PanicType.Hallucination => 3,
+            _ => -1
+        };
+        if (index >= 0 && panicIllustrations != null && index < panicIllustrations.Count && panicIllustrations[index] != null)
+            return panicIllustrations[index];
+        return standingSprite != null ? standingSprite : portraitSprite;
+    }
 
     [Header("적 일러스트 배치")]
     [SerializeField, Tooltip("Auto는 일러스트 종횡비로 판정합니다. 가로로 넓은 크리쳐는 별도의 두 줄 배치를 사용합니다.")]
@@ -134,7 +193,9 @@ public enum PassiveTrait
     /// <summary>흑사: charges = actual attack fires per generated 0 die.</summary>
     BlackDeath,
     /// <summary>가자 댕댕아!: value = % direct HP damage increase on marked enemies, charges = marks kept.</summary>
-    HuntingMark
+    HuntingMark,
+    /// <summary>명사수의 눈: value = crit chance %p, secondaryValue = crit damage %p. Excess crit converts to attack %.</summary>
+    MarksmanEye
 }
 
 /// <summary>Skill mechanics that can't be expressed as plain effects.</summary>
@@ -156,6 +217,7 @@ public enum EffectTargetScope { SkillTargets, Self, AllAllies }
 [System.Serializable]
 public class SkillLevelData
 {
+    [TextArea(2, 5)] public string description;
     // 스킬의 한 단계가 어떤 대상을 공격하고 어떤 효과를 주는지 정합니다.
     public int overrideCost = -1;
     public TheLastArk.Skills.DiceInputRule diceInput = new TheLastArk.Skills.DiceInputRule();
@@ -216,6 +278,18 @@ public class EffectEntry
     public float matchedArmorIgnorePercent;
     [Tooltip("집중: 이번 스킬 동안만 유지")]
     public bool focusOnlyThisSkill;
+    [Tooltip("대상의 잃은 체력 중 피해에 더할 비율(%)")]
+    public float targetMissingHealthPercent;
+    [Tooltip("체력이 최대인 대상에게 피해 증가(%)")]
+    public float fullHealthDamageBonusPercent;
+    [Tooltip("체력이 절반 미만인 대상에게 피해 증가(%)")]
+    public float belowHalfHealthDamageBonusPercent;
+    [Tooltip("이번 피해만 방어력·마법 저항력 무시(%)")]
+    public float armorIgnorePercent;
+    [Tooltip("양옆 피해를 첫 대상의 실제 체력 피해 기준으로 계산")]
+    public bool splashUsesActualDamage;
+    [Tooltip("첫 대상의 실제 체력 피해 중 모든 적에게 추가로 줄 비율(%)")]
+    public float splashAllPercent;
 }
 
 [System.Serializable]
@@ -317,7 +391,9 @@ public enum EffectType
     // 사냥 표식: 아군의 직접 체력 피해 증가 (value %)
     HuntMark = 32,
     // 다음 주사위 사용 시 눈금 보너스 (value = 보너스, charges = 적용 개수)
-    DiceBoost = 33
+    DiceBoost = 33,
+    // 회피: charges + floor(D/valuePerDieDivisor), secondaryValue > 0 also avoids sanity damage.
+    Evasion = 34
 }
 public enum DamageType { Physical, Magical, True }
 public enum StatusDurationType

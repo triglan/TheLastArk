@@ -1,0 +1,1166 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abf43f093f28ca446a76e4496253ea98, type: 3}
+  m_Name: Arbalist_Data
+  m_EditorClassIdentifier: 
+  characterId: 03
+  characterName: "\uB9C8\uCEE4\uC2A4 \uBE14\uB799\uC3DC"
+  jobName: Arbalist
+  synergies: 050000000c000000
+  isEnemy: 0
+  regionId: temp
+  standingSprite: {fileID: 21300000, guid: 6b3ea87643cd05d40abd7f9600635be3, type: 3}
+  portraitSprite: {fileID: 21300000, guid: af29191b649e32f4badd13b2f6b5bb11, type: 3}
+  closedEyesSprite: {fileID: 0}
+  panicIllustrations: []
+  enemyFormationType: 0
+  enemyIllustrationScale: 1
+  enemyIllustrationHeight: 180
+  enemyIllustrationOffset: {x: 0, y: 0}
+  enemyIllustrationKeepFeet: 1
+  maxHp: 30
+  maxMental: 30
+  baseAttack: 7
+  spellPower: 0
+  armor: 1
+  magicResist: 1
+  critRate: 50
+  levelStatMultipliers:
+  - 0
+  - 0.2
+  - 0.5
+  - 1
+  - 2
+  passiveSkill:
+    skillName: "\uBA85\uC0AC\uC218\uC758 \uB208"
+    skillIcon: {fileID: 0}
+    baseCost: 0
+    passiveTrait: 5
+    levels:
+    - description: "\uCE58\uBA85\uD0C0 \uD655\uB960 +25%p.\n\uCE58\uBA85\uD0C0 \uD655\uB960\uC774
+        100%\uB97C \uCD08\uACFC\uD558\uBA74 \uCD08\uACFC 1%p\uB9C8\uB2E4 \uACF5\uACA9\uB825
+        +1%.\n\uAC1C\uD654: \uCE58\uBA85\uD0C0 \uD655\uB960 +25%p, \uCE58\uBA85\uD0C0
+        \uD53C\uD574 +25%p \uCD94\uAC00."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 25
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: "\uCE58\uBA85\uD0C0 \uD655\uB960 +50%p.\n\uCE58\uBA85\uD0C0 \uD655\uB960\uC774
+        100%\uB97C \uCD08\uACFC\uD558\uBA74 \uCD08\uACFC 1%p\uB9C8\uB2E4 \uACF5\uACA9\uB825
+        +1%.\n\uCE58\uBA85\uD0C0 \uD53C\uD574 +25%p."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 50
+        secondaryValue: 25
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: "\uCE58\uBA85\uD0C0 \uD655\uB960 +50%p.\n\uCE58\uBA85\uD0C0 \uD655\uB960\uC774
+        100%\uB97C \uCD08\uACFC\uD558\uBA74 \uCD08\uACFC 1%p\uB9C8\uB2E4 \uACF5\uACA9\uB825
+        +1%.\n\uCE58\uBA85\uD0C0 \uD53C\uD574 +25%p."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 10
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 50
+        secondaryValue: 25
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+  activeSkills:
+  - skillName: "\uAFF0\uB6AB\uC5B4 \uC3D8\uAE30"
+    skillIcon: {fileID: 0}
+    baseCost: 0
+    passiveTrait: 0
+    levels:
+    - description: "4 \uC774\uC0C1 \xB7 \uC801 1\uBA85\n\uB208\uAE08 + \uACF5\uACA9\uB825
+        150% \uBB3C\uB9AC \uD53C\uD574.\n\uC9D1\uC911: \uC774\uBC88 \uC2A4\uD0AC\uC740
+        \uB3C4\uBC1C \uBB34\uC2DC."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 2
+        value: 4
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 24
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 1
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+      - type: 0
+        damageType: 0
+        multiplier: 1.5
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: "4 \uC774\uC0C1 \xB7 \uC801 1\uBA85\n\uB208\uAE08 + \uACF5\uACA9\uB825
+        180% \uBB3C\uB9AC \uD53C\uD574.\n\uC9D1\uC911: \uC774\uBC88 \uC2A4\uD0AC\uC740
+        \uB3C4\uBC1C \uBB34\uC2DC."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 2
+        value: 4
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 24
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 1
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+      - type: 0
+        damageType: 0
+        multiplier: 1.8
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: "4 \uC774\uC0C1 \xB7 \uC801 1\uBA85\n\uB208\uAE08 + \uACF5\uACA9\uB825
+        180% \uBB3C\uB9AC \uD53C\uD574.\n\uC9D1\uC911: \uC774\uBC88 \uC2A4\uD0AC\uC740
+        \uB3C4\uBC1C \uBB34\uC2DC.\n\uCCB4\uB825\uC774 \uCD5C\uB300\uC778 \uB300\uC0C1\uC5D0\uAC8C
+        \uD53C\uD574 +50%."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 2
+        value: 4
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 24
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 1
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+      - type: 0
+        damageType: 0
+        multiplier: 1.8
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 1
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 50
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+  - skillName: "\uD3ED\uBC1C \uD654\uC0B4"
+    skillIcon: {fileID: 0}
+    baseCost: 0
+    passiveTrait: 0
+    levels:
+    - description: "\uCDA9\uC804 20 \xB7 \uC801 1\uBA85\n\uACF5\uACA9\uB825 150%
+        \uBB3C\uB9AC \uD53C\uD574.\n\uCCAB \uB300\uC0C1\uC5D0\uAC8C \uC900 \uCCB4\uB825
+        \uD53C\uD574\uC758 50%\uB9CC\uD07C \uC591\uC606 \uC801\uC5D0\uAC8C \uBB3C\uB9AC
+        \uD53C\uD574."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 20
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 1.5
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 50
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 1
+        splashAllPercent: 0
+    - description: "\uCDA9\uC804 20 \xB7 \uC801 1\uBA85\n\uACF5\uACA9\uB825 180%
+        \uBB3C\uB9AC \uD53C\uD574.\n\uCCAB \uB300\uC0C1\uC5D0\uAC8C \uC900 \uCCB4\uB825
+        \uD53C\uD574\uC758 50%\uB9CC\uD07C \uC591\uC606 \uC801\uC5D0\uAC8C \uBB3C\uB9AC
+        \uD53C\uD574."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 20
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 1.8
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 50
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 1
+        splashAllPercent: 0
+    - description: "\uCDA9\uC804 20 \xB7 \uC801 1\uBA85\n\uACF5\uACA9\uB825 180%
+        \uBB3C\uB9AC \uD53C\uD574.\n\uCCAB \uB300\uC0C1\uC5D0\uAC8C \uC900 \uCCB4\uB825
+        \uD53C\uD574\uC758 50%\uB9CC\uD07C \uC591\uC606 \uC801\uC5D0\uAC8C \uBB3C\uB9AC
+        \uD53C\uD574.\n\uCCAB \uB300\uC0C1\uC5D0\uAC8C \uC900 \uCCB4\uB825 \uD53C\uD574\uC758
+        25%\uB9CC\uD07C \uBAA8\uB4E0 \uC801\uC5D0\uAC8C \uCD94\uAC00 \uBB3C\uB9AC
+        \uD53C\uD574."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 0
+        value: 1
+        maxValue: 6
+        chargeTarget: 20
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 1.8
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 50
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 1
+        splashAllPercent: 25
+  - skillName: "\uD6C4\uD1F4 \uC0AC\uACA9"
+    skillIcon: {fileID: 0}
+    baseCost: 0
+    passiveTrait: 0
+    levels:
+    - description: "\uC9DD\uC218 \xB7 \uC801 1\uBA85\n\uACF5\uACA9\uB825 60% \uBB3C\uB9AC
+        \uD53C\uD574.\n\uB2E4\uC74C \uC790\uAE30 \uD134\uAE4C\uC9C0 \uCCB4\uB825
+        \uD53C\uD574\uB97C \u230A\uB208\uAE08 \xF7 2\u230B\uD68C \uD68C\uD53C."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 5
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 0.6
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+      - type: 34
+        damageType: 0
+        multiplier: 0
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 0
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 2
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: "\uC9DD\uC218 \xB7 \uC801 1\uBA85\n\uACF5\uACA9\uB825 80% \uBB3C\uB9AC
+        \uD53C\uD574.\n\uB2E4\uC74C \uC790\uAE30 \uD134\uAE4C\uC9C0 \uCCB4\uB825
+        \uD53C\uD574\uB97C \u230A\uB208\uAE08 \xF7 2\u230B\uD68C \uD68C\uD53C."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 5
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 0.8
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+      - type: 34
+        damageType: 0
+        multiplier: 0
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 0
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 2
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: "\uC9DD\uC218 \xB7 \uC801 1\uBA85\n\uACF5\uACA9\uB825 80% \uBB3C\uB9AC
+        \uD53C\uD574.\n\uB2E4\uC74C \uC790\uAE30 \uD134\uAE4C\uC9C0 \uBAA8\uB4E0
+        \uD53C\uD574\uB97C \u230A\uB208\uAE08 \xF7 2\u230B\uD68C \uD68C\uD53C."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 5
+        value: 1
+        maxValue: 6
+        chargeTarget: 0
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 0
+        damageType: 0
+        multiplier: 0.8
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+      - type: 34
+        damageType: 0
+        multiplier: 0
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 1
+        hitCount: 1
+        duration: 3
+        charges: 0
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 2
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+  - skillName: "\uC815\uC870\uC900: \uD544\uC911"
+    skillIcon: {fileID: 0}
+    baseCost: 0
+    passiveTrait: 0
+    levels:
+    - description: "5 \uC774\uC0C1 \xB7 \uCDA9\uC804 40 \xB7 \uC801 1\uBA85\n\uACF5\uACA9\uB825
+        300% + \uB300\uC0C1\uC774 \uC783\uC740 \uCCB4\uB825\uC758 30% \uBB3C\uB9AC
+        \uD53C\uD574.\n\uC9D1\uC911\xB7\uAD00\uD1B5: \uC774\uBC88 \uC2A4\uD0AC\uC740
+        \uB3C4\uBC1C\xB7\uBC29\uC5B4\uB825 \uBB34\uC2DC."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 2
+        value: 5
+        maxValue: 6
+        chargeTarget: 40
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 24
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+      - type: 0
+        damageType: 0
+        multiplier: 3
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 30
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 100
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: "4 \uC774\uC0C1 \xB7 \uCDA9\uC804 40 \xB7 \uC801 1\uBA85\n\uACF5\uACA9\uB825
+        300% + \uB300\uC0C1\uC774 \uC783\uC740 \uCCB4\uB825\uC758 30% \uBB3C\uB9AC
+        \uD53C\uD574.\n\uC9D1\uC911\xB7\uAD00\uD1B5: \uC774\uBC88 \uC2A4\uD0AC\uC740
+        \uB3C4\uBC1C\xB7\uBC29\uC5B4\uB825 \uBB34\uC2DC."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 2
+        value: 4
+        maxValue: 6
+        chargeTarget: 40
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 24
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+      - type: 0
+        damageType: 0
+        multiplier: 3
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 30
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 100
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+    - description: "4 \uC774\uC0C1 \xB7 \uCDA9\uC804 40 \xB7 \uC801 1\uBA85\n\uACF5\uACA9\uB825
+        300% + \uB300\uC0C1\uC774 \uC783\uC740 \uCCB4\uB825\uC758 30% \uBB3C\uB9AC
+        \uD53C\uD574.\n\uC9D1\uC911\xB7\uAD00\uD1B5: \uC774\uBC88 \uC2A4\uD0AC\uC740
+        \uB3C4\uBC1C\xB7\uBC29\uC5B4\uB825 \uBB34\uC2DC.\n\uCCB4\uB825 50% \uBBF8\uB9CC\uC778
+        \uB300\uC0C1\uC5D0\uAC8C \uD53C\uD574 +50%."
+      overrideCost: -1
+      diceInput:
+        diceCount: 1
+        condition: 2
+        value: 4
+        maxValue: 6
+        chargeTarget: 40
+        chargeByDiceCount: 0
+      targetType: 0
+      customVfxName: 
+      usesPerTurn: 1
+      excludeSelf: 0
+      consumeSelfShield: 0
+      special: 0
+      specialCount: 0
+      effects:
+      - type: 24
+        damageType: 0
+        multiplier: 1
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 1
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 1
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 1
+        targetMissingHealthPercent: 0
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 0
+        armorIgnorePercent: 0
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+      - type: 0
+        damageType: 0
+        multiplier: 3
+        fixedValue: 0
+        useActualResult: 0
+        value: 0
+        secondaryValue: 0
+        hitCount: 1
+        duration: 3
+        charges: 3
+        durationType: 0
+        skillSlot: -1
+        statusIcon: {fileID: 0}
+        customVfxName: 
+        multiplierPerDie: 0
+        fixedPerDie: 0
+        valuePerDieDivisor: 0
+        chance: 100
+        chancePerDie: 0
+        minDie: 0
+        statSource: 0
+        targetScope: 0
+        splashAdjacentPercent: 0
+        bonusPercentPerTargetBleed: 0
+        matchedHitCount: 0
+        matchedArmorIgnorePercent: 0
+        focusOnlyThisSkill: 0
+        targetMissingHealthPercent: 30
+        fullHealthDamageBonusPercent: 0
+        belowHalfHealthDamageBonusPercent: 50
+        armorIgnorePercent: 100
+        splashUsesActualDamage: 0
+        splashAllPercent: 0
+  enemyRoleDescription: 
+  damageBonusPerCycle: 0
+  bleedBonusPerCycle: 0
+  enemyPatterns: []
+  enemyRuntimeVariables: []
+  enemyEnhancementIcon: {fileID: 0}
+  defeatGoldBonus: 0
+  returnStolenGoldOnDefeat: 0
+  stolenGoldVariableId: 

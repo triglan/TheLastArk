@@ -14,6 +14,7 @@ public class CharacterEditorWindow : EditorWindow
     private const string ENEMY_DATA_FOLDER = "Assets/Resources/Characters/Enemy/Data";
     private const string ENEMY_ILLUST_FOLDER = "Assets/Resources/Characters/Enemy/Illust";
     private const double SAVE_DELAY_SECONDS = 1.0d;
+    private static readonly string[] PanicArtLabels={"1번 · 강박 / 발작","2번 · 우울 / 무기력","3번 · 동요","4번 · 환각"};
     private const float NavigationWidthRatio = 0.18f;
     private const float OverviewWidthRatio = 0.26f;
     private const float MinimumNavigationWidth = 220f;
@@ -597,18 +598,52 @@ public class CharacterEditorWindow : EditorWindow
 
     private void DrawSpriteSection()
     {
-        EditorGUILayout.BeginHorizontal("helpbox");
         if (!selectedData.isEnemy)
+            selectedData.useStandingPortrait=EditorGUILayout.Toggle("기본 일러스트로 초상화",selectedData.useStandingPortrait);
+        EditorGUILayout.BeginHorizontal("helpbox");
+        if (!selectedData.isEnemy && !selectedData.useStandingPortrait)
             selectedData.portraitSprite = (Sprite)EditorGUILayout.ObjectField("초상화", selectedData.portraitSprite, typeof(Sprite), false, GUILayout.Height(60));
         selectedData.standingSprite = (Sprite)EditorGUILayout.ObjectField("Standing", selectedData.standingSprite, typeof(Sprite), false, GUILayout.Height(60));
         EditorGUILayout.EndHorizontal();
         if (selectedData.isEnemy) DrawEnemyIllustrationLayout();
         else
         {
+            if (selectedData.useStandingPortrait)
+            {
+                selectedData.portraitFocus=new Vector2(EditorGUILayout.Slider("얼굴 좌우",selectedData.portraitFocus.x,0,1),EditorGUILayout.Slider("얼굴 높이",selectedData.portraitFocus.y,0,1));
+                selectedData.portraitZoom=EditorGUILayout.Slider("초상화 확대",selectedData.portraitZoom,1,8);
+                if (GUILayout.Button("얼굴 위치 초기화"))
+                {
+                    Undo.RecordObject(selectedData,"초상화 얼굴 위치 초기화");
+                    selectedData.portraitFocus=new Vector2(.53f,.85f);
+                    selectedData.portraitZoom=3f;
+                    GUI.changed=true;
+                }
+                TheLastArk.Editor.CharacterPortraitPreview.Draw(selectedData);
+            }
             var serialized = new SerializedObject(selectedData);
             serialized.Update();
-            EditorGUILayout.PropertyField(serialized.FindProperty("panicIllustrations"), new GUIContent("패닉 일러스트"), true);
-            serialized.ApplyModifiedProperties();
+            EditorGUILayout.LabelField("패닉 일러스트",EditorStyles.boldLabel);
+            var pictures=serialized.FindProperty("panicIllustrations");
+            for(int i=0;i<PanicArtLabels.Length;i++)
+            {
+                var current=i<pictures.arraySize ? pictures.GetArrayElementAtIndex(i).objectReferenceValue as Sprite : null;
+                EditorGUI.BeginChangeCheck();
+                var next=(Sprite)EditorGUILayout.ObjectField(PanicArtLabels[i],current,typeof(Sprite),false);
+                if (!EditorGUI.EndChangeCheck()) continue;
+                while(pictures.arraySize<=i)
+                {
+                    pictures.arraySize++;
+                    pictures.GetArrayElementAtIndex(pictures.arraySize-1).objectReferenceValue=null;
+                }
+                pictures.GetArrayElementAtIndex(i).objectReferenceValue=next;
+            }
+            if (serialized.ApplyModifiedProperties()) MarkDirtyAndSave(selectedData);
+            if (GUILayout.Button("폴더에서 1~4번 연결"))
+            {
+                Undo.RecordObject(selectedData,"패닉 일러스트 연결");
+                TheLastArk.Editor.PanicIllustrationImporter.Bind(selectedData,true);
+            }
         }
     }
 
@@ -913,6 +948,7 @@ public class CharacterEditorWindow : EditorWindow
         EditorGUILayout.BeginVertical("box");
         skill.skillName = EditorGUILayout.TextField("스킬 이름", skill.skillName);
         skill.skillIcon = (Sprite)EditorGUILayout.ObjectField("아이콘", skill.skillIcon, typeof(Sprite), false);
+        if (isPassive) skill.passiveTrait = (PassiveTrait)EditorGUILayout.EnumPopup("패시브 규칙", skill.passiveTrait);
         if (!isPassive) skill.baseCost = EditorGUILayout.IntField("기본 비용", skill.baseCost);
         EnsureSkillLevels(skill);
         for (int i = 0; i < skill.levels.Length; i++)
@@ -920,6 +956,14 @@ public class CharacterEditorWindow : EditorWindow
             SkillLevelData level = skill.levels[i];
             EditorGUILayout.BeginVertical("helpbox");
             EditorGUILayout.LabelField($"{i + 1}단계", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField("스킬 설명", EditorStyles.miniLabel);
+            level.description = EditorGUILayout.TextArea(level.description ?? "", GUILayout.MinHeight(38));
+            if (isPassive && skill.passiveTrait == PassiveTrait.MarksmanEye)
+            {
+                if (level.effects.Count == 0) level.effects.Add(new EffectEntry());
+                level.effects[0].value = EditorGUILayout.FloatField("치명타 확률 증가 (%p)", level.effects[0].value);
+                level.effects[0].secondaryValue = EditorGUILayout.FloatField("치명타 피해 증가 (%p)", level.effects[0].secondaryValue);
+            }
             if (!isPassive)
             {
                 level.overrideCost = EditorGUILayout.IntField("비용 변경 (기존 AP)", level.overrideCost);
@@ -935,7 +979,7 @@ public class CharacterEditorWindow : EditorWindow
                     dice.chargeByDiceCount = EditorGUILayout.Toggle("눈금 대신 개수 충전", dice.chargeByDiceCount);
             }
             level.targetType = (TargetType)EditorGUILayout.EnumPopup("대상", level.targetType);
-            DrawEffectList(level.effects);
+            if (!isPassive || skill.passiveTrait != PassiveTrait.MarksmanEye) DrawEffectList(level.effects);
             level.targetType = ForceSingleTauntTarget(level.targetType, level.effects);
             EditorGUILayout.EndVertical();
         }
@@ -1512,8 +1556,32 @@ public class CharacterEditorWindow : EditorWindow
             }
             GUILayout.Label("결과", GUILayout.Width(32));
             effect.useActualResult = EditorGUILayout.Toggle(effect.useActualResult, GUILayout.Width(20));
-            if (GUILayout.Button("X", GUILayout.Width(20))) { effects.RemoveAt(i); break; }
+            bool remove = GUILayout.Button("X", GUILayout.Width(20));
             EditorGUILayout.EndHorizontal();
+            if (remove) { effects.RemoveAt(i); break; }
+            if (selectedData != null && selectedData.passiveSkill?.passiveTrait == PassiveTrait.MarksmanEye)
+                DrawMarksmanEffectFields(effect);
+        }
+    }
+
+    private static void DrawMarksmanEffectFields(EffectEntry effect)
+    {
+        if (effect.type == EffectType.Damage)
+        {
+            effect.fixedPerDie = EditorGUILayout.FloatField("눈금당 추가 피해", effect.fixedPerDie);
+            effect.targetMissingHealthPercent = EditorGUILayout.FloatField("잃은 체력 계수 (%)", effect.targetMissingHealthPercent);
+            effect.fullHealthDamageBonusPercent = EditorGUILayout.FloatField("최대 체력 대상 추가 피해 (%)", effect.fullHealthDamageBonusPercent);
+            effect.belowHalfHealthDamageBonusPercent = EditorGUILayout.FloatField("절반 미만 대상 추가 피해 (%)", effect.belowHalfHealthDamageBonusPercent);
+            effect.armorIgnorePercent = EditorGUILayout.FloatField("관통 (%)", effect.armorIgnorePercent);
+            effect.splashAdjacentPercent = EditorGUILayout.FloatField("양옆 피해 (%)", effect.splashAdjacentPercent);
+            effect.splashUsesActualDamage = EditorGUILayout.Toggle("양옆 피해는 실제 체력 피해 기준", effect.splashUsesActualDamage);
+            effect.splashAllPercent = EditorGUILayout.FloatField("모든 적 추가 피해 (%)", effect.splashAllPercent);
+        }
+        else if (effect.type == EffectType.Evasion)
+        {
+            effect.charges = Mathf.Max(0, EditorGUILayout.IntField("기본 회피 횟수", effect.charges));
+            effect.valuePerDieDivisor = Mathf.Max(1, EditorGUILayout.IntField("눈금 몇마다 회피 1회", effect.valuePerDieDivisor));
+            effect.secondaryValue = EditorGUILayout.Toggle("정신 피해도 회피", effect.secondaryValue > 0f) ? 1f : 0f;
         }
     }
 

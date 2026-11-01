@@ -5,7 +5,7 @@ namespace TheLastArk.UI
     /// <summary>Battle-only spacing; the shared exploration HUD keeps its map layout.</summary>
     public static class BattleHudLayout
     {
-        public const float TrayHeight = 216f;
+        public const float TrayHeight = 324f;
         public const float TrayWidth = 1320f;
         public const float SkillSize = 84f;
 
@@ -40,13 +40,18 @@ namespace TheLastArk.UI
 
             var tray = canvas.Find("BattleSkillTray") as RectTransform;
             if (tray == null) return;
+            var trayImage = tray.GetComponent<UnityEngine.UI.Image>();
+            if (trayImage != null) trayImage.raycastTarget = true;
             tray.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, TrayWidth);
-            tray.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, TrayHeight);
+            tray.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, diceMode ? TrayHeight : 216f);
+            FitTrayToCanvas(tray, canvas as RectTransform);
             ApplySkillGrid(tray, diceMode);
             // The battle tray displays the dice themselves; the old AP/count card is redundant.
             tray.Find("ActionPoints")?.gameObject.SetActive(false);
-            Set(tray, "CommandDivider", new Vector2(-124f, 0f), height: 180f);
-            Set(tray, "TurnEndButton", new Vector2(-62f, 100f), scale: 0.9f);
+            Set(tray, "CommandDivider", new Vector2(-140f, 0f), height: diceMode ? 292f : 184f);
+            Set(tray, "TurnEndButton", new Vector2(-70f, 70f), scale: 0.85f);
+            var clock = canvas.GetComponentInChildren<BattleTurnClock>(true);
+            if (clock != null) clock.DockToTray(tray);
             var accent = tray.Find("TrayAccent") as RectTransform;
             if (accent != null) accent.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, TrayWidth);
             var turn = tray.Find("TurnEndButton");
@@ -65,6 +70,14 @@ namespace TheLastArk.UI
             }
         }
 
+        public static void FitTrayToCanvas(RectTransform tray, RectTransform canvas)
+        {
+            if (tray == null || canvas == null || canvas.rect.height <= 0f) return;
+            // Preserve the ally column when a narrower viewport has less horizontal space.
+            float scale = Mathf.Min(1f, (canvas.rect.width / canvas.rect.height) / (16f / 9f));
+            tray.localScale = Vector3.one * scale;
+        }
+
         public static void ApplySkillGrid(Transform tray, bool diceMode)
         {
             var grid = tray.Find("SkillGrid") as RectTransform;
@@ -72,12 +85,12 @@ namespace TheLastArk.UI
             grid.anchorMin = grid.anchorMax = Vector2.zero;
             grid.pivot = Vector2.zero;
             grid.anchoredPosition = new Vector2(18f, 6f);
-            grid.sizeDelta = new Vector2(diceMode ? 756f : 1152f, 204f);
+            grid.sizeDelta = new Vector2(1152f, 204f);
             var row = grid.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>();
             if (row != null) row.spacing = 12f;
             foreach (var group in grid.GetComponentsInChildren<UnityEngine.UI.GridLayoutGroup>(true))
             {
-                float width = diceMode ? 180f : 279f;
+                float width = 279f;
                 var rect = group.transform as RectTransform;
                 rect.sizeDelta = new Vector2(width, 204f);
                 group.cellSize = Vector2.one * SkillSize;

@@ -73,6 +73,7 @@ public class ActiveStatusEffect
 
     public string GetDurationText()
     {
+        if (effectType == EffectType.Evasion) return $"{remainingCharges}회 · 다음 자기 턴까지";
         switch (durationType)
         {
             case StatusDurationType.Permanent: return "영구";
@@ -101,6 +102,7 @@ public class ActiveStatusEffect
             case EffectType.Counter: return "반격";
             case EffectType.Taunt: return "도발";
             case EffectType.Focus: return "집중";
+            case EffectType.Evasion: return "회피";
             case EffectType.HuntMark: return "사냥 표식";
             case EffectType.DiceBoost: return "눈금 강화";
             case EffectType.Bleed: return "출혈";

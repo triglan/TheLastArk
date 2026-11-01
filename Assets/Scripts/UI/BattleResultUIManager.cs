@@ -108,7 +108,7 @@ namespace UI
             if (ResourceManager.Instance != null && ResourceManager.Instance.EquipmentLoadouts?.characters != null
                 && ResourceManager.Instance.EquipmentLoadouts.characters.Exists(c => c.slots != null && System.Array.Exists(c.slots, e => e != null && e.equipmentID == "GreedCrown")))
                 goldMultiplier += 0.2f;
-            // [미라주] 시너지: 획득 골드 증가 (골드만)
+            // [신기루] 시너지: 획득 골드 증가 (골드만)
             var synergyConfig = SynergyBalanceConfig.Instance;
             if (synergyConfig != null)
                 goldMultiplier += SynergyBalanceConfig.At(synergyConfig.mirageGoldPercent, TheLastArk.Character.SynergyEffects.Tier(SynergyType.Mirage)) * 0.01f;

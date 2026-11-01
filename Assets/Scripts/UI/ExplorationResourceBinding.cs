@@ -32,9 +32,9 @@ namespace TheLastArk.UI
                 BindButton(slot, () => { var battle = FindObjectOfType<BattleManager>(); if (battle != null) battle.SelectConsumable(index); });
             }
             var buttons = hud.Find("ManagementIcons");
-            BindButton(buttons.Find("TopBarIcon_기차"), () => ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Train));
-            BindButton(buttons.Find("TopBarIcon_캐릭터"), () => ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Character));
-            BindButton(buttons.Find("TopBarIcon_가방"), () => ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Inventory));
+            BindButton(buttons.Find("TopBarIcon_기차"), () => ManagementUIManager.Instance.Toggle(ManagementUIManager.TabType.Train));
+            BindButton(buttons.Find("TopBarIcon_캐릭터"), () => ManagementUIManager.Instance.Toggle(ManagementUIManager.TabType.Character));
+            BindButton(buttons.Find("TopBarIcon_가방"), () => ManagementUIManager.Instance.Toggle(ManagementUIManager.TabType.Inventory));
             BindButton(buttons.Find("TopBarIcon_설정"), () => ManagementUIManager.Instance.ShowSettingsPopup());
             var mapButton = buttons.Find("BattleMapButton");
             if (mapButton == null) mapButton = parent.Find("BattleMapButton");

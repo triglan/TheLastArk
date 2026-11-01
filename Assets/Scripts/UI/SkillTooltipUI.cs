@@ -95,6 +95,7 @@ namespace TheLastArk.UI
             EnsureUI();
 
             int skillLevelIdx = status != null ? status.SkillLevelIndex : 0;
+            if (skill.passiveTrait != PassiveTrait.None) skillLevelIdx = status != null && status.IsTraitAwakened ? 1 : 0;
             SkillLevelData currentLevelData = (skill.levels != null && skill.levels.Length > 0) ? 
                 skill.levels[Mathf.Clamp(skillLevelIdx, 0, skill.levels.Length - 1)] : null;
 
@@ -113,7 +114,9 @@ namespace TheLastArk.UI
             float atk = status != null ? status.FinalAttack : 10f;
             float spellPower = status != null ? status.FinalSpellPower : 0f;
 
-            if (currentLevelData != null && currentLevelData.effects != null && currentLevelData.effects.Count > 0)
+            if (!string.IsNullOrEmpty(currentLevelData?.description))
+                descSb.AppendLine(currentLevelData.description);
+            else if (currentLevelData != null && currentLevelData.effects != null && currentLevelData.effects.Count > 0)
             {
                 foreach (var effect in currentLevelData.effects)
                 {

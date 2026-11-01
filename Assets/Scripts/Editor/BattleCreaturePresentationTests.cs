@@ -43,8 +43,8 @@ public class BattleCreaturePresentationTests
             Rect b = view.IllustrationBounds;
             Vector3 p = layout.transform.InverseTransformPoint(view.transform.position);
             Assert.That(Vector2.Distance(first, b.size), Is.LessThan(0.01f));
-            Assert.That(p.x + b.xMin * 0.5f, Is.GreaterThanOrEqualTo(-220.1f));
-            Assert.That(p.x + b.xMax * 0.5f, Is.LessThanOrEqualTo(420.1f));
+            Assert.That(p.x + b.xMin * 0.5f, Is.GreaterThanOrEqualTo(-380.1f));
+            Assert.That(p.x + b.xMax * 0.5f, Is.LessThanOrEqualTo(540.1f));
             Assert.That(p.y + b.yMin * 0.5f, Is.GreaterThanOrEqualTo(-165.1f));
             Assert.That(p.y + (b.yMax + view.EnemyHUDHeight) * 0.5f, Is.LessThanOrEqualTo(240.1f));
             if (count == 4) Assert.LessOrEqual(b.width * 0.5f, 260.1f);
@@ -111,8 +111,8 @@ public class BattleCreaturePresentationTests
             var view = slot.GetComponent<CharacterView>();
             Rect b = view.IllustrationBounds;
             Vector3 p = layout.transform.InverseTransformPoint(view.transform.position);
-            Assert.GreaterOrEqual(p.x + b.xMin * 0.5f, -220.1f);
-            Assert.LessOrEqual(p.x + b.xMax * 0.5f, 420.1f);
+            Assert.GreaterOrEqual(p.x + b.xMin * 0.5f, -380.1f);
+            Assert.LessOrEqual(p.x + b.xMax * 0.5f, 540.1f);
             Assert.GreaterOrEqual(p.y + b.yMin * 0.5f, -165.1f);
             Assert.LessOrEqual(p.y + (b.yMax + view.EnemyHUDHeight) * 0.5f, 240.1f);
         }

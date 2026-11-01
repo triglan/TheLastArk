@@ -1108,6 +1108,7 @@ tmp.color = Color.white;
         mapData.currentNode = targetNode;
         mapData.currentNodeId = targetNode.id;
         targetNode.isVisited = true;
+        TheLastArk.Run.ArkProgression.RecordVisit(targetNode.floor);
         currentTurn++;
 
         if (RunManager.Instance != null)

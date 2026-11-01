@@ -191,6 +191,7 @@ namespace TheLastArk.UI
             }
             StyleCrewSkills(detail);
             StyleCrewActions(root);
+            RefreshArkFeatureVisibility();
         }
 
         private void StyleCrewCard(Transform card, CharacterData data, bool selected)
@@ -223,6 +224,7 @@ namespace TheLastArk.UI
             var portrait = card.Find("Portrait");
             CrewRect(portrait,0,0,1,1);
             var portraitImage = portrait.GetComponent<UnityEngine.UI.Image>();
+            portraitImage.sprite = data.PortraitSprite;
             portraitImage.color = portraitImage.sprite != null ? Color.white : Color.clear;
             portraitImage.preserveAspect = false;
             var missing = CrewLabel(card,"PortraitPlaceholder","준비 중",18,CrewMuted,.08f,.25f,.92f,.9f,TextAlignmentOptions.Center);
@@ -323,7 +325,7 @@ namespace TheLastArk.UI
         private void StyleCrewActions(Transform root)
         {
             StyleCrewAction(root.Find("BackButton"),"메인 화면",new Color(.055f,.10f,.14f,.96f),CrewWhite,.04f,.035f,.19f,.102f);
-            StyleCrewAction(root.Find("RelicGachaButton"),"특전 유물 소환",new Color(.10f,.16f,.20f,.98f),CrewWhite,.545f,.035f,.73f,.102f);
+            StyleCrewAction(root.Find("RelicGachaButton"),"방주 유물 소환",new Color(.10f,.16f,.20f,.98f),CrewWhite,.545f,.035f,.73f,.102f);
             StyleCrewAction(root.Find("ConfirmStartButton"),"여정 시작  ›",CrewGold,new Color(.07f,.09f,.105f,1),.745f,.035f,.96f,.102f);
             var relic=root.Find("DrawnRelicSlot");
             CrewRect(relic,.493f,.035f,.535f,.102f);

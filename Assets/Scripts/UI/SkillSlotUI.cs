@@ -24,6 +24,7 @@ namespace UI
         private BattleManager _battle;
         private GameObject _diceBorder;
         private TextMeshProUGUI _frostPreview;
+        private TextMeshProUGUI _fallbackLabel;
 
         private static Color ReasonColor(string reason)
         {
@@ -202,6 +203,23 @@ namespace UI
                     {
                         iconImage.sprite = null;
                         iconImage.color = new Color(0.2f, 0.4f, 0.65f, 0.9f); // 아이콘 없을 시 깔끔한 파란 배경
+                    }
+                    if (skill.skillIcon == null && nameText == null && _fallbackLabel == null)
+                    {
+                        var labelObject=new GameObject("FallbackLabel",typeof(RectTransform),typeof(TextMeshProUGUI));
+                        labelObject.transform.SetParent(iconImage.transform,false);
+                        _fallbackLabel=labelObject.GetComponent<TextMeshProUGUI>();
+                        _fallbackLabel.rectTransform.anchorMin=new Vector2(.04f,.24f);
+                        _fallbackLabel.rectTransform.anchorMax=new Vector2(.96f,.92f);
+                        _fallbackLabel.rectTransform.offsetMin=_fallbackLabel.rectTransform.offsetMax=Vector2.zero;
+                        TMPFontManager.ApplyFont(_fallbackLabel);_fallbackLabel.fontSize=18;
+                        _fallbackLabel.enableAutoSizing=true;_fallbackLabel.fontSizeMin=12;_fallbackLabel.fontSizeMax=18;
+                        _fallbackLabel.alignment=TextAlignmentOptions.Center;_fallbackLabel.raycastTarget=false;
+                    }
+                    if (_fallbackLabel != null)
+                    {
+                        _fallbackLabel.gameObject.SetActive(skill.skillIcon == null && nameText == null);
+                        _fallbackLabel.text=skill.skillName;
                     }
                 }
             }

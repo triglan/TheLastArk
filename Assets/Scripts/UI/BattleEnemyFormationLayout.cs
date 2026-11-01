@@ -5,19 +5,21 @@ namespace TheLastArk.UI
 {
     public sealed class BattleEnemyFormationLayout : MonoBehaviour
     {
-        private const float CenterX = 0.60f;
+        private const float CenterX = 0.62f;
         private const float FrontBaseline = 0.225f;
         private const float BackRowDepth = 0.045f;
-        private const float LeftBoundary = 0.28f;
-        private const float RightBoundary = 0.92f;
+        private const float LeftBoundary = 0.12f;
+        private const float RightBoundary = 1.04f;
         private const float HudCeiling = 0.90f;
         private EnemyBattleCharacter[] slots;
         private RectTransform canvas;
+        private RectTransform commandTray;
+        private RectTransform commandCanvas;
         private int previousHash;
         private readonly List<CharacterView> visible = new List<CharacterView>(4);
         public IReadOnlyList<EnemyBattleCharacter> Slots => slots;
 
-        public void Initialize(Transform enemyParent)
+        public void Initialize(Transform enemyParent, RectTransform battleTray = null)
         {
             slots = enemyParent.GetComponentsInChildren<EnemyBattleCharacter>(true);
             canvas = enemyParent.GetComponentInParent<Canvas>()?.rootCanvas.transform as RectTransform;
@@ -28,6 +30,8 @@ namespace TheLastArk.UI
                 if (allies != null) LiftGraphics(allies, order + 20);
                 var controls = GameObject.Find("TopBarCanvas")?.GetComponent<Canvas>();
                 if (controls != null) controls.sortingOrder = Mathf.Max(controls.sortingOrder, order + 30);
+                commandTray = battleTray;
+                commandCanvas = battleTray != null ? battleTray.GetComponentInParent<Canvas>()?.rootCanvas.transform as RectTransform : null;
             }
             Refresh();
         }
@@ -63,7 +67,7 @@ namespace TheLastArk.UI
         public static float NormalizedX(int index, int count)
         {
             if (count <= 1) return CenterX;
-            float span = count == 2 ? 0.18f : count == 3 ? 0.24f : 0.28f;
+            float span = count == 2 ? 0.30f : count == 3 ? 0.42f : 0.50f;
             return CenterX - span * 0.5f + span * index / (count - 1);
         }
 
@@ -73,9 +77,9 @@ namespace TheLastArk.UI
         public static float CreatureX(int index, int count)
         {
             if (count <= 1) return CenterX;
-            if (count == 2) return index == 0 ? 0.48f : 0.72f;
-            if (count == 3) return index == 0 ? 0.46f : index == 1 ? 0.62f : 0.78f;
-            return (index < 2 ? 0.46f : 0.76f) + (index % 2 == 1 ? 0.03f : 0f);
+            if (count == 2) return index == 0 ? 0.43f : 0.81f;
+            if (count == 3) return index == 0 ? 0.38f : index == 1 ? 0.62f : 0.86f;
+            return (index < 2 ? 0.39f : 0.80f) + (index % 2 == 1 ? 0.025f : 0f);
         }
 
         public static float CreatureBaseline(int index, int count) => FrontBaseline
@@ -84,6 +88,7 @@ namespace TheLastArk.UI
         public void Refresh()
         {
             if (slots == null || canvas == null) return;
+            BattleHudLayout.FitTrayToCanvas(commandTray, commandCanvas);
             visible.Clear();
             foreach (var slot in slots)
                 if (IsVisible(slot))
@@ -95,6 +100,11 @@ namespace TheLastArk.UI
             foreach (var view in visible)
                 if (TheLastArk.Character.EnemyIllustrationLayout.UsesCreatureLayout(view.GetComponent<EnemyBattleCharacter>().CurrentStatus.origin)) creatureCount++;
             bool mixedFormation = creatureCount > 0 && creatureCount < visible.Count;
+            // Reserve the foot-status strip above the command tray, independent of status count.
+            float front = commandTray != null && commandCanvas != null
+                ? Mathf.Max(FrontBaseline, (commandTray.anchoredPosition.y + commandTray.rect.height * commandTray.localScale.y + 68f) / commandCanvas.rect.height)
+                : FrontBaseline;
+            float floorOffset = front - FrontBaseline;
             for (int i = 0; i < visible.Count; i++)
             {
                 var view = visible[i];
@@ -105,14 +115,12 @@ namespace TheLastArk.UI
                 float sx = Mathf.Abs(view.transform.lossyScale.x / canvas.lossyScale.x);
                 float sy = Mathf.Abs(view.transform.lossyScale.y / canvas.lossyScale.y);
                 float x = creature && !mixedFormation ? CreatureX(i, visible.Count) : NormalizedX(i, visible.Count);
-                if (mixedFormation) x = CenterX - 0.18f + 0.36f * i / (visible.Count - 1);
+                if (mixedFormation) x = NormalizedX(i, visible.Count);
                 // Overlap between rows is intentional. Fit the battlefield, not four narrow cells.
                 // Every slot uses the same envelope: edge slots must not shrink identical art.
-                float width = visible.Count == 1 ? canvas.rect.width * 0.60f * 0.88f
-                    : canvas.rect.width * 2f * Mathf.Min(NormalizedX(0, visible.Count) - LeftBoundary,
-                        RightBoundary - NormalizedX(visible.Count - 1, visible.Count));
-                float height = canvas.rect.height * (HudCeiling - NormalizedBaseline(visible.Count > 1 ? 1 : 0, visible.Count));
-                float baseline = NormalizedBaseline(i, visible.Count);
+                float width = canvas.rect.width * (visible.Count == 1 ? 0.60f : 0.44f);
+                float height = canvas.rect.height * (HudCeiling - NormalizedBaseline(visible.Count > 1 ? 1 : 0, visible.Count) - floorOffset);
+                float baseline = NormalizedBaseline(i, visible.Count) + floorOffset;
                 if (creature && mixedFormation)
                 {
                     // A landscape illustration (horse, cape, long weapon) is not a small creature.
@@ -123,8 +131,8 @@ namespace TheLastArk.UI
                 else if (creature && visible.Count > 1)
                 {
                     width = canvas.rect.width * (visible.Count == 2 ? 0.32f : visible.Count == 3 ? 0.28f : 0.26f);
-                    baseline = CreatureBaseline(i, visible.Count);
-                    height = canvas.rect.height * (HudCeiling - CreatureBaseline(1, visible.Count));
+                    baseline = CreatureBaseline(i, visible.Count) + floorOffset;
+                    height = canvas.rect.height * (HudCeiling - CreatureBaseline(1, visible.Count) - floorOffset);
                 }
                 if (bounds.width > 0f) fit = Mathf.Min(fit, width / (bounds.width * sx));
                 if (bounds.height > 0f) fit = Mathf.Min(fit, (height - view.EnemyHUDHeight * sy) / (bounds.height * sy));
@@ -135,9 +143,10 @@ namespace TheLastArk.UI
                 bounds = view.IllustrationBounds;
                 x = Mathf.Clamp(x, canvas.rect.xMin + canvas.rect.width * LeftBoundary - bounds.xMin * sx,
                     canvas.rect.xMin + canvas.rect.width * RightBoundary - bounds.xMax * sx);
-                y = Mathf.Clamp(y, canvas.rect.yMin + canvas.rect.height * FrontBaseline - bounds.yMin * sy,
+                y = Mathf.Clamp(y, canvas.rect.yMin + canvas.rect.height * front - bounds.yMin * sy,
                     canvas.rect.yMin + canvas.rect.height * HudCeiling - (bounds.yMax + view.EnemyHUDHeight) * sy);
                 view.transform.position = canvas.TransformPoint(new Vector3(x, y, 0f));
+                view.RefreshEnemyHUDLayout();
                 if (view.displayImage != null && view.displayImage.GetComponent<EnemyIllustrationRaycastFilter>() == null)
                     view.displayImage.gameObject.AddComponent<EnemyIllustrationRaycastFilter>();
                 // These UI combatants use their drawn artwork and bars for both clicks and hover.
@@ -155,6 +164,7 @@ namespace TheLastArk.UI
         {
             // Back-row bodies may be occluded, but their bars and intent remain selectable.
             int order = canvas.GetComponent<Canvas>().sortingOrder + 10;
+            if (view.displayImage != null) LiftGraphics(view.displayImage.transform, order - 9);
             foreach (Transform child in view.transform)
             {
                 if (view.displayImage != null && child == view.displayImage.transform) continue;

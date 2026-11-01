@@ -141,7 +141,7 @@ public partial class BattleManager
             }
         }
 
-        // 미라주: support from the real party's jobs.
+        // 신기루: support from the real party's jobs.
         var jobs = SynergyEffects.PartyJobs();
         int mirage = Tier(SynergyType.Mirage);
         if (mirage > 0)
@@ -275,7 +275,7 @@ public partial class BattleManager
             if (value > 0) actor.GainShield(value * multiplier, actor);
     }
 
-    /// <summary>서포터: an ally helped by a 서포터's active gains sanity (per target, per player turn; 힐링 말랑이 2×).</summary>
+    /// <summary>지원가: an ally helped by a 지원가's active gains sanity (per target, per player turn; 힐링 말랑이 2×).</summary>
     public void GrantSupportMental(BattleCharacter target)
     {
         var config = SynergyConfig;
@@ -325,12 +325,12 @@ public partial class BattleManager
         _carryMarks.Clear();
     }
 
-    // ── 미라주 gold die ───────────────────────────────────────────────────
+    // ── 신기루 gold die ───────────────────────────────────────────────────
 
     public bool CanBuyGoldDie => UsesDice && IsPlayerTurn && !_goldDieUsedThisTurn && Tier(SynergyType.Mirage) > 0 && SynergyConfig != null;
     public int GoldDieCost => SynergyConfig != null ? SynergyConfig.mirageGoldDiceCost : 0;
 
-    /// <summary>미라주: spend gold for one extra D6 (once per turn, storage cap applies).</summary>
+    /// <summary>신기루: spend gold for one extra D6 (once per turn).</summary>
     public bool TryBuyGoldDie()
     {
         if (!CanBuyGoldDie) return false;

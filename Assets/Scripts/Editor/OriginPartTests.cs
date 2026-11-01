@@ -12,7 +12,7 @@ public class OriginPartTests
 {
     private const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
     private readonly List<Object> _owned = new List<Object>();
-    private object _priorResources, _priorRun, _priorTrain;
+    private object _priorResources, _priorRun, _priorTrain, _priorNotifications;
     private RunManager _run;
     private TrainManager _train;
     private TrainCar _car;
@@ -28,9 +28,11 @@ public class OriginPartTests
         _priorResources = StaticField(typeof(ResourceManager), "instance").GetValue(null);
         _priorRun = StaticField(typeof(RunManager), "_instance").GetValue(null);
         _priorTrain = StaticField(typeof(TrainManager), "instance").GetValue(null);
+        _priorNotifications = StaticField(typeof(NotificationManager), "instance").GetValue(null);
         var go = Own(new GameObject("OriginPartTest")); go.SetActive(false);
         var resources = go.AddComponent<ResourceManager>();
         _run = go.AddComponent<RunManager>();
+        StaticField(typeof(NotificationManager), "instance").SetValue(null, go.AddComponent<NotificationManager>());
         _train = Own(new GameObject("OriginPartTrain")).AddComponent<TrainManager>();
         StaticField(typeof(ResourceManager), "instance").SetValue(null, resources);
         StaticField(typeof(RunManager), "_instance").SetValue(null, _run);
@@ -50,6 +52,7 @@ public class OriginPartTests
         StaticField(typeof(ResourceManager), "instance").SetValue(null, _priorResources);
         StaticField(typeof(RunManager), "_instance").SetValue(null, _priorRun);
         StaticField(typeof(TrainManager), "instance").SetValue(null, _priorTrain);
+        StaticField(typeof(NotificationManager), "instance").SetValue(null, _priorNotifications);
     }
 
     private void Unlock(string partId, int level, bool equip = true)
@@ -268,6 +271,20 @@ public class OriginPartTests
     }
 
     [Test]
+    public void LargeDicePoolHasScrollableViewsForEveryDie()
+    {
+        Battle(4);StartTurn();Pool.Roll(64);
+        var canvas=Own(new GameObject("LargeDiceCanvas",typeof(RectTransform),typeof(Canvas)));
+        var ui=_battle.gameObject.AddComponent<BattleDiceUI>();ui.Initialize(_battle,canvas.transform);ui.Refresh(Pool,new List<int>(),null);
+        var tray=canvas.transform.Find("BattleDicePool");var scroll=tray.GetComponent<UnityEngine.UI.ScrollRect>();
+        Assert.AreEqual(Pool.Dice.Count,scroll.content.GetComponentsInChildren<DiceDragSource>().Length);
+        Assert.Greater(scroll.content.rect.width,scroll.viewport.rect.width);
+        Assert.IsTrue(scroll.horizontal);Assert.IsFalse(scroll.vertical);Assert.IsTrue(scroll.horizontalScrollbar.gameObject.activeSelf);
+        int count=Pool.Dice.Count;Assert.IsTrue(Pool.TrySpend(new[]{Pool.Dice[20].Id}));ui.Refresh(Pool,new List<int>(),null);
+        Assert.AreEqual(count-1,scroll.content.GetComponentsInChildren<DiceDragSource>().Length);
+    }
+
+    [Test]
     public void DiceTrayShowsActualValueAndModifierBadge()
     {
         Unlock(TrainPartDatabase.HighEnergyId, 3);
@@ -280,13 +297,13 @@ public class OriginPartTests
         Transform tray = canvas.transform.Find("BattleDicePool");
         Assert.IsNotNull(tray);
 
-        Transform boosted = tray.Find("Die_1");
+        Transform boosted = tray.Find("Viewport/Content/Die_1");
         Assert.AreEqual("14", boosted.Find("Value").GetComponent<TextMeshProUGUI>().text, "Centre shows the actual value");
         Transform badge = boosted.Find("ModifierBadge");
         Assert.IsTrue(badge.gameObject.activeSelf);
         Assert.AreEqual("+8", badge.Find("Text").GetComponent<TextMeshProUGUI>().text);
 
-        Transform plain = tray.Find("Die_2");
+        Transform plain = tray.Find("Viewport/Content/Die_2");
         Assert.AreEqual("", plain.Find("Value").GetComponent<TextMeshProUGUI>().text, "1-6 use the face sprite");
         Assert.IsFalse(plain.Find("ModifierBadge").gameObject.activeSelf, "Badge hidden when the modifier is 0");
         Object.DestroyImmediate(ui);

@@ -226,21 +226,21 @@ namespace TheLastArk.UI
             CreateTopBarIconButton(mgmtIconsContainer.transform, "TRAIN", "기차",
                 new Color(0.2f, 0.35f, 0.55f, 1f), mainFont, () =>
                 {
-                    ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Train);
+                    ManagementUIManager.Instance.Toggle(ManagementUIManager.TabType.Train);
                 });
 
             // 2) 캐릭터 아이콘
             CreateTopBarIconButton(mgmtIconsContainer.transform, "HERO", "캐릭터",
                 new Color(0.25f, 0.45f, 0.3f, 1f), mainFont, () =>
                 {
-                    ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Character);
+                    ManagementUIManager.Instance.Toggle(ManagementUIManager.TabType.Character);
                 });
 
             // 3) 가방 아이콘
             CreateTopBarIconButton(mgmtIconsContainer.transform, "BAG", "가방",
                 new Color(0.5f, 0.35f, 0.2f, 1f), mainFont, () =>
                 {
-                    ManagementUIManager.Instance.Show(ManagementUIManager.TabType.Inventory);
+                    ManagementUIManager.Instance.Toggle(ManagementUIManager.TabType.Inventory);
                 });
 
             // 4) 환경설정 아이콘 (단독 팝업 호출)

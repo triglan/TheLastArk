@@ -14,7 +14,7 @@ namespace TheLastArk.Character
 
         /// <summary>Test hook: fixed synergy counts instead of the run's party.</summary>
         public static Dictionary<SynergyType, int> OverrideCounts { get; set; }
-        /// <summary>Test hook: fixed real party jobs for 미라주 support.</summary>
+        /// <summary>Test hook: fixed real party jobs for 신기루 support.</summary>
         public static HashSet<SynergyType> OverridePartyJobs { get; set; }
 
         public static SynergyBalanceConfig Config => SynergyBalanceConfig.Instance;
@@ -76,7 +76,7 @@ namespace TheLastArk.Character
         public static bool IsAlly(CharacterStatus status) => status?.origin != null && !status.origin.isEnemy;
         public static bool IsMember(CharacterStatus status, SynergyType type) => IsAlly(status) && status.HasSynergy(type);
 
-        /// <summary>Real party jobs (virtual counts excluded) for 미라주 support.</summary>
+        /// <summary>Real party jobs (virtual counts excluded) for 신기루 support.</summary>
         public static HashSet<SynergyType> PartyJobs()
         {
             if (OverridePartyJobs != null) return OverridePartyJobs;
@@ -148,7 +148,7 @@ namespace TheLastArk.Character
                 modifier.AddDecrease(SynergyBalanceConfig.At(Config.guardianProtectReductionPercent, tier) * 0.01f);
         }
 
-        /// <summary>서포터: received HP healing and shields +%.</summary>
+        /// <summary>지원가: received HP healing and shields +%.</summary>
         public static float SupportReceiveBonus(CharacterStatus receiver)
             => IsAlly(receiver) && Config != null ? SynergyBalanceConfig.At(Config.supportReceivePercent, Tier(SynergyType.Support)) * 0.01f : 0f;
 

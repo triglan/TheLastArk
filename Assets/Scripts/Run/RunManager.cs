@@ -35,7 +35,7 @@ public class RunManager : MonoBehaviour
 
             var go = new GameObject("RunManager");
             _instance = go.AddComponent<RunManager>();
-            DontDestroyOnLoad(go);
+            if (Application.isPlaying) DontDestroyOnLoad(go);
             return _instance;
         }
     }
@@ -45,12 +45,17 @@ public class RunManager : MonoBehaviour
         if (_instance == null)
         {
             _instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (Application.isPlaying) DontDestroyOnLoad(gameObject);
         }
         else if (_instance != this)
         {
             Destroy(gameObject);
         }
+    }
+
+    private void OnDestroy()
+    {
+        if (_instance == this) _instance = null;
     }
 
     // ── 맵 / 진행 상태 ────────────────────────────────────────────
@@ -196,6 +201,10 @@ public class RunManager : MonoBehaviour
         State.leaderCharacterID = State.partyDataIDs.Count > 0
             ? State.partyDataIDs[0]
             : string.Empty;
+        foreach (var status in State.partyStatuses)
+        {
+            State.ApplyArkLeaderBonuses(status);
+        }
     }
 
     // ── 편의 메서드 ───────────────────────────────────────────────
@@ -206,6 +215,17 @@ public class RunManager : MonoBehaviour
         CurrentNode = null;
         CurrentTurn = 0;
         State.Reset();
+        if (Application.isPlaying)
+        {
+            TheLastArk.Run.ArkProgression.BeginRun();
+            State.arkLeaderHealth = TheLastArk.Run.ArkProgression.Amount(TheLastArk.Data.ArkNodeKind.LeaderHealth);
+            State.arkLeaderMental = TheLastArk.Run.ArkProgression.Amount(TheLastArk.Data.ArkNodeKind.LeaderMental);
+            State.arkLeaderArmor = TheLastArk.Run.ArkProgression.Amount(TheLastArk.Data.ArkNodeKind.LeaderArmor);
+            State.arkLeaderMagicResist = TheLastArk.Run.ArkProgression.Amount(TheLastArk.Data.ArkNodeKind.LeaderMagicResist);
+            State.arkLeaderAttack = TheLastArk.Run.ArkProgression.Amount(TheLastArk.Data.ArkNodeKind.LeaderAttack);
+            State.arkLeaderSpellPower = TheLastArk.Run.ArkProgression.Amount(TheLastArk.Data.ArkNodeKind.LeaderSpellPower);
+            State.gold = TheLastArk.Run.ArkProgression.Amount(TheLastArk.Data.ArkNodeKind.StartingGold);
+        }
         CurrentEncounter = null;
         CurrentEncounterPool = null;
         if (TheLastArk.Managers.TrainManager.IsInitialized)
