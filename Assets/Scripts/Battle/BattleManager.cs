@@ -1480,7 +1480,7 @@ public partial class BattleManager : MonoBehaviour
         }
 
         _selection.Clear();
-        // Dice mode keeps a living target selected so the player can keep acting on it.
+        // Dice mode keeps a living enemy target selected so the player can keep acting on it.
         if (targetHandler != null && !(UsesDice && IsKeptTargetAlive())) targetHandler.Deselect(false);
         if (TryEndBattleIfPartyWiped()) return;
         RefreshSkillSlots();
@@ -1502,7 +1502,8 @@ public partial class BattleManager : MonoBehaviour
     {
         BattleCharacter kept = targetHandler != null && targetHandler.target != null
             ? targetHandler.target.GetComponent<BattleCharacter>() : null;
-        return kept != null && kept.status != null && kept.status.currentHp > 0f;
+        // Only enemies stay targeted; an ally picked for a support skill would block the next attack.
+        return kept != null && kept.status != null && kept.status.currentHp > 0f && enemyParty.Contains(kept);
     }
 
     private void TryAutoEndDiceTurn()

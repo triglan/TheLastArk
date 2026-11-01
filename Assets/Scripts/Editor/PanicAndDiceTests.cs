@@ -285,6 +285,29 @@ public class PanicAndDiceTests
         Assert.Less(enemy.status.currentHp, hp);
     }
 
+    [Test] public void SkillKeepsEnemyTargetButClearsAllyTarget()
+    {
+        var actor = Actor(); var ally = Actor(); var enemy = _battle.enemyParty[0];
+        _train.nexusCar.installedModuleId = NexusModuleDatabase.OriginId;
+        var attack = Skill(actor);
+        var support = new SkillInfo { skillName = "지원 스킬", baseCost = 1, levels = new[] {
+            new SkillLevelData { targetType = TargetType.Friendly,
+                diceInput = new DiceInputRule { condition = DiceCondition.Any },
+                effects = new List<EffectEntry> { new EffectEntry { type = EffectType.DiceBoost, value = 2 } } } } };
+        actor.status.dynamicActiveSkill.Add(support);
+        var pool = Pool(3, 3, 3);
+        pool.BeginTurn(3); // a spare die keeps the turn from auto-ending, which would also clear the target
+        _battle.targetHandler = Own(new GameObject("PanicTestArrow")).AddComponent<TargetArrow>();
+
+        _battle.targetHandler.target = enemy.gameObject;
+        Select(0); _battle.SelectSkill(attack, actor);
+        Assert.AreEqual(enemy.gameObject, _battle.targetHandler.target, "A living enemy target is kept");
+
+        _battle.targetHandler.target = ally.gameObject;
+        Select(1); _battle.SelectSkill(support, actor);
+        Assert.IsNull(_battle.targetHandler.target, "An ally target is cleared after the skill");
+    }
+
     [Test] public void ChargePersistsAcrossTurnsAndCountTypeCountsZero()
     {
         var actor = Actor(); var skill = ChargeSkill(actor, 3, true);
